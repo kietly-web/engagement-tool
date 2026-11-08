@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 08/11/2026 (ET-4). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
+Last updated: 08/11/2026 (ET-5). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
 
 ## Where we are
 
@@ -9,19 +9,20 @@ Last updated: 08/11/2026 (ET-4). Update in every slice PR. Read after `CLAUDE.md
 | ET-1 Kickoff (rules, discovery, ADR-001–007, design 00/01/03/07/08, CI guardrails) | Done, [PR #1](https://github.com/kietly-web/engagement-tool/pull/1) |
 | ET-2 Repo skeleton (workspace, six packages, Hono Worker, dashboard and overlay hello pages, `pnpm check`) | Done, [PR #2](https://github.com/kietly-web/engagement-tool/pull/2); runs locally, not deployed yet |
 | ET-3 Command engine (normalisation, `!vote`/`!join` parser, polls, synthetic chat; `05-domain-engine.md`) | Done, [PR #3](https://github.com/kietly-web/engagement-tool/pull/3) |
-| ET-4 Database foundation (tenancy migration, forced RLS, role-derived policies, `withWorkspace`, PGlite isolation suite; `02-data-model.md`; Q-T2 decided) | In review on branch `ET-4-database-foundation`; not applied to Neon yet |
+| ET-4 Database foundation (tenancy migration, forced RLS, role-derived policies, `withWorkspace`, PGlite isolation suite; `02-data-model.md`; Q-T2 decided) | Done, [PR #4](https://github.com/kietly-web/engagement-tool/pull/4); not applied to Neon yet |
+| ET-5 Google sign-in (OAuth + PKCE, encrypted refresh token, sessions, disconnect, export, account deletion, Vietnamese dashboard) | In review on branch `ET-5-google-sign-in`; tested against a fake Google; **not verified with real Google** |
 
 ## Next
 
-**ET-5 Google sign-in and workspace** (FR-01, FR-09, US-01, US-08): OAuth with PKCE in `apps/worker`, ID-token verification, `app.upsert_member` + `app.create_workspace`, encrypted refresh token, `__Host-` session cookie with hashed session IDs, disconnect = revoke + scheduled deletion, account export/delete, the `HYPERDRIVE` binding. Needs the security review. The code and its tests can be built now with a fake Google endpoint. **Verifying it end to end needs the owner's setup:** Google Cloud project, consent screen and OAuth client, Neon project, migrations applied, `app_worker` role, Hyperdrive, and the Worker secrets (SETUP §1, P0 rows).
+**Blocked on the owner's setup** (SETUP §0–1, P0 rows): Cloudflare account and Workers Builds; Neon project, migrations, `app_worker`, Hyperdrive (caching disabled); Google Cloud project, consent screen (Testing, beta users as test users) and OAuth client; Worker secrets `GOOGLE_CLIENT_SECRET`, `TOKEN_ENCRYPTION_KEY`, `SESSION_SECRET`. Then send Claude the Hyperdrive ID and Google client ID to put in `wrangler.jsonc`, and click through sign-in once.
 
-Deploying the Worker needs the owner's Cloudflare account and Workers Builds connection (SETUP §1, first two rows); it can happen any time.
+**ET-6 LiveSession and ChatSource** (FR-03, FR-11, NFR-QUOTA, NFR-REL, R1) starts with a spike against a real live stream: `streamList` with `youtube.readonly` from a Durable Object (Q-T1). That needs the setup above plus a test live stream on the owner's channel. The fake-source parts (DO skeleton, quota ledger, start/stop API) could be built earlier if the owner prefers.
 
 ## Open PRs
 
 | PR | What | Action |
 | --- | --- | --- |
-| ET-4 | Database foundation | Merge when CI is green and review findings are fixed |
+| ET-5 | Google sign-in | Merge when CI is green and review findings are fixed |
 
 ## Waiting on the owner
 
@@ -59,6 +60,9 @@ Everything not done lives in [SETUP.md](SETUP.md), with priorities and exact ste
 - `node` runs `packages/db/scripts/*.ts` directly (Node 24 type stripping), so those imports need explicit `.ts` extensions.
 - Stack reviewed 08/11/2026 against current free tiers: Supabase replaced by Neon (no inactivity pause), YouTube chat read with `streamList` instead of polling (ADR-002, ADR-004).
 - Test against a real Postgres engine (PGlite); never mock the database. Read every generated migration and reorder by hand if needed.
-- Never hold a database transaction open across a network call (YouTube, Google).
+- Never hold a database transaction open across a network call (YouTube, Google); `auth.ts` reads ciphertext in one transaction, calls Google, then writes in another.
+- Don't revoke an old refresh token when a creator reconnects: Google's revoke ends the app's whole grant, including the new token. For the same reason, a failed re-sign-in never revokes the new token if the creator already has a working connection.
+- Safari rejects `Secure`/`__Host-` cookies on `http://localhost`, so local sign-in fails there (`?signin=state`). Test locally in Chrome or Firefox.
+- Worker tests typecheck with `apps/worker/tsconfig.test.json` (adds Node types); production code uses only Workers types.
 - Normalise Unicode (NFC) before matching; test Vietnamese with and without diacritics, full-width digits (`２`) and look-alike characters.
 - Overlay URLs are bearer secrets: never log `/o/*` paths.
