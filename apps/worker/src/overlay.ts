@@ -6,7 +6,7 @@ import { randomToken, toHex } from "./crypto";
 import type { AppDeps, AppEnv } from "./env";
 
 const TOKEN = /^[A-Za-z0-9_-]{43}$/;
-export const BUILT_WIDGETS: readonly OverlayWidget[] = ["poll"];
+export const BUILT_WIDGETS: readonly OverlayWidget[] = ["poll", "leaderboard"];
 const isBuilt = (w: string): w is OverlayWidget => BUILT_WIDGETS.includes(w as OverlayWidget);
 
 export const OVERLAY_PAGE_HEADERS: Record<string, string> = {

@@ -1,5 +1,20 @@
 import type { MeResponse, OverlayLinkView, OverlayRotateResponse, OverlayWidget, SessionMode, SessionResponse, WorkspaceResponse } from "@et/worker/api-types";
 
+export interface SeasonView {
+  id: string;
+  name: string;
+  startsAt: string;
+  endsAt: string;
+}
+
+export interface LeaderboardRow {
+  rank: number;
+  points: number;
+  joins: number;
+  votes: number;
+  channelId?: string;
+}
+
 export class ApiError extends Error {
   constructor(
     readonly status: number,
@@ -32,6 +47,13 @@ export const api = {
   overlays: (id: string) => call<{ overlays: OverlayLinkView[] }>(`/api/workspaces/${encodeURIComponent(id)}/overlays`),
   rotateOverlay: (id: string, widget: OverlayWidget) =>
     call<OverlayRotateResponse>(`/api/workspaces/${encodeURIComponent(id)}/overlays/${widget}/rotate`, { method: "POST" }),
+  seasons: (id: string) =>
+    call<{ active: SeasonView | null; recent: SeasonView[] }>(`/api/workspaces/${encodeURIComponent(id)}/seasons`),
+  startSeason: (id: string, name: string, days: number) => call<SeasonView>(`/api/workspaces/${encodeURIComponent(id)}/seasons`, jsonBody("POST", { name, days })),
+  endSeason: (id: string) => call<void>(`/api/workspaces/${encodeURIComponent(id)}/seasons/end`, { method: "POST" }),
+  leaderboard: (id: string) => call<{ entries: LeaderboardRow[] }>(`/api/workspaces/${encodeURIComponent(id)}/leaderboard`),
+  eraseViewer: (id: string, channelId: string) =>
+    call<{ removedRows: number }>(`/api/workspaces/${encodeURIComponent(id)}/viewers/${encodeURIComponent(channelId)}`, { method: "DELETE" }),
   closePoll: (id: string) => call<SessionResponse>(`/api/workspaces/${encodeURIComponent(id)}/session/poll/close`, { method: "POST" }),
 };
 

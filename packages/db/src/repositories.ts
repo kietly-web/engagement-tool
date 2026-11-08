@@ -176,3 +176,120 @@ export const overlays = {
     return rows[0] ?? null;
   },
 };
+
+export interface Season {
+  id: string;
+  name: string;
+  startsAt: string;
+  endsAt: string;
+}
+
+export interface ViewerPoints {
+  channelId: string;
+  points: number;
+  joins: number;
+  votes: number;
+}
+
+const SEASON_COLUMNS = 'id, name, starts_at::text AS "startsAt", ends_at::text AS "endsAt"';
+
+export const seasons = {
+  async active(tx: Queryable): Promise<Season | null> {
+    const { rows } = await tx.query<Season>(
+      `SELECT ${SEASON_COLUMNS} FROM app.season
+        WHERE workspace_id = app.current_workspace_id() AND starts_at <= now() AND now() < ends_at
+        ORDER BY starts_at DESC LIMIT 1`,
+    );
+    return rows[0] ?? null;
+  },
+
+  async recent(tx: Queryable, limit = 10): Promise<Season[]> {
+    const { rows } = await tx.query<Season>(
+      `SELECT ${SEASON_COLUMNS} FROM app.season WHERE workspace_id = app.current_workspace_id() ORDER BY starts_at DESC LIMIT $1`,
+      [limit],
+    );
+    return rows;
+  },
+
+  // Starts at the database's now(), so app and database clocks can't disagree about whether it's running.
+  // Returns null when a season is still running; the lock stops two concurrent creates from overlapping.
+  async create(tx: Queryable, name: string, days: number): Promise<Season | null> {
+    await tx.query("SELECT pg_advisory_xact_lock(hashtext('season:' || app.current_workspace_id()::text))");
+    const { rows } = await tx.query<Season>(
+      `INSERT INTO app.season (workspace_id, name, starts_at, ends_at)
+       SELECT app.current_workspace_id(), $1, now(), now() + make_interval(days => $2)
+        WHERE NOT EXISTS (SELECT 1 FROM app.season WHERE workspace_id = app.current_workspace_id() AND ends_at > now())
+       RETURNING ${SEASON_COLUMNS}`,
+      [name, days],
+    );
+    return rows[0] ?? null;
+  },
+
+  async endActive(tx: Queryable): Promise<boolean> {
+    const { rows } = await tx.query(
+      "UPDATE app.season SET ends_at = now() WHERE workspace_id = app.current_workspace_id() AND starts_at <= now() AND now() < ends_at RETURNING id",
+    );
+    return rows.length > 0;
+  },
+};
+
+export const points = {
+  // Applies a batch at most once: a retry with the same batch id is a no-op, so retries can't double-count.
+  async flush(
+    tx: Queryable,
+    seasonId: string,
+    batchId: string,
+    deltas: [string, { points: number; joins: number; votes: number }][],
+  ): Promise<{ applied: boolean; rows: number }> {
+    const marker = await tx.query(
+      `INSERT INTO app.points_batch (batch_id, season_id, workspace_id) VALUES ($1, $2, app.current_workspace_id())
+       ON CONFLICT (batch_id) DO NOTHING RETURNING batch_id`,
+      [batchId, seasonId],
+    );
+    if (marker.rows.length === 0) return { applied: false, rows: 0 };
+    if (deltas.length === 0) return { applied: true, rows: 0 };
+    const payload = JSON.stringify(deltas.map(([channel_id, d]) => ({ channel_id, ...d })));
+    const { rows } = await tx.query(
+      `INSERT INTO app.viewer_points (season_id, workspace_id, channel_id, points, joins, votes)
+       SELECT $1, app.current_workspace_id(), r.channel_id, r.points, r.joins, r.votes
+         FROM jsonb_to_recordset($2::jsonb) AS r(channel_id text, points integer, joins integer, votes integer)
+       ON CONFLICT (season_id, channel_id) DO UPDATE
+         SET points = app.viewer_points.points + excluded.points,
+             joins = app.viewer_points.joins + excluded.joins,
+             votes = app.viewer_points.votes + excluded.votes,
+             updated_at = now()
+       RETURNING channel_id`,
+      [seasonId, payload],
+    );
+    return { applied: true, rows: rows.length };
+  },
+
+  async top(tx: Queryable, seasonId: string, limit: number): Promise<ViewerPoints[]> {
+    const { rows } = await tx.query<ViewerPoints>(
+      `SELECT channel_id AS "channelId", points, joins, votes FROM app.viewer_points
+        WHERE season_id = $1 AND workspace_id = app.current_workspace_id()
+        ORDER BY points DESC, updated_at ASC LIMIT $2`,
+      [seasonId, limit],
+    );
+    return rows;
+  },
+
+  async eraseViewer(tx: Queryable, channelId: string): Promise<number> {
+    const { rows } = await tx.query("DELETE FROM app.viewer_points WHERE workspace_id = app.current_workspace_id() AND channel_id = $1 RETURNING season_id", [
+      channelId,
+    ]);
+    return rows.length;
+  },
+};
+
+export const maintenance = {
+  async run(tx: Queryable): Promise<number> {
+    const { rows } = await tx.query<{ n: number }>("SELECT app.daily_maintenance() AS n");
+    return rows[0]!.n;
+  },
+
+  async lastRun(tx: Queryable): Promise<string | null> {
+    const { rows } = await tx.query<{ t: string | null }>("SELECT app.maintenance_last_run()::text AS t");
+    return rows[0]?.t ?? null;
+  },
+};

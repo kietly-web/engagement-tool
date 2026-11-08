@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { backoffMs, parseMessage, parseOverlayPath, pollModel, shouldReconnect } from "./model";
+import { backoffMs, leaderboardModel, parseMessage, parseOverlayPath, pollModel, shouldReconnect } from "./model";
 
 const TOKEN = "A".repeat(43);
 
@@ -7,6 +7,7 @@ describe("parseOverlayPath", () => {
   it("accepts only /o/<43-char token>/poll", () => {
     expect(parseOverlayPath(`/o/${TOKEN}/poll`)).toEqual({ token: TOKEN, widget: "poll" });
     expect(parseOverlayPath(`/o/${TOKEN}/poll/`)).toEqual({ token: TOKEN, widget: "poll" });
+    expect(parseOverlayPath(`/o/${TOKEN}/leaderboard`)).toEqual({ token: TOKEN, widget: "leaderboard" });
     for (const bad of [`/o/short/poll`, `/o/${TOKEN}/admin`, `/o/${TOKEN}/poll/ws`, `/x/${TOKEN}/poll`, `/o/${"<".repeat(43)}/poll`]) {
       expect(parseOverlayPath(bad)).toBeNull();
     }
@@ -42,6 +43,32 @@ describe("pollModel", () => {
       closed: true,
     });
     expect(pollModel(message(null))).toBeNull();
+  });
+});
+
+describe("leaderboardModel", () => {
+  it("shows ranks, points and safe names; missing names stay null", () => {
+    const model = leaderboardModel({
+      type: "leaderboard",
+      live: true,
+      title: "Mùa 1\u202E",
+      entries: [
+        { rank: 1, name: "<b>Linh</b>", points: 35 },
+        { rank: 2, name: null, points: 10.9 },
+      ],
+    });
+    expect(model).toEqual({
+      title: "Mùa 1",
+      rows: [
+        { rank: 1, name: "<b>Linh</b>", points: 35 },
+        { rank: 2, name: null, points: 10 },
+      ],
+    });
+  });
+
+  it("caps at ten rows", () => {
+    const entries = Array.from({ length: 30 }, (_, i) => ({ rank: i + 1, name: null, points: 30 - i }));
+    expect(leaderboardModel({ type: "leaderboard", live: true, title: null, entries })?.rows).toHaveLength(10);
   });
 });
 

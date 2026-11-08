@@ -5,6 +5,7 @@ import { QuotaBudget, type FetchLike } from "@et/youtube";
 import { createApp } from "../src/app";
 import { googleCredentials, type QuotaUsageClient } from "../src/live/clients";
 import { SessionEngine } from "../src/live/engine";
+import { DbPointsStore } from "../src/live/points-store";
 import { LiveSourceProvider } from "../src/live/sources";
 import { MemoryStorage } from "./memory-storage";
 import { toBase64Url } from "../src/crypto";
@@ -148,7 +149,9 @@ export async function makeHarness(
       let engine = engines.get(ws);
       if (!engine) {
         const provider = new LiveSourceProvider({ fetch: google.fetch, quota: quotaClient, clock: engineClock, credentials: () => googleCredentials(env) });
-        engine = new SessionEngine(new MemoryStorage(), provider, engineClock);
+        engine = new SessionEngine(new MemoryStorage(), provider, engineClock, {
+          points: (state) => (state.startedBy ? new DbPointsStore(db, { memberId: state.startedBy, workspaceId: state.workspaceId }) : null),
+        });
         engines.set(ws, engine);
       }
       return Object.assign(Object.create(engine) as SessionEngine, {
