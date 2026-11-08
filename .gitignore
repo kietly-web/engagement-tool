@@ -1,0 +1,7 @@
+# --- project-kickoff ---
+# Secrets and local env
+.env*
+!.env.example
+# Real user files: never commit; anonymise into fixtures instead
+samples/
+.kickoff-manifest
