@@ -1,0 +1,15 @@
+html,
+body {
+  margin: 0;
+  background: transparent;
+  overflow: hidden;
+}
+
+#widget {
+  font-family: system-ui, "Noto Sans", sans-serif;
+  font-size: 48px;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 2px 6px rgb(0 0 0 / 70%);
+  padding: 24px;
+}

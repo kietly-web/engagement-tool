@@ -10,8 +10,14 @@ Start with [CLAUDE.md](CLAUDE.md) (rules), then [docs/STATUS.md](docs/STATUS.md)
 engagement-tool/
 ├── README.md            What the project is and how the folders fit together
 ├── CLAUDE.md            Rules for anyone changing the code
-├── packages/            (from ET-2) core, youtube, db
-├── apps/                (from ET-2) worker, web (dashboard), overlay
+├── packages/
+│   ├── core/            Pure domain logic: commands, polls, points, seasons (no I/O)
+│   ├── youtube/         The only code that calls YouTube; read-only ChatSource
+│   └── db/              The only code that talks to Postgres; RLS context
+├── apps/
+│   ├── worker/          Cloudflare Worker (Hono): API, sign-in, LiveSession, cron
+│   ├── web/             Dashboard (Vite + React), Vietnamese first
+│   └── overlay/         OBS overlay pages, text-only rendering
 ├── scripts/             CI helper scripts
 ├── docs/                Everything written down (index: CLAUDE.md "Where things are")
 │   ├── STATUS.md        Current stage and next slice
@@ -25,6 +31,22 @@ engagement-tool/
 └── .claude/             Project reviewer (agent) and workflows (skills)
 ```
 
+## Run it
+
+```bash
+pnpm install
+pnpm build
+pnpm --filter @et/worker dev
+```
+
+Then open http://localhost:8787. `pnpm dev` runs the Vite dev servers too (dashboard on 5173, proxying `/api` to the Worker). Run `pnpm check` before every push.
+
 ## Pages
 
-None yet. Planned: dashboard (`/`), overlays (`/o/<token>/<widget>`), privacy (`/privacy`), terms (`/terms`).
+| Path | What |
+| --- | --- |
+| `/` | Dashboard (placeholder with server status) |
+| `/healthz` | Health check used by the smoke test |
+| `/overlay/` | Overlay placeholder; real widgets move to `/o/<token>/<widget>` in ET-7 |
+
+Planned: `/privacy`, `/terms` (ET-11).
