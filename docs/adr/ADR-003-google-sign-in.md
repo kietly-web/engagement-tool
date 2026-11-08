@@ -8,10 +8,10 @@ Creators must grant YouTube read access anyway (FR-01). Moderators need accounts
 
 ## Decision
 
-- OAuth 2.0 authorization-code flow with PKCE against Google, implemented in `apps/worker` (a small, reviewed library such as `arctic` or `oslo`, no hosted auth service).
+- OAuth 2.0 authorization-code flow with PKCE (S256) and a nonce against Google, implemented in `apps/worker/src/google.ts`. It's a small in-repo client with an injectable `fetch`, so the whole flow is tested against a fake Google. No hosted auth service. The ID token is accepted only straight from Google's token endpoint over TLS (OIDC Core 3.1.3.7). We check `iss`, `aud`/`azp`, `exp`, `nonce`, `sub`, and require `email_verified`.
 - Creators request `openid email profile https://www.googleapis.com/auth/youtube.readonly` with offline access. Moderators request `openid email profile` only.
-- We keep the Google subject ID, email and name. We drop the profile photo. The creator's refresh token is encrypted with AES-GCM using `TOKEN_ENCRYPTION_KEY` before it reaches Postgres.
-- Sessions are opaque random IDs in a `__Host-` cookie (`Secure`, `HttpOnly`, `SameSite=Lax`), stored hashed server-side, 7-day idle expiry. State-changing API calls also check `Origin`.
+- We keep the Google subject ID, email and name. We drop the profile photo. The creator's refresh token is encrypted with AES-GCM using `TOKEN_ENCRYPTION_KEY`, with the workspace ID as associated data, before it reaches Postgres. Access tokens are never stored. Granted scopes are checked: without `youtube.readonly` the creator is signed in but gets no workspace.
+- Sessions are opaque random 256-bit tokens in a `__Host-et_session` cookie (`Secure`, `HttpOnly`, `SameSite=Lax`). They're stored as an HMAC with `SESSION_SECRET` and expire after 7 days idle or 30 days absolute. OAuth state, PKCE verifier, nonce and intent travel in a signed, single-use `__Host-et_oauth` cookie that lasts 10 minutes. State-changing API calls must carry a same-origin `Origin` header.
 - Moderator invites bind to a verified Google email; an invite link alone grants nothing.
 
 ## Consequences

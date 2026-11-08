@@ -2,7 +2,7 @@
 
 Draft for counsel, not legal advice. One row per kind of personal data the product touches, including data it only passes through. Update in the same PR that adds, moves or stops collecting a field; `security-compliance-reviewer` checks this.
 
-Last updated: 08/11/2026 (ET-3 added the open-poll choice row; nothing is collected until ET-5/ET-6).
+Last updated: 08/11/2026 (ET-5 built sign-in: member, session, channel and token rows are now collected once production is configured).
 
 | Data | Whose | Source | Purpose (FR / US) | Lawful basis or consent | Stored where (region) | Retention, then | Who can access | Sub-processors | Sensitive? |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -13,7 +13,7 @@ Last updated: 08/11/2026 (ET-3 added the open-poll choice row; nothing is collec
 | Viewer's choice in an open poll (channel ID → option) | Viewer (possibly a child) | YouTube live chat (`!vote`) | One counted vote per viewer (FR-04) | **Open (Q-L1)** | Durable Object memory and storage only | Until the poll closes; `close()` clears it and keeps only counts | Nobody (server only) | Cloudflare | Possibly children's data |
 | Viewer display name | Viewer | YouTube live chat | Show names on overlays during the stream | **Open (Q-L1)** | Durable Object memory only | Dropped when the session ends | Overlay viewers (on stream), workspace members during the session | Cloudflare | Possibly children's data |
 | Chat message text | Viewer | YouTube live chat | Parse commands (FR-04, FR-06, FR-07) | **Open (Q-L1)** | Not stored; in memory for one parse | Discarded immediately | Nobody | Cloudflare (in transit), Google | Possibly children's data |
-| Session cookie ID (hashed) | Creator, moderator | Our server | Keep signed in | Contract | Postgres, Singapore | 7 days idle | Worker only | Neon | No |
+| Session token (stored as HMAC) | Creator, moderator | Our server | Keep signed in | Contract | Postgres, Singapore | 7 days idle or 30 days absolute; deleted on logout or account deletion | Worker only | Neon | No |
 | IP address, user agent | Creator, moderator, overlay host | Requests | Security, rate limiting | Legitimate interest (to confirm) | Cloudflare edge and Workers Logs | Workers Logs retention (days); not copied elsewhere | Operator | Cloudflare | No |
 | Audit log entries | Creator, moderator | Our server | Accountability for membership, tokens, sessions, deletion | Legal obligation / legitimate interest | Postgres, Singapore | 12 months, then deleted | Workspace owner, operator | Neon | No |
 

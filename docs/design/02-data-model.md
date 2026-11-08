@@ -32,6 +32,8 @@ The app never passes a role. Policies compute it with `app.role_in(workspace)` f
 | `app.member` | `id`, `google_sub` (unique), `email`, `display_name`, `created_at`, `updated_at` | A person who signs in (creator or moderator). No photo (ADR-003) |
 | `app.workspace` | `id`, `name` (1–80), `created_at` | One per creator; YouTube channel columns arrive in ET-5 |
 | `app.workspace_member` | `workspace_id`, `member_id`, `role` (`owner`/`moderator`), `created_at` | PK (workspace, member); at most one owned workspace per member (FR-01) |
+| `app.session` (ET-5) | `token_hash` (HMAC, 32 bytes), `member_id`, `created_at`, `last_seen_at`, `expires_at` | No `app_runtime` grant at all; only `create_session`, `session_member`, `delete_session` |
+| `app.youtube_connection` (ET-5) | `workspace_id` (PK), `channel_id` (unique), `channel_title`, `refresh_token_enc` (AES-GCM, workspace ID as AAD), `scopes`, `connected_at`, `refreshed_at` | Members read metadata; the ciphertext only through `app.youtube_refresh_token()`; writes only through `app.save_youtube_connection()` (owner); the owner deletes on disconnect |
 
 ## Policies (`app_runtime`)
 
@@ -53,6 +55,10 @@ Nobody can add a membership by plain SQL, so an owner can't attach someone witho
 | `app.create_workspace(name)` | Definer | Needs a member context; makes the caller its owner |
 | `app.me()` | Definer | Your own id, email and display name |
 | `app.workspace_members()` | Definer | Members of the current workspace; `email` only for the owner, or for your own row |
+| `app.create_session(member, hash, ttl)`, `app.session_member(hash, idle)`, `app.delete_session(hash)` | Definer | Hex-encoded hashes; `session_member` slides `last_seen_at` |
+| `app.save_youtube_connection(...)` | Definer | Owner of the current workspace only |
+| `app.youtube_refresh_token()` | Definer | Hex ciphertext for any member of the current workspace (LiveSession needs it) |
+| `app.delete_my_account()` | Definer | Deletes the caller's owned workspaces (cascading YouTube data) and the caller |
 
 All use `SET search_path = pg_catalog` and fully qualified names. `EXECUTE` is revoked from `PUBLIC`. `upsert_member` overwrites email and name for a Google subject, so only call it after verifying the ID token.
 
@@ -64,4 +70,4 @@ The migration refuses to run if `app_runtime` or `app_definer` already exists wi
 
 ## Retention
 
-Nothing YouTube-derived or viewer-related is stored yet. ET-5 adds the creator's channel and encrypted token; ET-8 adds seasons and viewer counters with their retention cron (ADR-006).
+Disconnect revokes the Google token, then deletes the connection row straight away (non-negotiable 3 allows up to 7 days). Account deletion revokes, then deletes owned workspaces, memberships and sessions. Expired sessions of a member are pruned whenever that member signs in again. ET-8 adds seasons and viewer counters with their retention cron (ADR-006), plus a refresh-or-delete job for channel metadata older than 30 days.
