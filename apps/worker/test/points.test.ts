@@ -23,14 +23,23 @@ class Pages implements ChatSource {
 
 class FakeStore implements PointsStore {
   totals = new Map<string, number>();
+  applied = new Set<string>();
   flushes = 0;
   fail = false;
-  async flush(_season: string, deltas: [string, { points: number }][]) {
+  failAfterCommit = false;
+  gate: Promise<void> | null = null;
+  async flushAndTop(_season: string, batchId: string, deltas: [string, { points: number }][], limit: number) {
+    if (this.gate) await this.gate;
     if (this.fail) throw new Error("db down");
-    this.flushes++;
-    for (const [id, d] of deltas) this.totals.set(id, (this.totals.get(id) ?? 0) + d.points);
-  }
-  async top(_season: string, limit: number) {
+    if (!this.applied.has(batchId)) {
+      this.applied.add(batchId);
+      this.flushes++;
+      for (const [id, d] of deltas) this.totals.set(id, (this.totals.get(id) ?? 0) + d.points);
+    }
+    if (this.failAfterCommit) {
+      this.failAfterCommit = false;
+      throw new Error("ambiguous commit");
+    }
     return [...this.totals.entries()].map(([channelId, points]) => ({ channelId, points })).sort((a, b) => b.points - a.points).slice(0, limit);
   }
 }
@@ -47,7 +56,7 @@ function engineWith(store: FakeStore | null) {
 }
 
 const start = (engine: SessionEngine, mode: "youtube" | "demo" = "youtube") =>
-  engine.start({ workspaceId: "ws", mode, broadcastId: "b", liveChatId: "c", startedBy: "m", seasonId: "s1", seasonName: "Mùa 1" });
+  engine.start({ workspaceId: "ws", mode, broadcastId: "b", liveChatId: "c", startedBy: "m", seasonId: "s1", seasonName: "Mùa 1", seasonEndsAt: "2026-11-20T00:00:00Z" });
 
 describe("engine points", () => {
   it("awards joins once and counted votes, flushes every 10 s and builds the leaderboard with session-only names", async () => {
@@ -89,9 +98,90 @@ describe("engine points", () => {
     await engine.tick();
     expect(JSON.stringify(await storage.get("points"))).toContain(syntheticChannelId(1));
     store.fail = false;
-    clock.advance(10_000);
+    clock.advance(20_000);
     await engine.tick();
     expect(store.totals.get(syntheticChannelId(1))).toBe(10);
+  });
+
+  it("never double-counts when a flush commits but the response is lost", async () => {
+    const store = new FakeStore();
+    store.failAfterCommit = true;
+    const { engine, source, clock } = engineWith(store);
+    await start(engine);
+    source.pages.push({ messages: [msg(1, "!join")], nextPageToken: "1", waitMs: 1000 });
+    await engine.tick();
+    clock.advance(30_000);
+    await engine.tick();
+    expect(store.totals.get(syntheticChannelId(1))).toBe(10);
+    expect(store.flushes).toBe(1);
+  });
+
+  it("an erasure during an in-flight flush sticks: the viewer is never written again", async () => {
+    const store = new FakeStore();
+    let release!: () => void;
+    store.gate = new Promise((r) => (release = r));
+    const { engine, source, clock } = engineWith(store);
+    await start(engine);
+    source.pages.push({ messages: [msg(1, "!join"), msg(2, "!join")], nextPageToken: "1", waitMs: 1000 });
+    const ticking = engine.tick();
+    await new Promise((r) => setTimeout(r, 0));
+    const erasing = engine.eraseViewer(syntheticChannelId(1));
+    release();
+    await ticking;
+    await erasing;
+    store.totals.delete(syntheticChannelId(1));
+    store.gate = null;
+    source.pages.push({ messages: [msg(1, "!join"), msg(1, "!vote 1")], nextPageToken: "2", waitMs: 1000 });
+    clock.advance(30_000);
+    await engine.tick();
+    await engine.stop();
+    expect(store.totals.has(syntheticChannelId(1))).toBe(false);
+    expect(store.totals.get(syntheticChannelId(2))).toBe(10);
+  });
+
+  it("without a season, repeated !join still counts once", async () => {
+    const { engine, source } = engineWith(null);
+    await engine.start({ workspaceId: "ws", mode: "youtube", broadcastId: "b", liveChatId: "c", startedBy: "m", seasonId: null });
+    for (let i = 0; i < 5; i++) {
+      source.pages.push({ messages: [msg(1, "!join")], nextPageToken: String(i), waitMs: 1000 });
+      await engine.tick();
+    }
+    expect((await engine.status()).leaderboard).toEqual([{ rank: 1, name: "Khán giả 1", points: 10 }]);
+  });
+
+  it("backs off after a failed flush and stops writing points after repeated failures", async () => {
+    const store = new FakeStore();
+    store.fail = true;
+    const { engine, source, clock, storage } = engineWith(store);
+    await start(engine);
+    let attempts = 0;
+    const original = store.flushAndTop.bind(store);
+    store.flushAndTop = (...args) => {
+      attempts++;
+      return original(...args);
+    };
+    source.pages.push({ messages: [msg(1, "!join")], nextPageToken: "1", waitMs: 1000 });
+    await engine.tick();
+    await engine.tick();
+    expect(attempts).toBe(1);
+    for (let i = 0; i < 10; i++) {
+      clock.advance(5 * 60_000);
+      await engine.tick();
+    }
+    expect(attempts).toBe(5);
+    expect(await storage.get("points")).toBeUndefined();
+    expect((await engine.status()).status).toBe("live");
+  });
+
+  it("stops writing points once the season has ended mid-session", async () => {
+    const store = new FakeStore();
+    const { engine, source, clock, storage } = engineWith(store);
+    await start(engine);
+    clock.advance(12 * 86_400_000);
+    source.pages.push({ messages: [msg(1, "!join")], nextPageToken: "1", waitMs: 1000 });
+    await engine.tick();
+    expect(store.flushes).toBe(0);
+    expect(await storage.get("points")).toBeUndefined();
   });
 
   it("demo mode never writes to the real season but still previews a leaderboard", async () => {
@@ -114,8 +204,14 @@ describe("engine points", () => {
     source.pages.push({ messages: [msg(1, "!join"), msg(2, "!join")], nextPageToken: "1", waitMs: 1000 });
     await engine.tick();
     await engine.eraseViewer(syntheticChannelId(1));
-    expect(JSON.stringify(await storage.get("points"))).not.toContain(syntheticChannelId(1));
+    const kept = (await storage.get("points")) as { pending: [string][]; joined: string[]; erased: string[]; inflight: { deltas: [string][] } | null };
+    const credited = [...kept.pending.map(([id]) => id), ...kept.joined, ...(kept.inflight?.deltas.map(([id]) => id) ?? [])];
+    expect(credited).not.toContain(syntheticChannelId(1));
+    expect(kept.erased).toEqual([syntheticChannelId(1)]);
     expect((await engine.status()).leaderboard?.map((e) => e.name)).toEqual(["Khán giả 2"]);
+    store.fail = false;
+    await engine.stop();
+    expect(await storage.get("points")).toBeUndefined();
   });
 });
 
@@ -131,7 +227,7 @@ describe("season and leaderboard routes", () => {
   it("runs a season end to end: create, earn points live, leaderboard, erase a viewer, end, purge", async () => {
     const h = await makeHarness();
     const { b, ws } = await owner(h);
-    expect((await b.post(`/api/workspaces/${ws}/seasons`, json({ name: "Mùa 1", days: 31 }))).status).toBe(400);
+    expect((await b.post(`/api/workspaces/${ws}/seasons`, json({ name: "Mùa 1", days: 30 }))).status).toBe(400);
     expect((await b.post(`/api/workspaces/${ws}/seasons`, json({ name: "Mùa 1", days: 14 }))).status).toBe(201);
     expect((await b.post(`/api/workspaces/${ws}/seasons`, json({ name: "Mùa 2", days: 14 }))).status).toBe(409);
 

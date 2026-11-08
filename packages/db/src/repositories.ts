@@ -234,8 +234,20 @@ export const seasons = {
 };
 
 export const points = {
-  async flush(tx: Queryable, seasonId: string, deltas: [string, { points: number; joins: number; votes: number }][]): Promise<number> {
-    if (deltas.length === 0) return 0;
+  // Applies a batch at most once: a retry with the same batch id is a no-op, so retries can't double-count.
+  async flush(
+    tx: Queryable,
+    seasonId: string,
+    batchId: string,
+    deltas: [string, { points: number; joins: number; votes: number }][],
+  ): Promise<{ applied: boolean; rows: number }> {
+    const marker = await tx.query(
+      `INSERT INTO app.points_batch (batch_id, season_id, workspace_id) VALUES ($1, $2, app.current_workspace_id())
+       ON CONFLICT (batch_id) DO NOTHING RETURNING batch_id`,
+      [batchId, seasonId],
+    );
+    if (marker.rows.length === 0) return { applied: false, rows: 0 };
+    if (deltas.length === 0) return { applied: true, rows: 0 };
     const payload = JSON.stringify(deltas.map(([channel_id, d]) => ({ channel_id, ...d })));
     const { rows } = await tx.query(
       `INSERT INTO app.viewer_points (season_id, workspace_id, channel_id, points, joins, votes)
@@ -249,7 +261,7 @@ export const points = {
        RETURNING channel_id`,
       [seasonId, payload],
     );
-    return rows.length;
+    return { applied: true, rows: rows.length };
   },
 
   async top(tx: Queryable, seasonId: string, limit: number): Promise<ViewerPoints[]> {
@@ -271,8 +283,8 @@ export const points = {
 };
 
 export const maintenance = {
-  async run(tx: Queryable, idleSeconds: number): Promise<number> {
-    const { rows } = await tx.query<{ n: number }>("SELECT app.daily_maintenance($1) AS n", [idleSeconds]);
+  async run(tx: Queryable): Promise<number> {
+    const { rows } = await tx.query<{ n: number }>("SELECT app.daily_maintenance() AS n");
     return rows[0]!.n;
   },
 

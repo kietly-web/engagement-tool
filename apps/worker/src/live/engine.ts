@@ -1,4 +1,4 @@
-import { parseCommand, Poll, PollError, POINTS, PointsTally, type Clock, type PointsDelta, type PollInput, type PollSnapshot } from "@et/core";
+import { parseCommand, Poll, PollError, POINTS, PointsTally, type Clock, type PointsTallySnapshot, type PollInput, type PollSnapshot } from "@et/core";
 import { ChatSourceError, type ChatSource } from "@et/youtube";
 import type { LeaderboardEntry, PollView, SessionMode, SessionStatus, StopReason } from "../api-types";
 import type { PointsStore } from "./points-store";
@@ -7,6 +7,8 @@ export type { PollView, SessionMode, SessionStatus, StopReason };
 
 const LEADERBOARD_SIZE = 10;
 const MAX_NAMES = 5_000;
+const MAX_FLUSH_FAILURES = 5;
+const MAX_FLUSH_BACKOFF_MS = 5 * 60_000;
 
 export interface SessionStorage {
   get<T>(key: string): Promise<T | undefined>;
@@ -35,6 +37,7 @@ export interface SessionState {
   startedBy?: string;
   seasonId?: string | null;
   seasonName?: string | null;
+  seasonEndsAt?: string | null;
 }
 
 export type Result<T> = { ok: true; value: T } | { ok: false; error: SessionErrorCode };
@@ -48,6 +51,7 @@ export interface StartInput {
   startedBy?: string;
   seasonId?: string | null;
   seasonName?: string | null;
+  seasonEndsAt?: string | null;
 }
 
 export interface SourceProvider {
@@ -89,6 +93,10 @@ export class SessionEngine {
   private readonly sessionTotals = new Map<string, number>();
   private leaderboard: { channelId: string; points: number }[] = [];
   private lastFlush = 0;
+  private tally: PointsTally | null = null;
+  private flushing: Promise<unknown> | null = null;
+  private flushFailures = 0;
+  private nextFlushAt = 0;
 
   constructor(
     private readonly storage: SessionStorage,
@@ -114,8 +122,23 @@ export class SessionEngine {
     }
   }
 
+  // Kept in memory even without a season, so !join dedupes per session; persisted only while points are written.
   private async loadTally(): Promise<PointsTally> {
-    return new PointsTally(await this.storage.get<{ pending: [string, PointsDelta][]; joined: string[] }>("points"));
+    this.tally ??= new PointsTally(await this.storage.get<PointsTallySnapshot>("points"));
+    return this.tally;
+  }
+
+  private async saveTally(state: SessionState): Promise<void> {
+    if (state.seasonId && this.tally) await this.storage.put("points", this.tally.snapshot());
+  }
+
+  private async disablePoints(state: SessionState, event: string): Promise<SessionState> {
+    const next = { ...state, seasonId: null, seasonEndsAt: null };
+    this.tally?.dropUnwritten();
+    await this.storage.delete("points");
+    await this.storage.put("session", next);
+    console.error(JSON.stringify({ event }));
+    return next;
   }
 
   private leaderboardView(): LeaderboardEntry[] {
@@ -137,29 +160,49 @@ export class SessionEngine {
     this.sessionTotals.clear();
     this.leaderboard = [];
     this.lastFlush = 0;
+    this.tally = null;
+    this.flushFailures = 0;
+    this.nextFlushAt = 0;
   }
 
-  private async flushPoints(state: SessionState, tally: PointsTally, force: boolean): Promise<boolean> {
-    const store = state.seasonId ? this.opts.points(state) : null;
-    if (!store || !state.seasonId) return false;
+  private async flushPoints(state: SessionState, force: boolean): Promise<{ flushed: boolean; state: SessionState }> {
+    const seasonId = state.seasonId;
+    const store = seasonId ? this.opts.points(state) : null;
+    if (!store || !seasonId) return { flushed: false, state };
     const now = this.clock.now().getTime();
-    if (!tally.hasPending() || (!force && now - this.lastFlush < this.opts.flushEveryMs)) return false;
-    const deltas = tally.takePending();
+    if (!force && (now < this.nextFlushAt || now - this.lastFlush < this.opts.flushEveryMs)) return { flushed: false, state };
+    const tally = await this.loadTally();
+    const batch = tally.beginBatch(crypto.randomUUID());
+    if (!batch) return { flushed: false, state };
+    await this.saveTally(state);
+
+    const attempt = store.flushAndTop(seasonId, batch.id, batch.deltas, LEADERBOARD_SIZE);
+    this.flushing = attempt.catch(() => undefined);
     try {
-      await store.flush(state.seasonId, deltas);
+      this.leaderboard = await attempt;
+      tally.completeBatch(batch.id);
       this.lastFlush = now;
-      this.leaderboard = await store.top(state.seasonId, LEADERBOARD_SIZE);
-      return true;
+      this.flushFailures = 0;
+      this.nextFlushAt = 0;
+      await this.saveTally(state);
+      return { flushed: true, state };
     } catch {
-      tally.restorePending(deltas);
-      return false;
+      this.flushFailures += 1;
+      this.nextFlushAt = now + Math.min(this.opts.flushEveryMs * 2 ** this.flushFailures, MAX_FLUSH_BACKOFF_MS);
+      if (this.flushFailures >= MAX_FLUSH_FAILURES) return { flushed: false, state: await this.disablePoints(state, "points_flush_failed") };
+      return { flushed: false, state };
+    } finally {
+      this.flushing = null;
     }
   }
 
+  // Waits for any flush in flight, so a batch already on its way can't re-insert the viewer after the database delete.
   async eraseViewer(channelId: string): Promise<void> {
+    if (this.flushing) await this.flushing;
     const tally = await this.loadTally();
     tally.erase(channelId);
-    await this.storage.put("points", tally.snapshot());
+    const state = await this.loadState();
+    if (state) await this.saveTally(state);
     this.names.delete(channelId);
     this.sessionTotals.delete(channelId);
     this.leaderboard = this.leaderboard.filter((e) => e.channelId !== channelId);
@@ -207,6 +250,7 @@ export class SessionEngine {
       ...(input.startedBy && { startedBy: input.startedBy }),
       seasonId: input.mode === "demo" ? null : (input.seasonId ?? null),
       seasonName: input.mode === "demo" ? null : (input.seasonName ?? null),
+      seasonEndsAt: input.mode === "demo" ? null : (input.seasonEndsAt ?? null),
     };
     this.sources.invalidate();
     this.resetMemory();
@@ -225,8 +269,9 @@ export class SessionEngine {
       poll.close();
       await this.storage.put("poll", poll.snapshot());
     }
-    await this.flushPoints(state, await this.loadTally(), true);
+    await this.flushPoints(state, true);
     await this.storage.delete("points");
+    this.tally = null;
     // YouTube identifiers and the token copy go at stop, so nothing YouTube-derived lingers in DO storage (NN3).
     const stopped: SessionState = {
       ...state,
@@ -296,8 +341,11 @@ export class SessionEngine {
   }
 
   private async tickOnce(): Promise<void> {
-    const state = await this.loadState();
+    let state = await this.loadState();
     if (state?.status !== "live") return;
+    if (state.seasonId && state.seasonEndsAt && this.clock.now().getTime() >= Date.parse(state.seasonEndsAt)) {
+      state = await this.disablePoints(state, "season_ended_mid_session");
+    }
     if (this.opts.disabled()) {
       await this.stop("disabled");
       return;
@@ -325,8 +373,7 @@ export class SessionEngine {
       const command = parseCommand(message.text);
       let earned = 0;
       if (command?.kind === "vote" && poll?.status === "open" && poll.vote(message.channelId, command.option) === "counted") {
-        tally.countedVote(message.channelId);
-        earned = POINTS.countedVote;
+        if (tally.countedVote(message.channelId)) earned = POINTS.countedVote;
       } else if (command?.kind === "join" && tally.join(message.channelId)) {
         earned = POINTS.join;
       }
@@ -336,10 +383,10 @@ export class SessionEngine {
       }
     }
     if (poll) await this.storage.put("poll", poll.snapshot());
-    // Without a season nothing is ever flushed, so viewer ids stay in memory only.
-    if (scored && state.seasonId) await this.storage.put("points", tally.snapshot());
-    const flushed = await this.flushPoints(state, tally, false);
-    if (flushed) await this.storage.put("points", tally.snapshot());
+    if (scored) await this.saveTally(state);
+    const flush = await this.flushPoints(state, false);
+    const flushed = flush.flushed;
+    state = flush.state;
     const next = { ...state, pageToken: page.nextPageToken, failures: 0, messagesSeen: state.messagesSeen + page.messages.length };
     await this.storage.put("session", next);
     await this.storage.setAlarm(now + page.waitMs);

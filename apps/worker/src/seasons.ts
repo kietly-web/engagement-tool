@@ -95,8 +95,9 @@ export function seasonRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps)
     if (ws.role !== "owner") return c.json({ error: "forbidden" }, 403);
     const channelId = c.req.param("channelId");
     if (!isChannelId(channelId)) return c.json({ error: "invalid_channel_id" }, 400);
-    const removed = await withWorkspace(c.var.db, ctx(c, ws.id), (tx) => points.eraseViewer(tx, channelId));
+    // Live session first: it waits for any in-flight flush and stops crediting the viewer, so the delete below sticks.
     await deps.liveSession(c.env, ws.id).eraseViewer(channelId);
+    const removed = await withWorkspace(c.var.db, ctx(c, ws.id), (tx) => points.eraseViewer(tx, channelId));
     return c.json({ removedRows: removed });
   });
 

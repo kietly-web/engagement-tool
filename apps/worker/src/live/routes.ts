@@ -71,7 +71,13 @@ export function sessionRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps
     if (!mode) return c.json({ error: "invalid_mode" }, 400);
     const client = deps.liveSession(c.env, m.workspaceId);
     const season = await withWorkspace(c.var.db, { memberId: c.var.memberId, workspaceId: m.workspaceId }, (tx) => seasons.active(tx));
-    const common = { workspaceId: m.workspaceId, startedBy: c.var.memberId, seasonId: season?.id ?? null, seasonName: season?.name ?? null };
+    const common = {
+      workspaceId: m.workspaceId,
+      startedBy: c.var.memberId,
+      seasonId: season?.id ?? null,
+      seasonName: season?.name ?? null,
+      seasonEndsAt: season?.endsAt ?? null,
+    };
 
     if (mode === "demo") {
       if (await live(c, m.workspaceId)) return startError(c, "already_live", 409);

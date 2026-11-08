@@ -10,7 +10,7 @@ export function SeasonPanel({ workspaceId, isOwner }: { workspaceId: string; isO
   const [active, setActive] = useState<SeasonView | null>(null);
   const [board, setBoard] = useState<LeaderboardRow[]>([]);
   const [name, setName] = useState("");
-  const [days, setDays] = useState(30);
+  const [days, setDays] = useState(29);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
@@ -77,7 +77,7 @@ export function SeasonPanel({ workspaceId, isOwner }: { workspaceId: string; isO
             </label>
             <label>
               {t("season.days")}
-              <input type="number" min={1} max={30} value={days} onChange={(e) => setDays(Number(e.target.value))} />
+              <input type="number" min={1} max={29} value={days} onChange={(e) => setDays(Number(e.target.value))} />
             </label>
             <button type="submit" className="button primary">
               {t("season.start")}

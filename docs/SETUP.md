@@ -71,7 +71,7 @@ P0: production doesn't work without it. P1: a feature or workflow is degraded. P
 | [ ] | Tests can't prove `app_worker` is unable to `SET ROLE app_definer` (PGlite ignores login users) | Postgres 16+ rules forbid it; add a real-Postgres CI job if a paid-free option appears, or check once by hand on Neon | CI |
 | [ ] | Cron heartbeat isn't monitored | The cron writes `app.maintenance_heartbeat` (ET-8); `/healthz` should read `app.maintenance_last_run()` and return 503 when it's over 36 h old, so the smoke test alerts | `apps/worker`, runbook |
 | [ ] | Channel metadata (`channel_title`) isn't refreshed or deleted after 30 days (NN3) | Daily cron: refresh via `channels.list` with the stored token, or delete the connection | `apps/worker/src/maintenance.ts` |
-| [ ] | Ending a season leaves its viewer rows until the next daily run (up to about 24 h) | Acceptable under NN3 (within 30 days); delete straight away if counsel prefers | `packages/db` |
+| [ ] | Ending a season leaves its viewer rows until the next retention run (up to 6 h) | Seasons are capped at 29 days, so the total stays under 30 (NN3); delete straight away if counsel prefers | `packages/db` |
 
 ## 4. Remaining backlog
 

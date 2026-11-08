@@ -34,9 +34,10 @@ The app never passes a role. Policies compute it with `app.role_in(workspace)` f
 | `app.workspace_member` | `workspace_id`, `member_id`, `role` (`owner`/`moderator`), `created_at` | PK (workspace, member); at most one owned workspace per member (FR-01) |
 | `app.session` (ET-5) | `token_hash` (HMAC, 32 bytes), `member_id`, `created_at`, `last_seen_at`, `expires_at` | No `app_runtime` grant at all; only `create_session`, `session_member`, `delete_session` |
 | `app.overlay_token` (ET-7) | `workspace_id`, `widget` (`poll`/`leaderboard`/`game`), `token_hash` (SHA-256, unique), `created_at`, `rotated_at` | PK (workspace, widget). Members read widget and dates only; `rotate_overlay_token()` is owner-only; `overlay_lookup()` resolves a hash without any member context |
-| `app.season` (ET-8) | `id`, `workspace_id`, `name` (1–60), `starts_at`, `ends_at` (at most 30 days after start), `created_at` | Owner creates (starting at the database's `now()`, never overlapping) and may only end early; members read |
+| `app.season` (ET-8) | `id`, `workspace_id`, `name` (1–60), `starts_at`, `ends_at` (at most 29 days after start, so cleanup lag stays inside 30), `created_at` | Owner creates (starting at the database's `now()`, never overlapping) and may only end a running season early; members read |
+| `app.points_batch` (ET-8) | `batch_id` (PK), `season_id`, `workspace_id`, `applied_at` | Marks each applied flush so a retried batch is applied once; no personal data; deleted with ended seasons |
 | `app.viewer_points` (ET-8) | `season_id`, `workspace_id`, `channel_id` (checked format), `points`, `joins`, `votes` (all ≥ 0), `updated_at` | PK (season, channel). Members read; inserts and updates only into a running season, by the member who started the live session; owner deletes (erasure). Rows of ended seasons are deleted by `daily_maintenance()` |
-| `app.maintenance_heartbeat` (ET-8) | `ran_at` | Single row written by the daily job |
+| `app.maintenance_heartbeat` (ET-8) | `ran_at` | Single row written by the retention job (every 6 h) |
 | `app.youtube_connection` (ET-5) | `workspace_id` (PK), `channel_id` (unique), `channel_title`, `refresh_token_enc` (AES-GCM, workspace ID as AAD), `scopes`, `connected_at`, `refreshed_at` | Members read metadata; the ciphertext only through `app.youtube_refresh_token()`; writes only through `app.save_youtube_connection()` (owner); the owner deletes on disconnect |
 
 ## Policies (`app_runtime`)

@@ -64,6 +64,7 @@ Everything not done lives in [SETUP.md](SETUP.md), with priorities and exact ste
 - Pooled connections forbid session-level `SET`; set the RLS context with `set_config(..., true)` inside the transaction (`withWorkspace` does this).
 - Hyperdrive must keep `--caching-disabled`: its cache ignores the RLS context.
 - Create Neon login roles with SQL, not the console (console roles join `neon_superuser`, which bypasses RLS).
+- Points flushes are batches with IDs recorded in `app.points_batch`; never "restore and retry" deltas without the same batch ID, or points double-count.
 - Seasons start at the database's `now()`, not the Worker's clock; mixing the two made a fresh season look inactive in tests.
 - Never edit an applied migration; the migrator compares checksums and refuses. Add a new numbered file.
 - `node` runs `packages/db/scripts/*.ts` directly (Node 24 type stripping), so those imports need explicit `.ts` extensions.
