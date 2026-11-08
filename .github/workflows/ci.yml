@@ -13,22 +13,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Remove in ET-2 once package.json exists, with the `needs`/`if` lines below.
-  detect:
-    runs-on: ubuntu-latest
-    outputs:
-      node: ${{ steps.find.outputs.node }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - id: find
-        run: echo "node=$([ -f package.json ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
-
   check:
     name: lint, typecheck, test, build
-    needs: detect
-    if: needs.detect.outputs.node == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -50,8 +36,6 @@ jobs:
 
   audit:
     name: dependency audit
-    needs: detect
-    if: needs.detect.outputs.node == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

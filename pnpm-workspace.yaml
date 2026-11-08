@@ -1,0 +1,11 @@
+packages:
+  - apps/*
+  - packages/*
+
+# Minutes; only install releases at least 7 days old (supply-chain hygiene, see STATUS gotchas).
+minimumReleaseAge: 10080
+
+# Install scripts run only for these (they fetch their platform binary); everything else is blocked.
+allowBuilds:
+  esbuild: true
+  workerd: true

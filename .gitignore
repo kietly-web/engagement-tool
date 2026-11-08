@@ -5,3 +5,15 @@
 # Real user files: never commit; anonymise into fixtures instead
 samples/
 .kickoff-manifest
+
+# --- build output ---
+node_modules/
+dist/
+apps/worker/public/
+.wrangler/
+coverage/
+*.tsbuildinfo
+
+# Wrangler local secrets
+.dev.vars*
+!.dev.vars.example
