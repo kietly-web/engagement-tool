@@ -39,7 +39,7 @@ export function createApp(overrides: Partial<AppDeps> = {}) {
   app.route("/api", sessionRoutes(auth, deps));
   app.route("/api", overlayManageRoutes(auth, deps));
   app.route("/api", seasonRoutes(auth, deps));
-  app.route("/api", memberManageRoutes(auth));
+  app.route("/api", memberManageRoutes(auth, deps));
 
   app.all("/api/*", (c) => c.json({ error: "not_found" }, 404));
   return app;

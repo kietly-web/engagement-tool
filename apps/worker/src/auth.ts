@@ -294,9 +294,15 @@ export function memberRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps)
 
   app.delete("/account", ...guard, async (c) => {
     const { db, memberId } = c.var;
-    const owned = (await withMember(db, { memberId }, (tx) => workspaces.listMine(tx))).find((w) => w.role === "owner");
+    const mine = await withMember(db, { memberId }, (tx) => workspaces.listMine(tx));
+    const owned = mine.find((w) => w.role === "owner");
     if (owned && (await auth.revokeWorkspaceToken(c as Ctx, owned.id)) === "failed") return c.json({ error: "revoke_failed" }, 502);
     if (owned) await purgeSession(c.env, owned.id);
+    // A moderator's departure stays visible in each owner's log, and any session they started stops.
+    for (const ws of mine.filter((w) => w.role === "moderator")) {
+      await withWorkspace(db, { memberId, workspaceId: ws.id }, (tx) => audit.log(tx, "member_left", { reason: "account_deleted" }));
+      await deps.liveSession(c.env, ws.id).stopIfStartedBy(memberId);
+    }
     await withMember(db, { memberId }, (tx) => members.deleteMyAccount(tx));
     clearSessionCookie(c);
     return c.body(null, 204);

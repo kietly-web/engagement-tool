@@ -49,6 +49,7 @@ export function App() {
   const [outcome] = useState(readOutcome);
   const [inviteToken, setInviteToken] = useState(captureInvite);
   const [inviteResult, setInviteResult] = useState<string | null>(null);
+  const [invitePreview, setInvitePreview] = useState<string | null>(null);
 
   const load = useCallback(() => {
     api
@@ -66,16 +67,31 @@ export function App() {
     load();
   }, [load, outcome]);
 
+  // Nothing is accepted until the person sees which channel invited them and chooses to join.
   useEffect(() => {
     if (view.kind !== "signedIn" || !inviteToken) return;
+    api.previewInvite(inviteToken).then(
+      (r) => setInvitePreview(r.workspaceName),
+      () => {
+        clearInvite();
+        setInviteToken(null);
+        setInviteResult("invalid");
+      },
+    );
+  }, [view.kind, inviteToken]);
+
+  function decideInvite(join: boolean) {
+    const token = inviteToken;
     clearInvite();
     setInviteToken(null);
+    setInvitePreview(null);
+    if (!join || !token) return;
     api
-      .acceptInvite(inviteToken)
+      .acceptInvite(token)
       .then((r) => setInviteResult(r.outcome))
       .catch((e: unknown) => setInviteResult(e instanceof ApiError && e.code ? e.code : "invalid"))
       .finally(load);
-  }, [view.kind, inviteToken, load]);
+  }
 
   return (
     <main className="page">
@@ -91,6 +107,21 @@ export function App() {
         </p>
       )}
       {inviteToken && view.kind === "signedOut" && <p className="notice">{t("invite.pending")}</p>}
+      {invitePreview && (
+        <div className="notice" role="dialog" aria-label={t("invite.prompt")}>
+          <p>
+            {t("invite.prompt")} <strong>{invitePreview}</strong>
+          </p>
+          <p className="actions">
+            <button type="button" className="button primary" onClick={() => decideInvite(true)}>
+              {t("invite.join")}
+            </button>
+            <button type="button" className="button" onClick={() => decideInvite(false)}>
+              {t("invite.decline")}
+            </button>
+          </p>
+        </div>
+      )}
       {view.kind === "loading" && <p>{t("state.loading")}</p>}
       {view.kind === "notConfigured" && <p>{t("state.notConfigured")}</p>}
       {view.kind === "error" && <p className="error">{t("state.error")}</p>}
@@ -119,7 +150,10 @@ function SignedOut() {
 
 function SignedIn({ me, onChange }: { me: MeResponse; onChange: () => void }) {
   const [message, setMessage] = useState<string | null>(null);
-  const first = me.workspaces[0];
+  // The creator's own channel comes first, so joining someone else's can't take over their dashboard.
+  const ordered = [...me.workspaces].sort((a, b) => (a.role === b.role ? 0 : a.role === "owner" ? -1 : 1));
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const first = ordered.find((w) => w.id === selectedId) ?? ordered[0];
 
   async function logout() {
     await api.logout().catch(() => undefined);
@@ -146,8 +180,20 @@ function SignedIn({ me, onChange }: { me: MeResponse; onChange: () => void }) {
           {message}
         </p>
       )}
+      {ordered.length > 1 && (
+        <label className="switcher">
+          {t("ws.switch")}{" "}
+          <select value={first?.id} onChange={(e) => setSelectedId(e.target.value)}>
+            {ordered.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.name} · {t(`ws.role.${w.role}`)}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
       {first ? (
-        <Workspace id={first.id} selfId={me.member.id} onError={setMessage} onChange={onChange} />
+        <Workspace key={first.id} id={first.id} selfId={me.member.id} onError={setMessage} onChange={onChange} />
       ) : (
         <>
           <p>{t("me.noWorkspace")}</p>

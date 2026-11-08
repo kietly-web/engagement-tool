@@ -117,7 +117,7 @@ export const en: Record<MessageKey, string> = {
   "members.title": "Moderators",
   "members.inviteEmail": "Moderator's Google email",
   "members.invite": "Create invite link",
-  "members.inviteNote": "Send this link to the moderator (shown only once, expires in 7 days). They must sign in with exactly that Google email.",
+  "members.inviteNote": "Send this link to the moderator (shown only once, expires in 7 days). They must sign in with exactly that Google email (dots and +tags must match too).",
   "members.pending": "Pending invites",
   "members.expires": "expires",
   "members.revoke": "Revoke invite",
@@ -145,4 +145,8 @@ export const en: Record<MessageKey, string> = {
   "invite.already_member": "You're already a member of this channel.",
   "invite.email_mismatch": "Your Google email doesn't match the invite. Sign in with the invited email.",
   "invite.invalid": "This invite is invalid, expired or already used.",
+  "invite.prompt": "You've been invited to moderate the channel",
+  "invite.join": "Join",
+  "invite.decline": "Decline",
+  "ws.switch": "Viewing channel",
 };

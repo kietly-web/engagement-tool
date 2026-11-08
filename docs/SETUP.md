@@ -62,6 +62,7 @@ P0: production doesn't work without it. P1: a feature or workflow is degraded. P
 | [ ] | Demo starts capped at 4 per workspace per day (`DEMO_STARTS_DAILY`) to protect shared Durable Object time | Raise once real usage is known | `apps/worker/wrangler.jsonc` |
 | [ ] | No edge rate limit on `/o/*` (scanners, stale OBS sources) | Cloudflare dashboard → Security → WAF → Rate limiting rules (free plan allows one): path starts with `/o/`, 30 requests per 10 s per IP, block 10 s. The Worker already caches misses for 5 minutes per isolate | Owner, after the domain is set up |
 | [x] 08/11/2026 | Overlay link rotation isn't in an audit log | ET-9 logs `overlay_rotated` | `apps/worker/src/overlay.ts` |
+| [ ] | Invite email matching uses the email stored at the member's last sign-in; Gmail dot and `+tag` variants don't match | Acceptable for the beta; require a sign-in in the last hour before accepting if abuse appears | `packages/db` `accept_invite` |
 | [ ] | No rate limit on sign-in and session lookups | Add Workers Rate Limiting binding (free plan) or a per-IP Durable Object counter before open sign-up | `apps/worker` |
 | [x] 08/11/2026 | Audit log not built | ET-9: invites, membership, overlay rotation, disconnect, viewer erasure, seasons. Account deletion deletes the workspace and its log with it | `packages/db`, `apps/worker` |
 | [ ] | Preview deployments can't sign in (Google needs exact redirect URIs) | Dev-only sign-in stub compiled out of production, if previews need it | `apps/worker` |

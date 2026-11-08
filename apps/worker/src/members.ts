@@ -2,14 +2,14 @@ import { audit, ContextError, invites, membership, withMember, withWorkspace, wo
 import { Hono, type Context } from "hono";
 import type { authRoutes, Vars } from "./auth";
 import { randomToken } from "./crypto";
-import type { AppEnv } from "./env";
+import type { AppDeps, AppEnv } from "./env";
 import { hashToken } from "./overlay";
 
-const EMAIL = /^[^\s@<>]{1,64}@[^\s@<>]{1,255}\.[^\s@<>]{2,63}$/;
+const EMAIL = /^[A-Za-z0-9._%+-]{1,64}@[A-Za-z0-9.-]{1,255}\.[A-Za-z]{2,63}$/;
 const TOKEN = /^[A-Za-z0-9_-]{43}$/;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export function memberManageRoutes(auth: ReturnType<typeof authRoutes>) {
+export function memberManageRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps) {
   const app = new Hono<{ Bindings: AppEnv; Variables: Vars }>();
   const guard = [auth.configured, auth.requireMember] as const;
   type Ctx = Context<{ Bindings: AppEnv; Variables: Vars }>;
@@ -62,6 +62,14 @@ export function memberManageRoutes(auth: ReturnType<typeof authRoutes>) {
     return revoked ? c.body(null, 204) : c.json({ error: "not_found" }, 404);
   });
 
+  app.post("/invites/preview", ...guard, async (c) => {
+    const body = (await c.req.json().catch(() => null)) as { token?: unknown } | null;
+    const token = typeof body?.token === "string" ? body.token : "";
+    if (!TOKEN.test(token)) return c.json({ error: "invalid" }, 404);
+    const name = await withMember(c.var.db, { memberId: c.var.memberId }, async (tx) => invites.preview(tx, await hashToken(token)));
+    return name ? c.json({ workspaceName: name }) : c.json({ error: "invalid" }, 404);
+  });
+
   app.post("/invites/accept", ...guard, async (c) => {
     const body = (await c.req.json().catch(() => null)) as { token?: unknown } | null;
     const token = typeof body?.token === "string" ? body.token : "";
@@ -80,12 +88,11 @@ export function memberManageRoutes(auth: ReturnType<typeof authRoutes>) {
     const leaving = target === c.var.memberId;
     if (leaving && ws.role === "owner") return c.json({ error: "owner_cannot_leave" }, 400);
     if (!leaving && ws.role !== "owner") return c.json({ error: "forbidden" }, 403);
-    // Logged first: once a moderator has left, they're no longer allowed to write to this workspace's log.
-    const removed = await withWorkspace(c.var.db, ctx(c, ws.id), async (tx) => {
-      await audit.log(tx, leaving ? "member_left" : "member_removed", leaving ? {} : { member_id: target });
-      return membership.remove(tx, target);
-    });
-    return removed ? c.body(null, 204) : c.json({ error: "not_found" }, 404);
+    const removed = await withWorkspace(c.var.db, ctx(c, ws.id), (tx) => membership.remove(tx, target));
+    if (!removed) return c.json({ error: "not_found" }, 404);
+    // Their session would otherwise keep polling on the owner's quota while its points writes fail.
+    await deps.liveSession(c.env, ws.id).stopIfStartedBy(target);
+    return c.body(null, 204);
   });
 
   app.get("/workspaces/:id/audit", ...guard, async (c) => {

@@ -115,7 +115,7 @@ export const vi = {
   "members.title": "Người điều hành",
   "members.inviteEmail": "Email Google của người điều hành",
   "members.invite": "Tạo link mời",
-  "members.inviteNote": "Gửi link này cho người điều hành (link chỉ hiện một lần, hết hạn sau 7 ngày). Họ phải đăng nhập bằng đúng email Google đã nhập.",
+  "members.inviteNote": "Gửi link này cho người điều hành (link chỉ hiện một lần, hết hạn sau 7 ngày). Họ phải đăng nhập bằng đúng email Google đã nhập (Gmail phân biệt cả dấu chấm và phần +).",
   "members.pending": "Lời mời đang chờ",
   "members.expires": "hết hạn",
   "members.revoke": "Huỷ lời mời",
@@ -143,6 +143,10 @@ export const vi = {
   "invite.already_member": "Bạn đã là thành viên của kênh này.",
   "invite.email_mismatch": "Email Google của bạn không khớp với lời mời. Hãy đăng nhập bằng email đã được mời.",
   "invite.invalid": "Lời mời không hợp lệ, đã hết hạn hoặc đã được dùng.",
+  "invite.prompt": "Bạn được mời làm người điều hành của kênh",
+  "invite.join": "Tham gia",
+  "invite.decline": "Từ chối",
+  "ws.switch": "Kênh đang xem",
 } as const;
 
 export type MessageKey = keyof typeof vi;

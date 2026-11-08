@@ -47,14 +47,39 @@ describe("invites", () => {
   });
 
   it("caps pending invites at 20", async () => {
+    await w.db.transaction((tx) => tx.query("DELETE FROM app.invite WHERE accepted_at IS NULL"));
     for (let i = 0; i < 20; i++) await asA(w.alice, (tx) => invites.create(tx, `x${i}@example.test`, (100 + i).toString(16).padStart(64, "a")));
     await expect(asA(w.alice, (tx) => invites.create(tx, "y@example.test", "f".repeat(64)))).rejects.toThrow(/too many pending/);
+    await w.db.transaction((tx) => tx.query("DELETE FROM app.invite WHERE accepted_at IS NULL"));
+  });
+});
+
+describe("re-joining after removal", () => {
+  it("a second link for the same address replaces the first, so removal can't be undone with a spare link", async () => {
+    const frank = await withSystem(w.db, (tx) => members.upsertFromGoogle(tx, { googleSub: "sub-frank", email: "frank@example.test", displayName: "frank" }));
+    await asA(w.alice, (tx) => invites.create(tx, "frank@example.test", "c".repeat(64)));
+    await asA(w.alice, (tx) => invites.create(tx, "frank@example.test", "d".repeat(64)));
+    expect(await withMember(w.db, { memberId: frank }, (tx) => invites.accept(tx, "c".repeat(64)))).toEqual({ workspaceId: null, outcome: "invalid" });
+    expect((await withMember(w.db, { memberId: frank }, (tx) => invites.accept(tx, "d".repeat(64)))).outcome).toBe("accepted");
+    expect(await asA(w.alice, (tx) => membership.remove(tx, frank))).toBe(true);
+    expect(await withMember(w.db, { memberId: frank }, (tx) => invites.accept(tx, "d".repeat(64)))).toEqual({ workspaceId: null, outcome: "invalid" });
+    expect((await withMember(w.db, { memberId: frank }, (tx) => workspaces.listMine(tx))).length).toBe(0);
+  });
+
+  it("preview shows the workspace name to a signed-in member without changing anything", async () => {
+    await asA(w.alice, (tx) => invites.create(tx, "gina@example.test", "e".repeat(64)));
+    expect(await withMember(w.db, { memberId: w.dave }, (tx) => invites.preview(tx, "e".repeat(64)))).toBe("Kênh A");
+    expect(await withSystem(w.db, (tx) => invites.preview(tx, "e".repeat(64)))).toBeNull();
+    expect(await withMember(w.db, { memberId: w.dave }, (tx) => invites.preview(tx, "0".repeat(64)))).toBeNull();
   });
 });
 
 describe("membership changes", () => {
-  it("an owner removes a moderator; a moderator leaves; nobody removes the owner", async () => {
-    expect(await asA(erin, (tx) => membership.remove(tx, w.alice))).toBe(false);
+  it("an owner removes a moderator; a moderator leaves; nobody removes the owner; failures aren't logged", async () => {
+    await expect(asA(erin, (tx) => membership.remove(tx, w.alice))).rejects.toThrow(/not allowed/);
+    const before = (await asA(w.alice, (tx) => audit.recent(tx, 500))).length;
+    expect(await asA(w.alice, (tx) => membership.remove(tx, "00000000-0000-4000-8000-000000000000"))).toBe(false);
+    expect((await asA(w.alice, (tx) => audit.recent(tx, 500))).length).toBe(before);
     expect(await asA(erin, (tx) => membership.remove(tx, erin))).toBe(true);
     expect(await asA(w.alice, (tx) => membership.remove(tx, w.alice))).toBe(false);
     expect(await asA(w.alice, (tx) => membership.remove(tx, w.bob))).toBe(true);
@@ -66,7 +91,7 @@ describe("audit log", () => {
     const entries = await asA(w.alice, (tx) => audit.recent(tx));
     expect(entries.map((e) => e.action)).toEqual(expect.arrayContaining(["invite_created", "invite_accepted"]));
     expect(entries.find((e) => e.action === "invite_created")?.actorName).toBe("alice");
-    expect(entries.find((e) => e.action === "invite_accepted")?.actorName).toBeNull();
+    expect(entries.filter((e) => e.action === "invite_accepted").map((e) => e.actorName)).toEqual(expect.arrayContaining(["erin", "frank"]));
     expect(await withWorkspace(w.db, { memberId: w.carol, workspaceId: w.wsB }, (tx) => audit.recent(tx))).toEqual([]);
     await expect(withWorkspace(w.db, { memberId: w.dave, workspaceId: w.wsA }, (tx) => audit.log(tx, "season_started"))).rejects.toThrow(/not a member/);
   });

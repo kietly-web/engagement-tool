@@ -308,7 +308,9 @@ export type AuditAction =
   | "youtube_disconnected"
   | "viewer_erased"
   | "season_started"
-  | "season_ended";
+  | "season_ended"
+  | "session_started"
+  | "session_stopped";
 
 export interface InviteView {
   id: string;
@@ -344,6 +346,11 @@ export const invites = {
     return rows.length === 1;
   },
 
+  async preview(tx: Queryable, tokenHashHex: string): Promise<string | null> {
+    const { rows } = await tx.query<{ workspace_name: string }>("SELECT workspace_name FROM app.invite_preview($1)", [tokenHashHex]);
+    return rows[0]?.workspace_name ?? null;
+  },
+
   async accept(tx: Queryable, tokenHashHex: string): Promise<{ workspaceId: string | null; outcome: "accepted" | "already_member" | "email_mismatch" | "invalid" }> {
     const { rows } = await tx.query<{ workspaceId: string | null; outcome: "accepted" | "already_member" | "email_mismatch" | "invalid" }>(
       'SELECT workspace_id AS "workspaceId", outcome FROM app.accept_invite($1)',
@@ -355,11 +362,8 @@ export const invites = {
 
 export const membership = {
   async remove(tx: Queryable, memberId: string): Promise<boolean> {
-    const { rows } = await tx.query(
-      "DELETE FROM app.workspace_member WHERE workspace_id = app.current_workspace_id() AND member_id = $1 RETURNING member_id",
-      [memberId],
-    );
-    return rows.length === 1;
+    const { rows } = await tx.query<{ ok: boolean }>("SELECT app.remove_member($1) AS ok", [memberId]);
+    return rows[0]?.ok === true;
   },
 };
 
@@ -370,8 +374,8 @@ export const audit = {
 
   async recent(tx: Queryable, limit = 50): Promise<AuditEntry[]> {
     const { rows } = await tx.query<AuditEntry>(
-      `SELECT e.action, m.display_name AS "actorName", e.detail, e.created_at::text AS "createdAt"
-         FROM app.audit_event e LEFT JOIN app.member m ON m.id = e.actor_member_id
+      `SELECT e.action, e.actor_name AS "actorName", e.detail, e.created_at::text AS "createdAt"
+         FROM app.audit_event e
         WHERE e.workspace_id = app.current_workspace_id()
         ORDER BY e.created_at DESC, e.id DESC LIMIT $1`,
       [limit],
