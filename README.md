@@ -13,7 +13,7 @@ engagement-tool/
 ├── packages/
 │   ├── core/            Pure domain logic: commands, polls, points, seasons (no I/O)
 │   ├── youtube/         The only code that calls YouTube; read-only ChatSource
-│   └── db/              The only code that talks to Postgres; RLS context
+│   └── db/              The only code that talks to Postgres; SQL migrations, RLS context
 ├── apps/
 │   ├── worker/          Cloudflare Worker (Hono): API, sign-in, LiveSession, cron
 │   ├── web/             Dashboard (Vite + React), Vietnamese first

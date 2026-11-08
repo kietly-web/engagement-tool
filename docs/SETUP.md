@@ -20,7 +20,9 @@ P0: production doesn't work without it. P1: a feature or workflow is degraded. P
 | [ ] | P0 | Cloudflare account, **no payment method** | dash.cloudflare.com → Sign up | Free plan only; then run `npx wrangler login` so Claude can deploy previews | ET-2 deploy | Owner |
 | [ ] | P0 | Connect repo to Workers Builds | Cloudflare → Workers & Pages → Create → Import a repository → `kietly-web/engagement-tool` | Project name `engagement-tool`; root directory `/`; build command `pnpm build`; deploy command `pnpm --filter @et/worker exec wrangler deploy`; non-production branch deploy command `pnpm --filter @et/worker exec wrangler versions upload`; production branch `main` | Production deploy of ET-2 | Owner |
 | [ ] | P0 | Neon account (Free, no card) and project in **Singapore** | console.neon.tech → New project → Region AWS Asia Pacific (Singapore) | Postgres 17; keep the owner connection string in a password manager, never in the repo | ET-4 | Owner |
-| [ ] | P0 | `DATABASE_URL` (Secret), runtime role `app_runtime` | `wrangler secret put DATABASE_URL` | Connection string for `app_runtime` (created by ET-4's migration), never the owner role; or a Hyperdrive binding if ET-4 picks it (Q-T2) | ET-4 | Owner |
+| [ ] | P0 | Apply migrations | Owner's machine | `DATABASE_OWNER_URL='<owner connection string, direct (not pooled)>' pnpm --filter @et/db migrate`; prints `Applied: 0001_tenancy.sql` | ET-5 | Owner (or Claude once `neonctl`/Neon MCP is authorised) |
+| [ ] | P0 | Worker login role `app_worker` | Neon Console → SQL Editor, as the owner | `CREATE ROLE app_worker LOGIN PASSWORD '<openssl rand -base64 32>' IN ROLE app_runtime;` then check `SELECT rolbypassrls, rolsuper FROM pg_roles WHERE rolname = 'app_worker';` returns `f, f`. Use SQL, not the console's Roles page (that adds `neon_superuser`) | ET-5 | Owner |
+| [ ] | P0 | Hyperdrive config, **caching disabled** | `npx wrangler hyperdrive create engagement-tool-db --connection-string="postgres://app_worker:<password>@<neon-host>/neondb?sslmode=require" --caching-disabled` | Put the printed ID in `apps/worker/wrangler.jsonc` as the `HYPERDRIVE` binding (ET-5 adds the block). The ID is not secret; the password stays inside Hyperdrive | ET-5 | Owner |
 | [ ] | P0 | Google Cloud project, **no billing account** | console.cloud.google.com → New project | Then APIs & Services → Library → enable "YouTube Data API v3" | ET-5 | Owner |
 | [ ] | P0 | OAuth consent screen | Google Auth Platform → Branding / Audience / Data access | External; Testing; add beta creators and mods as test users; scopes `openid`, `email`, `profile`, `youtube.readonly` | ET-5 | Owner |
 | [ ] | P0 | OAuth web client | Google Auth Platform → Clients → Create → Web application | Redirect URI `https://<worker>.workers.dev/api/auth/google/callback`; client ID goes in `wrangler.jsonc` vars as `GOOGLE_CLIENT_ID` | ET-5 | Owner |
@@ -34,7 +36,8 @@ P0: production doesn't work without it. P1: a feature or workflow is degraded. P
 
 | Name | Required | Where | Secret | Used by |
 | --- | --- | --- | --- | --- |
-| `DATABASE_URL` | Yes | Worker secret | Yes | `packages/db` via `apps/worker` |
+| `HYPERDRIVE` | Yes | `wrangler.jsonc` binding (ID only) | No (credentials live in Hyperdrive) | `packages/db` via `apps/worker` |
+| `DATABASE_OWNER_URL` | Migrations only | Owner's shell, never stored | Yes | `pnpm --filter @et/db migrate` |
 | `GOOGLE_CLIENT_ID` | Yes | `wrangler.jsonc` vars | No | `apps/worker` auth |
 | `GOOGLE_CLIENT_SECRET` | Yes | Worker secret | Yes | `apps/worker` auth |
 | `TOKEN_ENCRYPTION_KEY` | Yes | Worker secret | Yes | Refresh-token encryption |
@@ -64,7 +67,7 @@ Slices ET-2 to ET-11 in [design/08-delivery-plan.md](design/08-delivery-plan.md)
 | [ ] | Q-L4 Data localisation | Counsel | Storage is movable (ADR-002) |
 | [ ] | Q-D1 Viewer request channel and deadline | Owner | Needed by ET-11 |
 | [ ] | Q-T1 Does `streamList` work with `youtube.readonly` from a Durable Object, and what does a stream-hour cost? | ET-6 | Spike first |
-| [ ] | Q-T2 Hyperdrive vs Neon serverless driver | ET-4 | Decide |
+| [x] 08/11/2026 | Q-T2 Hyperdrive vs Neon serverless driver | ET-4 | Hyperdrive + `pg`, caching disabled (ADR-002) |
 | [ ] | Q-T3 Concurrent sessions on DO free plan | ET-6 | Estimate |
 | [ ] | Q-P1 Show `!points` on an overlay ticker? | Owner | Product |
 | [ ] | Q-P2 Product name and domain | Owner | Domain needs an ADR (cost) |

@@ -19,7 +19,7 @@ Viewers type commands in a creator's YouTube live chat (`!vote 2`, `!join`). The
 | Section | State |
 | --- | --- |
 | [01 Architecture](01-architecture.md) | Written at kickoff |
-| 02 Data model | Written by ET-4 (first migration) |
+| [02 Data model](02-data-model.md) | Written by ET-4 |
 | [03 Security and privacy](03-security-privacy.md) | Written at kickoff |
 | [05 Domain engine](05-domain-engine.md) (commands, polls; points and games later) | Written by ET-3 |
 | [07 Infrastructure](07-infrastructure.md) | Written at kickoff |

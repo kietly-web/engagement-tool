@@ -115,7 +115,7 @@ L = likelihood, I = impact (H/M/L).
 - Q-L4 Does any Vietnamese data-localisation requirement apply to a free service of this size? (counsel)
 - Q-D1 How do viewers reach us or the creator to ask for erasure, and what deadline do we commit to? (owner)
 - Q-T1 Does `liveChatMessages.streamList` work with `youtube.readonly` over HTTP from a Durable Object, how often does it reconnect, and what does a stream-hour cost? Spiked first in ET-6.
-- Q-T2 Neon from Workers: Hyperdrive with a standard driver, or Neon's serverless driver over WebSockets, given RLS needs interactive transactions? Decided in ET-4.
+- Q-T2 Neon from Workers: Hyperdrive with a standard driver, or Neon's serverless driver over WebSockets, given RLS needs interactive transactions? **Decided in ET-4:** Hyperdrive + `pg`, caching disabled (ADR-002).
 - Q-T3 How many concurrent sessions fit the Durable Objects free plan? Estimated in ET-6.
 - Q-P1 Viewers can't get replies in chat (read-only). Should `!points` flash the viewer's score on an overlay ticker? (owner)
 - Q-P2 Product name and domain. (owner)
