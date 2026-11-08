@@ -73,4 +73,9 @@ export const en: Record<MessageKey, string> = {
   "poll.error.invalid_poll": "A poll needs 2–6 different options; the question can be up to 120 characters and each option up to 40.",
   "poll.error.poll_open": "A poll is already open. Close it first.",
   "poll.error.not_live": "Start a live session before opening a poll.",
+  "live.stopReason.disabled": "Stopped: live sessions are paused for maintenance.",
+  "live.stopReason.internal_error": "Stopped by a system error. Please start again.",
+  "live.error.demo_limit": "You've used today's trial sessions. Please come back tomorrow.",
+  "live.demoLeft": "Trial sessions left today",
+  "live.quotaLow": "The service's shared YouTube quota is nearly used up today.",
 };

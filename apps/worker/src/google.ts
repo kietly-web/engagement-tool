@@ -127,8 +127,15 @@ export async function refreshAccessToken(
       client_secret: p.clientSecret,
     }).toString(),
   });
-  if (res.status === 400 || res.status === 401) throw new InvalidGrantError();
-  if (!res.ok) throw new AuthError("refresh_failed");
+  if (!res.ok) {
+    const error = await res
+      .json()
+      .then((b) => (b as { error?: unknown }).error)
+      .catch(() => undefined);
+    // Only invalid_grant means the creator must reconnect; invalid_client etc. is our misconfiguration.
+    if (error === "invalid_grant") throw new InvalidGrantError();
+    throw new AuthError("refresh_failed");
+  }
   const body = (await res.json()) as Record<string, unknown>;
   if (typeof body.access_token !== "string") throw new AuthError("refresh_failed");
   return { accessToken: body.access_token, expiresInSeconds: typeof body.expires_in === "number" ? body.expires_in : 3600 };

@@ -11,10 +11,12 @@ export interface SessionClient {
   status(): Promise<SessionStatus>;
   createPoll(input: PollInput): Promise<Result<SessionStatus>>;
   closePoll(): Promise<Result<SessionStatus>>;
+  purge(): Promise<void>;
 }
 
 export interface QuotaUsageClient extends QuotaClient {
   usage(workspaceId: string): Promise<QuotaUsage>;
+  reserveDemo(workspaceId: string): Promise<boolean>;
 }
 
 // One LiveSession per workspace, named on the server from the workspace id (non-negotiable 4).

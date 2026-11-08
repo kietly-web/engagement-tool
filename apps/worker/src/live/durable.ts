@@ -26,8 +26,9 @@ export class LiveSession extends DurableObject<AppEnv> {
       delete: (key: string) => ctx.storage.delete(key),
       setAlarm: (time: number) => ctx.storage.setAlarm(time),
       deleteAlarm: () => ctx.storage.deleteAlarm(),
+      deleteAll: () => ctx.storage.deleteAll(),
     };
-    this.engine = new SessionEngine(storage, provider, systemClock);
+    this.engine = new SessionEngine(storage, provider, systemClock, { disabled: () => String(env.SESSIONS_DISABLED) === "true" });
   }
 
   start(input: StartInput) {
@@ -44,6 +45,9 @@ export class LiveSession extends DurableObject<AppEnv> {
   }
   closePoll() {
     return this.engine.closePoll();
+  }
+  purge() {
+    return this.engine.purge();
   }
   override async alarm() {
     await this.engine.tick();
@@ -63,6 +67,13 @@ export class QuotaKeeper extends DurableObject<AppEnv> {
     const decision = budget.reserve(workspaceId, units, new Date());
     if (decision.ok) await this.ctx.storage.put("quota", budget.snapshot());
     return decision;
+  }
+
+  async reserveDemo(workspaceId: string) {
+    const budget = await this.load();
+    const ok = budget.reserveDemo(workspaceId, new Date());
+    if (ok) await this.ctx.storage.put("quota", budget.snapshot());
+    return ok;
   }
 
   async usage(workspaceId: string) {

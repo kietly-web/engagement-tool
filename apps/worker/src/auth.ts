@@ -216,6 +216,11 @@ export function authRoutes(deps: AppDeps) {
 export function memberRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps) {
   const app = new Hono<{ Bindings: AppEnv; Variables: Vars }>();
   const guard = [auth.configured, auth.requireMember] as const;
+  const purgeSession = async (env: AppEnv, workspaceId: string) => {
+    const client = deps.liveSession(env, workspaceId);
+    await client.stop("manual");
+    await client.purge();
+  };
 
   app.get("/me", ...guard, async (c) => {
     const { db, memberId } = c.var;
@@ -257,10 +262,11 @@ export function memberRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps)
     if (!current) return c.json({ error: "not_found" }, 404);
     if (current.role !== "owner") return c.json({ error: "forbidden" }, 403);
 
-    const revoked = await auth.revokeWorkspaceToken(c as Ctx, workspaceId);
+    const revoked = await auth.revokeWorkspaceToken(c as Ctx, current.id);
     if (revoked === "none") return c.json({ error: "not_connected" }, 404);
     if (revoked === "failed") return c.json({ error: "revoke_failed" }, 502);
-    await withWorkspace(db, { memberId, workspaceId }, (tx) => youtube.disconnect(tx));
+    await withWorkspace(db, { memberId, workspaceId: current.id }, (tx) => youtube.disconnect(tx));
+    await purgeSession(c.env, current.id);
     return c.body(null, 204);
   });
 
@@ -287,6 +293,7 @@ export function memberRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps)
     const { db, memberId } = c.var;
     const owned = (await withMember(db, { memberId }, (tx) => workspaces.listMine(tx))).find((w) => w.role === "owner");
     if (owned && (await auth.revokeWorkspaceToken(c as Ctx, owned.id)) === "failed") return c.json({ error: "revoke_failed" }, 502);
+    if (owned) await purgeSession(c.env, owned.id);
     await withMember(db, { memberId }, (tx) => members.deleteMyAccount(tx));
     clearSessionCookie(c);
     return c.body(null, 204);

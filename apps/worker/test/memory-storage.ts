@@ -20,4 +20,7 @@ export class MemoryStorage implements SessionStorage {
   async deleteAlarm() {
     this.alarm = null;
   }
+  async deleteAll() {
+    this.data.clear();
+  }
 }

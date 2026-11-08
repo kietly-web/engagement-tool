@@ -20,6 +20,7 @@ const KNOWN: Record<string, true> = Object.fromEntries(
     "live.error.youtube_unavailable",
     "live.error.already_live",
     "live.error.disabled",
+    "live.error.demo_limit",
     "poll.error.invalid_poll",
     "poll.error.poll_open",
     "poll.error.not_live",
@@ -99,6 +100,12 @@ export function LivePanel({ workspaceId, youtubeConnected }: { workspaceId: stri
           {data && ` · ${t("live.quota")}: ${data.quota.workspaceUsed}/${data.quota.workspaceLimit}`}
         </p>
       )}
+      {data && !live && (
+        <p className="muted">
+          {t("live.demoLeft")}: {data.quota.demoStartsLeft}
+        </p>
+      )}
+      {data?.quota.projectHeadroomLow && <p className="notice">{t("live.quotaLow")}</p>}
 
       {live && (
         <PollSection

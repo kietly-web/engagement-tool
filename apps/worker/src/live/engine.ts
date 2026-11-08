@@ -10,6 +10,7 @@ export interface SessionStorage {
   delete(key: string): Promise<unknown>;
   setAlarm(scheduledTime: number): Promise<void>;
   deleteAlarm(): Promise<void>;
+  deleteAll(): Promise<void>;
 }
 
 export type SessionErrorCode = "already_live" | "not_live" | "poll_open" | "no_poll" | "invalid_poll";
@@ -55,9 +56,10 @@ export interface EngineOptions {
   demoDurationMs: number;
   maxFailures: number;
   maxBackoffMs: number;
+  disabled(): boolean;
 }
 
-const DEFAULTS: EngineOptions = { demoDurationMs: 15 * 60_000, maxFailures: 10, maxBackoffMs: 60_000 };
+const DEFAULTS: EngineOptions = { demoDurationMs: 15 * 60_000, maxFailures: 10, maxBackoffMs: 60_000, disabled: () => false };
 
 export class SessionEngine {
   private readonly opts: EngineOptions;
@@ -139,8 +141,17 @@ export class SessionEngine {
       poll.close();
       await this.storage.put("poll", poll.snapshot());
     }
-    const stopped: SessionState = { ...state, status: "stopped", stoppedAt: this.clock.now().toISOString(), stopReason: reason };
+    // YouTube identifiers and the token copy go at stop, so nothing YouTube-derived lingers in DO storage (NN3).
+    const stopped: SessionState = {
+      ...state,
+      status: "stopped",
+      broadcastId: "",
+      liveChatId: "",
+      stoppedAt: this.clock.now().toISOString(),
+      stopReason: reason,
+    };
     delete stopped.tokenCiphertext;
+    delete stopped.pageToken;
     await this.storage.put("session", stopped);
     await this.storage.deleteAlarm();
     this.sources.invalidate();
@@ -172,9 +183,28 @@ export class SessionEngine {
     return { ok: true, value: this.view(await this.loadState(), poll) };
   }
 
+  async purge(): Promise<void> {
+    this.sources.invalidate();
+    await this.storage.deleteAlarm();
+    await this.storage.deleteAll();
+  }
+
+  // Any unexpected error stops the session; otherwise the alarm would give up and leave it stuck "live".
   async tick(): Promise<void> {
+    try {
+      await this.tickOnce();
+    } catch {
+      await this.stop("internal_error").catch(() => undefined);
+    }
+  }
+
+  private async tickOnce(): Promise<void> {
     const state = await this.loadState();
     if (state?.status !== "live") return;
+    if (this.opts.disabled()) {
+      await this.stop("disabled");
+      return;
+    }
     const now = this.clock.now().getTime();
     if (state.mode === "demo" && now - Date.parse(state.startedAt) >= this.opts.demoDurationMs) {
       await this.stop("demo_finished");

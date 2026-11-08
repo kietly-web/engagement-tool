@@ -121,15 +121,18 @@ export interface Harness {
   browser(): Browser;
 }
 
-export async function makeHarness(opts: { configured?: boolean; quota?: { projectDaily: number; workspaceDaily: number } } = {}): Promise<Harness> {
+export async function makeHarness(
+  opts: { configured?: boolean; quota?: { projectDaily: number; workspaceDaily: number; demoStartsDaily?: number } } = {},
+): Promise<Harness> {
   const db = await createTestDatabase(await loadMigrations());
   const google = new FakeGoogle();
   const clock = { now: new Date("2026-11-08T12:00:00Z") };
   const engines = new Map<string, SessionEngine>();
-  const quota = new QuotaBudget(opts.quota ?? { projectDaily: 9000, workspaceDaily: 3000 });
+  const quota = new QuotaBudget({ projectDaily: 9000, workspaceDaily: 3000, demoStartsDaily: 4, ...opts.quota });
   const quotaClient: QuotaUsageClient = {
     reserve: async (ws, units) => quota.reserve(ws, units, clock.now),
     usage: async (ws) => quota.usage(ws, clock.now),
+    reserveDemo: async (ws) => quota.reserveDemo(ws, clock.now),
   };
   const engineClock = { now: () => clock.now };
   const app = createApp({

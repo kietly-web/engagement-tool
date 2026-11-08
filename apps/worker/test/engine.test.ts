@@ -18,13 +18,13 @@ class ScriptedSource implements ChatSource {
   }
 }
 
-function setup(source: ChatSource = new ScriptedSource()) {
+function setup(source: ChatSource = new ScriptedSource(), flags = { disabled: false }) {
   const storage = new MemoryStorage();
   const clock = fixedClock("2026-11-08T13:00:00Z");
   let invalidations = 0;
   const provider: SourceProvider = { get: async () => source, invalidate: () => void invalidations++ };
-  const engine = new SessionEngine(storage, provider, clock, { demoDurationMs: 60_000, maxFailures: 3 });
-  return { engine, storage, clock, invalidations: () => invalidations };
+  const engine = new SessionEngine(storage, provider, clock, { demoDurationMs: 60_000, maxFailures: 3, disabled: () => flags.disabled });
+  return { engine, storage, clock, flags, invalidations: () => invalidations };
 }
 
 const msg = (viewer: number, text: string) => ({ channelId: syntheticChannelId(viewer), displayName: `v${viewer}`, text, publishedAt: "" });
@@ -40,13 +40,52 @@ describe("SessionEngine lifecycle", () => {
     expect((await engine.status()).status).toBe("live");
   });
 
-  it("stops, clears the alarm and forgets the token ciphertext", async () => {
+  it("stops, clears the alarm and forgets the token and every YouTube identifier", async () => {
     const { engine, storage } = setup();
     await start(engine);
+    await engine.tick();
     const stopped = await engine.stop();
     expect(stopped).toMatchObject({ status: "stopped", stopReason: "manual" });
     expect(storage.alarm).toBeNull();
-    expect((await storage.get<SessionState>("session"))?.tokenCiphertext).toBeUndefined();
+    const kept = await storage.get<SessionState>("session");
+    expect(kept).toMatchObject({ broadcastId: "", liveChatId: "" });
+    expect(kept?.tokenCiphertext).toBeUndefined();
+    expect(kept?.pageToken).toBeUndefined();
+  });
+
+  it("purges all stored state", async () => {
+    const { engine, storage } = setup();
+    await start(engine);
+    await engine.purge();
+    expect(storage.data.size).toBe(0);
+    expect(storage.alarm).toBeNull();
+    expect((await engine.status()).status).toBe("idle");
+  });
+
+  it("stops a running session when the kill switch is turned on", async () => {
+    const source = new ScriptedSource();
+    const { engine, flags } = setup(source);
+    await start(engine);
+    flags.disabled = true;
+    await engine.tick();
+    expect(await engine.status()).toMatchObject({ status: "stopped", stopReason: "disabled" });
+    expect(source.calls).toEqual([]);
+  });
+
+  it("stops instead of staying stuck live when a tick fails unexpectedly", async () => {
+    const { engine, storage } = setup();
+    await start(engine);
+    const realPut = storage.put.bind(storage);
+    let fail = true;
+    storage.put = async (key, value) => {
+      if (fail && key === "session") {
+        fail = false;
+        throw new Error("storage hiccup");
+      }
+      return realPut(key, value);
+    };
+    await engine.tick();
+    expect(await engine.status()).toMatchObject({ status: "stopped", stopReason: "internal_error" });
   });
 
   it("reports idle before anything happens", async () => {

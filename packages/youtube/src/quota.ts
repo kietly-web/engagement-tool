@@ -8,12 +8,14 @@ export function quotaDay(now: Date): string {
 export interface QuotaLimits {
   projectDaily: number;
   workspaceDaily: number;
+  demoStartsDaily: number;
 }
 
 export interface QuotaSnapshot {
   day: string;
   total: number;
   byWorkspace: Record<string, number>;
+  demoStarts?: Record<string, number>;
 }
 
 export type QuotaDecision = { ok: true } | { ok: false; reason: "project_limit" | "workspace_limit" | "invalid" };
@@ -24,6 +26,7 @@ export interface QuotaUsage {
   workspaceLimit: number;
   projectUsed: number;
   projectLimit: number;
+  demoStartsLeft: number;
 }
 
 export class QuotaBudget {
@@ -33,12 +36,12 @@ export class QuotaBudget {
     private readonly limits: QuotaLimits,
     snapshot?: QuotaSnapshot,
   ) {
-    this.state = snapshot ?? { day: "", total: 0, byWorkspace: {} };
+    this.state = { day: "", total: 0, byWorkspace: {}, demoStarts: {}, ...snapshot };
   }
 
   private roll(now: Date): void {
     const day = quotaDay(now);
-    if (this.state.day !== day) this.state = { day, total: 0, byWorkspace: {} };
+    if (this.state.day !== day) this.state = { day, total: 0, byWorkspace: {}, demoStarts: {} };
   }
 
   reserve(workspaceId: string, units: number, now: Date): QuotaDecision {
@@ -52,6 +55,17 @@ export class QuotaBudget {
     return { ok: true };
   }
 
+  // Demo sessions cost no YouTube quota but do cost shared Durable Object time, so each workspace gets a few a day.
+  reserveDemo(workspaceId: string, now: Date): boolean {
+    if (!workspaceId) return false;
+    this.roll(now);
+    const starts = this.state.demoStarts ?? (this.state.demoStarts = {});
+    const used = starts[workspaceId] ?? 0;
+    if (used >= this.limits.demoStartsDaily) return false;
+    starts[workspaceId] = used + 1;
+    return true;
+  }
+
   usage(workspaceId: string, now: Date): QuotaUsage {
     this.roll(now);
     return {
@@ -60,10 +74,11 @@ export class QuotaBudget {
       workspaceLimit: this.limits.workspaceDaily,
       projectUsed: this.state.total,
       projectLimit: this.limits.projectDaily,
+      demoStartsLeft: Math.max(0, this.limits.demoStartsDaily - (this.state.demoStarts?.[workspaceId] ?? 0)),
     };
   }
 
   snapshot(): QuotaSnapshot {
-    return { day: this.state.day, total: this.state.total, byWorkspace: { ...this.state.byWorkspace } };
+    return { day: this.state.day, total: this.state.total, byWorkspace: { ...this.state.byWorkspace }, demoStarts: { ...this.state.demoStarts } };
   }
 }

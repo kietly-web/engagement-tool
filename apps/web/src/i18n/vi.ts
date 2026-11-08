@@ -71,6 +71,11 @@ export const vi = {
   "poll.error.invalid_poll": "Câu hỏi cần 2–6 lựa chọn khác nhau, câu hỏi tối đa 120 ký tự và mỗi lựa chọn tối đa 40 ký tự.",
   "poll.error.poll_open": "Đang có một bình chọn mở. Hãy đóng nó trước.",
   "poll.error.not_live": "Cần bắt đầu phiên live trước khi mở bình chọn.",
+  "live.stopReason.disabled": "Đã dừng vì tính năng live đang tạm khoá để bảo trì.",
+  "live.stopReason.internal_error": "Đã dừng do lỗi hệ thống. Vui lòng bắt đầu lại.",
+  "live.error.demo_limit": "Hôm nay bạn đã dùng hết lượt chạy thử. Vui lòng quay lại vào ngày mai.",
+  "live.demoLeft": "Lượt chạy thử còn lại hôm nay",
+  "live.quotaLow": "Hạn mức YouTube chung của hệ thống sắp hết hôm nay.",
 } as const;
 
 export type MessageKey = keyof typeof vi;

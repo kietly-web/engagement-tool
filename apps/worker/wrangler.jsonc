@@ -33,6 +33,7 @@
     "APP_ENV": "production",
     "SESSIONS_DISABLED": "false",
     "QUOTA_PROJECT_DAILY": "9000",
-    "QUOTA_WORKSPACE_DAILY": "3000"
+    "QUOTA_WORKSPACE_DAILY": "3000",
+    "DEMO_STARTS_DAILY": "4"
   }
 }

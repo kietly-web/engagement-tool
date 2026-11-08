@@ -29,7 +29,8 @@ export function sessionRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps
     const workspaceId = c.req.param("id") ?? "";
     try {
       const current = await withWorkspace(c.var.db, { memberId: c.var.memberId, workspaceId }, (tx) => workspaces.current(tx));
-      return current ? { workspaceId } : c.json({ error: "not_found" }, 404);
+      // The canonical id from the database, never the raw path: UUID case variants must map to the same DO and quota key.
+      return current ? { workspaceId: current.id } : c.json({ error: "not_found" }, 404);
     } catch (error) {
       if (error instanceof ContextError) return c.json({ error: "not_found" }, 404);
       throw error;
@@ -37,7 +38,14 @@ export function sessionRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps
   }
 
   async function respond(c: Ctx, workspaceId: string, session: SessionStatus, status: 200 | 201 = 200) {
-    const quota = await deps.quota(c.env).usage(workspaceId);
+    const usage = await deps.quota(c.env).usage(workspaceId);
+    const quota = {
+      day: usage.day,
+      workspaceUsed: usage.workspaceUsed,
+      workspaceLimit: usage.workspaceLimit,
+      projectHeadroomLow: usage.projectUsed >= usage.projectLimit * 0.8,
+      demoStartsLeft: usage.demoStartsLeft,
+    };
     return c.json<SessionResponse>({ session, quota }, status);
   }
 
@@ -46,6 +54,7 @@ export function sessionRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps
   }
 
   const startError = (c: Ctx, error: SessionStartError, status: 409 | 429 | 502 | 503) => c.json({ error }, status);
+  const live = async (c: Ctx, workspaceId: string) => (await deps.liveSession(c.env, workspaceId).status()).status === "live";
 
   app.get("/workspaces/:id/session", ...guard, async (c) => {
     const m = await member(c);
@@ -63,6 +72,8 @@ export function sessionRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps
     const client = deps.liveSession(c.env, m.workspaceId);
 
     if (mode === "demo") {
+      if (await live(c, m.workspaceId)) return startError(c, "already_live", 409);
+      if (!(await deps.quota(c.env).reserveDemo(m.workspaceId))) return startError(c, "demo_limit", 429);
       return fromResult(c, m.workspaceId, await client.start({ workspaceId: m.workspaceId, mode, broadcastId: "demo", liveChatId: "demo" }), 201);
     }
 

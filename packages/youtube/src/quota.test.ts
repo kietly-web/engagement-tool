@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { QuotaBudget, quotaDay } from "./quota";
 
-const limits = { projectDaily: 100, workspaceDaily: 40 };
+const limits = { projectDaily: 100, workspaceDaily: 40, demoStartsDaily: 2 };
 
 describe("quotaDay", () => {
   it("follows Pacific time, not UTC or Vietnam time", () => {
@@ -20,6 +20,14 @@ describe("QuotaBudget", () => {
     expect(q.reserve("b", 40, t)).toEqual({ ok: true });
     expect(q.reserve("c", 25, t)).toEqual({ ok: false, reason: "project_limit" });
     expect(q.usage("a", t)).toMatchObject({ workspaceUsed: 40, projectUsed: 80 });
+  });
+
+  it("allows a few demo starts per workspace per day", () => {
+    const q = new QuotaBudget(limits);
+    expect([q.reserveDemo("a", t), q.reserveDemo("a", t), q.reserveDemo("a", t)]).toEqual([true, true, false]);
+    expect(q.reserveDemo("b", t)).toBe(true);
+    expect(q.usage("a", t).demoStartsLeft).toBe(0);
+    expect(new QuotaBudget(limits, q.snapshot()).reserveDemo("a", new Date("2026-11-09T09:00:00Z"))).toBe(true);
   });
 
   it("rejects nonsense reservations", () => {

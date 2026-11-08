@@ -100,6 +100,49 @@ describe("YouTube sessions", () => {
   });
 });
 
+describe("canonical workspace ids", () => {
+  it("maps case variants of a workspace id to the same session", async () => {
+    const h = await makeHarness();
+    const { b, ws } = await creator(h);
+    expect((await b.post(`/api/workspaces/${ws}/session`, json({ mode: "demo" }))).status).toBe(201);
+    const upper = await b.post(`/api/workspaces/${ws.toUpperCase()}/session`, json({ mode: "demo" }));
+    expect([upper.status, (await read(upper)).error]).toEqual([409, "already_live"]);
+    expect([...h.engines.keys()]).toEqual([ws]);
+  });
+
+  it("disconnecting through an uppercase id still revokes, deletes and purges the session", async () => {
+    const h = await makeHarness();
+    const { b, ws } = await creator(h);
+    await b.post(`/api/workspaces/${ws}/session`, json({ mode: "demo" }));
+    expect((await b.post(`/api/workspaces/${ws.toUpperCase()}/youtube/disconnect`)).status).toBe(204);
+    expect(h.google.revoked).toEqual(["rt-g-1"]);
+    expect((await h.engines.get(ws)!.status()).status).toBe("idle");
+  });
+});
+
+describe("demo allowance and quota view", () => {
+  it("limits demo starts per day and hides other tenants' usage", async () => {
+    const h = await makeHarness({ quota: { projectDaily: 9000, workspaceDaily: 3000, demoStartsDaily: 2 } });
+    const { b, ws } = await creator(h);
+    for (let i = 0; i < 2; i++) {
+      expect((await b.post(`/api/workspaces/${ws}/session`, json({ mode: "demo" }))).status).toBe(201);
+      await b.request(`/api/workspaces/${ws}/session`, { method: "DELETE", headers: { Origin: ORIGIN } });
+    }
+    const third = await b.post(`/api/workspaces/${ws}/session`, json({ mode: "demo" }));
+    expect([third.status, (await read(third)).error]).toEqual([429, "demo_limit"]);
+    const quota = (await read(await b.request(`/api/workspaces/${ws}/session`))).quota;
+    expect(quota).toEqual({ day: expect.any(String), workspaceUsed: 0, workspaceLimit: 3000, projectHeadroomLow: false, demoStartsLeft: 0 });
+  });
+
+  it("account deletion purges the owner's session state", async () => {
+    const h = await makeHarness();
+    const { b, ws } = await creator(h);
+    await b.post(`/api/workspaces/${ws}/session`, json({ mode: "demo" }));
+    expect((await b.request("/api/account", { method: "DELETE", headers: { Origin: ORIGIN } })).status).toBe(204);
+    expect((await h.engines.get(ws)!.status()).status).toBe("idle");
+  });
+});
+
 describe("access and validation", () => {
   it("lets a moderator run sessions and polls", async () => {
     const h = await makeHarness();

@@ -31,7 +31,7 @@ export interface ApiError {
 }
 
 export type SessionMode = "youtube" | "demo";
-export type StopReason = "manual" | "broadcast_ended" | "quota" | "reconnect_required" | "youtube_unavailable" | "demo_finished";
+export type StopReason = "manual" | "broadcast_ended" | "quota" | "reconnect_required" | "youtube_unavailable" | "demo_finished" | "disabled" | "internal_error";
 
 export interface PollView {
   question: string;
@@ -56,8 +56,8 @@ export interface QuotaView {
   day: string;
   workspaceUsed: number;
   workspaceLimit: number;
-  projectUsed: number;
-  projectLimit: number;
+  projectHeadroomLow: boolean;
+  demoStartsLeft: number;
 }
 
 export interface SessionResponse {
@@ -65,4 +65,4 @@ export interface SessionResponse {
   quota: QuotaView;
 }
 
-export type SessionStartError = "not_connected" | "not_live" | "reconnect_required" | "quota_exhausted" | "youtube_unavailable" | "already_live" | "disabled";
+export type SessionStartError = "not_connected" | "not_live" | "reconnect_required" | "quota_exhausted" | "youtube_unavailable" | "already_live" | "disabled" | "demo_limit";
