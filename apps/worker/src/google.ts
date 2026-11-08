@@ -106,6 +106,41 @@ export function verifyIdToken(idToken: string, p: { clientId: string; nonce: str
   return { sub: claims.sub, email: claims.email, name };
 }
 
+export class InvalidGrantError extends Error {
+  constructor() {
+    super("invalid_grant");
+    this.name = "InvalidGrantError";
+  }
+}
+
+export async function refreshAccessToken(
+  fetchFn: FetchLike,
+  p: { clientId: string; clientSecret: string; refreshToken: string },
+): Promise<{ accessToken: string; expiresInSeconds: number }> {
+  const res = await fetchFn(GOOGLE.tokenUrl, {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "refresh_token",
+      refresh_token: p.refreshToken,
+      client_id: p.clientId,
+      client_secret: p.clientSecret,
+    }).toString(),
+  });
+  if (!res.ok) {
+    const error = await res
+      .json()
+      .then((b) => (b as { error?: unknown }).error)
+      .catch(() => undefined);
+    // Only invalid_grant means the creator must reconnect; invalid_client etc. is our misconfiguration.
+    if (error === "invalid_grant") throw new InvalidGrantError();
+    throw new AuthError("refresh_failed");
+  }
+  const body = (await res.json()) as Record<string, unknown>;
+  if (typeof body.access_token !== "string") throw new AuthError("refresh_failed");
+  return { accessToken: body.access_token, expiresInSeconds: typeof body.expires_in === "number" ? body.expires_in : 3600 };
+}
+
 export async function revokeToken(fetchFn: FetchLike, token: string): Promise<"revoked" | "already_invalid"> {
   const res = await fetchFn(GOOGLE.revokeUrl, {
     method: "POST",

@@ -32,6 +32,8 @@ export interface PollSnapshot {
   openedAt: string | null;
   closedAt: string | null;
   votes: [channelId: string, option: number][];
+  // Only closed polls rely on these: their voter map is gone, so the tally can't be rebuilt from votes.
+  counts?: number[];
 }
 
 export class PollError extends Error {
@@ -112,6 +114,12 @@ export class Poll {
     poll.statusValue = status;
     poll.openedAtValue = openedAt;
     poll.closedAtValue = closedAt;
+    if (status === "closed") {
+      const counts = snapshot.counts;
+      if (!Array.isArray(counts) || counts.length !== options.length || !counts.every((n) => Number.isInteger(n) && n >= 0)) throw corrupt();
+      counts.forEach((n, i) => (poll.counts[i] = n));
+      return poll;
+    }
     for (const entry of snapshot.votes) {
       if (!Array.isArray(entry)) continue;
       const [channelId, option] = entry;
@@ -183,6 +191,7 @@ export class Poll {
       openedAt: this.openedAtValue?.toISOString() ?? null,
       closedAt: this.closedAtValue?.toISOString() ?? null,
       votes: [...this.votes.entries()],
+      counts: [...this.counts],
     };
   }
 }

@@ -44,7 +44,7 @@ describe("Poll lifecycle", () => {
     expect(poll.results()).toEqual({ counts: [1, 1, 0], total: 2 });
     const snapshot = poll.snapshot();
     expect(snapshot.votes).toEqual([]);
-    expect(Poll.restore(snapshot, clock).results()).toEqual({ counts: [0, 0, 0], total: 0 });
+    expect(Poll.restore(snapshot, clock).results()).toEqual({ counts: [1, 1, 0], total: 2 });
   });
 
   it("opens and closes with times from the injected clock", () => {
@@ -140,6 +140,9 @@ describe("Poll snapshot and restore", () => {
     ["open poll with a close time", { closedAt: "2026-11-08T12:05:00.000Z" }],
     ["draft carrying votes", { status: "draft", openedAt: null }],
     ["closed poll still carrying votes", { status: "closed", closedAt: "2026-11-08T12:05:00.000Z" }],
+    ["closed poll without counts", { status: "closed", closedAt: "2026-11-08T12:05:00.000Z", votes: [], counts: undefined }],
+    ["closed poll with negative counts", { status: "closed", closedAt: "2026-11-08T12:05:00.000Z", votes: [], counts: [-1, 0, 0] }],
+    ["closed poll with the wrong number of counts", { status: "closed", closedAt: "2026-11-08T12:05:00.000Z", votes: [], counts: [1] }],
     ["too many options", { options: ["1", "2", "3", "4", "5", "6", "7"] }],
     ["non-string option", { options: ["a", 2] }],
   ])("rejects a snapshot with %s", (_label, patch) => {

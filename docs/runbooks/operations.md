@@ -38,7 +38,7 @@ Logs and error reports carry no personal data, chat text or overlay tokens.
 
 ## Incident response
 
-1. Stabilise: roll back, or stop all sessions by setting the `SESSIONS_DISABLED` var to `true` and redeploying (added in ET-6).
+1. Stabilise: roll back, or set the `SESSIONS_DISABLED` var to `true` and redeploy. New starts are refused, and running sessions stop at their next tick with reason `disabled`.
 2. Record in a private note (not a public issue; the repo is public): time found, impact, actions with timestamps.
 3. Fix forward with a slice PR; add the lesson to `docs/STATUS.md` gotchas.
 
