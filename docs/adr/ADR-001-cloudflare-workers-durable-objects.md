@@ -10,7 +10,7 @@ A live session must poll YouTube chat every few seconds for hours, keep votes an
 
 - One TypeScript pnpm monorepo: `packages/core`, `packages/youtube`, `packages/db`, `apps/worker`, `apps/web`, `apps/overlay` (rules in CLAUDE.md).
 - `apps/worker` is a Hono app on Cloudflare Workers (free plan). It serves the API, Google sign-in, the dashboard and overlay static assets, and cron jobs.
-- A `LiveSession` Durable Object (SQLite-backed, the kind the free plan allows) per workspace live session. Its ID is `idFromName(workspaceId + ":" + broadcastId)`, computed on the server only. It holds the chat stream open (ADR-004), applies `packages/core` rules, persists running state in its own storage and fans out to overlays with hibernatable WebSockets.
+- A `LiveSession` Durable Object (SQLite-backed, the kind the free plan allows) per workspace live session. Its ID is `idFromName("workspace:" + workspaceId)`, computed on the server only after a membership check. One object per workspace enforces one session at a time and lets overlays find the live session from the workspace alone; each start resets its state. It holds the chat stream open (ADR-004), applies `packages/core` rules, persists running state in its own storage and fans out to overlays with hibernatable WebSockets.
 - Deploys through Cloudflare Workers Builds (Git integration), so no Cloudflare API token is stored in GitHub. Preview URLs per branch.
 
 ## Consequences

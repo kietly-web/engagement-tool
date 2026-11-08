@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { toBase64Url } from "./crypto";
-import { AuthError, buildAuthUrl, exchangeCode, GOOGLE, revokeToken, verifyIdToken } from "./google";
+import { AuthError, buildAuthUrl, exchangeCode, GOOGLE, InvalidGrantError, refreshAccessToken, revokeToken, verifyIdToken } from "./google";
 
 const enc = (o: unknown) => toBase64Url(new TextEncoder().encode(JSON.stringify(o)));
 export const fakeIdToken = (claims: Record<string, unknown>) => `${enc({ alg: "RS256" })}.${enc(claims)}.sig`;
@@ -68,6 +68,13 @@ describe("token endpoint calls", () => {
     );
     expect(Object.fromEntries(new URLSearchParams(sent))).toMatchObject({ grant_type: "authorization_code", code: "code", code_verifier: "v" });
     expect(tokens).toEqual({ accessToken: "at", refreshToken: "rt", idToken: "it", scopes: ["openid", "email"] });
+  });
+
+  it("asks for reconnection only on invalid_grant, not on our own misconfiguration", async () => {
+    const respond = (body: unknown) => async () => ({ ok: false, status: 400, json: async () => body });
+    const p = { clientId: "c", clientSecret: "s", refreshToken: "r" };
+    await expect(refreshAccessToken(respond({ error: "invalid_grant" }), p)).rejects.toBeInstanceOf(InvalidGrantError);
+    await expect(refreshAccessToken(respond({ error: "invalid_client" }), p)).rejects.toEqual(new AuthError("refresh_failed"));
   });
 
   it("treats 400 on revoke as already invalid and 5xx as failure", async () => {

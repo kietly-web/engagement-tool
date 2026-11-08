@@ -41,6 +41,8 @@
 
 **Start session (US-03).** Dashboard → `POST /api/sessions` → Worker checks membership and role through `packages/db`, finds the active broadcast via `ChatSource`, derives the DO ID from `workspaceId:broadcastId`, and calls `start()` on the DO. The client never supplies a DO ID.
 
+**Session engine (ET-6).** `apps/worker/src/live/engine.ts` holds the session logic as a plain class with injected storage, chat source and clock; `LiveSession` is a thin Durable Object adapter around it. `QuotaKeeper` is a single global Durable Object (`idFromName("global")`) that owns the daily YouTube budget: 9,000 units for the project, 3,000 per workspace, resetting at midnight Pacific. Every YouTube call reserves units there first. Demo mode runs the same engine on `DemoChatSource` (synthetic chat, no YouTube, no quota) and stops after 15 minutes.
+
 **Chat loop.** DO opens `ChatSource.stream(liveChatId, pageToken)` (`streamList`; quota ledger debits 5 units per connection) → each message normalised and parsed by `core` → state change applied in DO storage → overlay diff broadcast → points flushed to Postgres about every 10 s and at stop. On disconnect it reconnects from the last page token with backoff; a one-minute alarm restarts a stalled stream. Polling fallback: `list` on alarms at `pollingIntervalMillis`. Message text is dropped after parsing.
 
 **Overlay (US-02).** OBS loads `/o/<token>/poll` → Worker hashes the token, looks up workspace and widget, serves the page → page opens a WebSocket that the Worker forwards to the workspace's active DO → DO sends a snapshot, then diffs.

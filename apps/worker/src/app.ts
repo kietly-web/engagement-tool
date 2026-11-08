@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import type { HealthResponse } from "./api-types";
 import { authRoutes, memberRoutes } from "./auth";
 import { defaultDeps, type AppDeps, type AppEnv } from "./env";
+import { sessionRoutes } from "./live/routes";
 import { securityHeaders } from "./security-headers";
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -32,6 +33,7 @@ export function createApp(overrides: Partial<AppDeps> = {}) {
   const auth = authRoutes(deps);
   app.route("/api/auth", auth.app);
   app.route("/api", memberRoutes(auth, deps));
+  app.route("/api", sessionRoutes(auth, deps));
 
   app.all("/api/*", (c) => c.json({ error: "not_found" }, 404));
   return app;
