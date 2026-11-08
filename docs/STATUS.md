@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 08/11/2026 (ET-7). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
+Last updated: 08/11/2026 (ET-8). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
 
 ## Where we are
 
@@ -12,21 +12,22 @@ Last updated: 08/11/2026 (ET-7). Update in every slice PR. Read after `CLAUDE.md
 | ET-4 Database foundation (tenancy migration, forced RLS, role-derived policies, `withWorkspace`, PGlite isolation suite; `02-data-model.md`; Q-T2 decided) | Done, [PR #4](https://github.com/kietly-web/engagement-tool/pull/4); not applied to Neon yet |
 | ET-5 Google sign-in (OAuth + PKCE, encrypted refresh token, sessions, disconnect, export, account deletion, Vietnamese dashboard) | Done, [PR #5](https://github.com/kietly-web/engagement-tool/pull/5); tested against a fake Google; **not verified with real Google** |
 | ET-6 offline (session engine, `LiveSession` + `QuotaKeeper` Durable Objects, demo mode, YouTube polling reader, session and poll API, dashboard live panel) | Done, [PR #6](https://github.com/kietly-web/engagement-tool/pull/6); the `streamList` spike is still open |
-| ET-7 Overlays (per-widget hashed tokens, rotation, overlay page and WebSocket from `LiveSession`, poll widget, dashboard links) | In review on branch `ET-7-overlays` |
+| ET-7 Overlays (per-widget hashed tokens, rotation, overlay page and WebSocket from `LiveSession`, poll widget, dashboard links) | Done, [PR #7](https://github.com/kietly-web/engagement-tool/pull/7) |
+| ET-8 Points and seasons (tally, 10 s flushes, ≤30-day seasons, leaderboard widget and dashboard, viewer erasure, daily retention cron) | In review on branch `ET-8-points-seasons` |
 
 ## Next
 
 The owner asked Claude to keep building whatever doesn't need their setup. Order:
 
-1. **ET-8 Points and seasons** (FR-06, FR-12, US-05, US-09, R2, R3): per-viewer counters keyed by channel ID in ≤30-day seasons, points from `!join`, votes and closed polls (`Poll.close()` voters), leaderboard widget (display names only from live-session memory), retention cron, erase-by-channel-ID.
-2. **ET-9 Moderators** (invites via a definer function, audit log), **ET-10 First mini-game**, **ET-11 Launch readiness** documents.
+1. **ET-9 Moderators** (FR-02, US-06, R7): invite by verified email through an `accept_invite` definer function, roles, audit log (membership, overlay rotation, disconnect, erasure).
+2. **ET-10 First mini-game**, **ET-11 Launch readiness** documents.
 3. **Still waiting on the owner's setup** (SETUP §0–1, P0 rows) for the first real run and the ET-6 `streamList` spike against a live stream. Unverified pieces are listed in SETUP §3.
 
 ## Open PRs
 
 | PR | What | Action |
 | --- | --- | --- |
-| ET-7 | Overlays | Merge when CI is green and review findings are fixed |
+| ET-8 | Points and seasons | Merge when CI is green and review findings are fixed |
 
 ## Waiting on the owner
 
@@ -63,6 +64,7 @@ Everything not done lives in [SETUP.md](SETUP.md), with priorities and exact ste
 - Pooled connections forbid session-level `SET`; set the RLS context with `set_config(..., true)` inside the transaction (`withWorkspace` does this).
 - Hyperdrive must keep `--caching-disabled`: its cache ignores the RLS context.
 - Create Neon login roles with SQL, not the console (console roles join `neon_superuser`, which bypasses RLS).
+- Seasons start at the database's `now()`, not the Worker's clock; mixing the two made a fresh season look inactive in tests.
 - Never edit an applied migration; the migrator compares checksums and refuses. Add a new numbered file.
 - `node` runs `packages/db/scripts/*.ts` directly (Node 24 type stripping), so those imports need explicit `.ts` extensions.
 - Stack reviewed 08/11/2026 against current free tiers: Supabase replaced by Neon (no inactivity pause), YouTube chat read with `streamList` instead of polling (ADR-002, ADR-004).

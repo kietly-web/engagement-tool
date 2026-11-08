@@ -42,6 +42,12 @@ export interface PollView {
   total: number;
 }
 
+export interface LeaderboardEntry {
+  rank: number;
+  name: string | null;
+  points: number;
+}
+
 export interface SessionStatus {
   status: "idle" | "live" | "stopped";
   mode?: SessionMode;
@@ -50,6 +56,8 @@ export interface SessionStatus {
   stopReason?: StopReason;
   messagesSeen: number;
   poll: PollView | null;
+  season?: string | null;
+  leaderboard?: LeaderboardEntry[];
 }
 
 export interface QuotaView {
@@ -75,7 +83,14 @@ export interface OverlayPollMessage {
   poll: { question: string; options: string[]; counts: number[]; total: number; status: "open" | "closed" } | null;
 }
 
-export type OverlayMessage = OverlayPollMessage;
+export interface OverlayLeaderboardMessage {
+  type: "leaderboard";
+  live: boolean;
+  title: string | null;
+  entries: LeaderboardEntry[];
+}
+
+export type OverlayMessage = OverlayPollMessage | OverlayLeaderboardMessage;
 
 export interface OverlayLinkView {
   widget: OverlayWidget;

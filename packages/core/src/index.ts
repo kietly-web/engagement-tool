@@ -12,6 +12,7 @@ export {
   type VoteChangePolicy,
   type VoteOutcome,
 } from "./poll";
+export { cleanSeasonName, PointsError, PointsTally, POINTS, SEASON_LIMITS, seasonWindow, type PointsDelta } from "./points";
 export { syntheticChannelId, syntheticChat, type SyntheticChatOptions, type SyntheticMessage } from "./synthetic-chat";
 export { commandKey, foldVietnamese, toNfc } from "./text";
 export { isChannelId } from "./viewer";

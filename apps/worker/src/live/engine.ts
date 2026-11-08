@@ -1,8 +1,12 @@
-import { parseCommand, Poll, PollError, type Clock, type PollInput, type PollSnapshot } from "@et/core";
+import { parseCommand, Poll, PollError, POINTS, PointsTally, type Clock, type PointsDelta, type PollInput, type PollSnapshot } from "@et/core";
 import { ChatSourceError, type ChatSource } from "@et/youtube";
-import type { PollView, SessionMode, SessionStatus, StopReason } from "../api-types";
+import type { LeaderboardEntry, PollView, SessionMode, SessionStatus, StopReason } from "../api-types";
+import type { PointsStore } from "./points-store";
 
 export type { PollView, SessionMode, SessionStatus, StopReason };
+
+const LEADERBOARD_SIZE = 10;
+const MAX_NAMES = 5_000;
 
 export interface SessionStorage {
   get<T>(key: string): Promise<T | undefined>;
@@ -28,6 +32,9 @@ export interface SessionState {
   stopReason?: StopReason;
   failures: number;
   messagesSeen: number;
+  startedBy?: string;
+  seasonId?: string | null;
+  seasonName?: string | null;
 }
 
 export type Result<T> = { ok: true; value: T } | { ok: false; error: SessionErrorCode };
@@ -38,6 +45,9 @@ export interface StartInput {
   broadcastId: string;
   liveChatId: string;
   tokenCiphertext?: string;
+  startedBy?: string;
+  seasonId?: string | null;
+  seasonName?: string | null;
 }
 
 export interface SourceProvider {
@@ -58,6 +68,8 @@ export interface EngineOptions {
   maxBackoffMs: number;
   disabled(): boolean;
   onChange(status: SessionStatus): void;
+  points(state: SessionState): PointsStore | null;
+  flushEveryMs: number;
 }
 
 const DEFAULTS: EngineOptions = {
@@ -66,10 +78,17 @@ const DEFAULTS: EngineOptions = {
   maxBackoffMs: 60_000,
   disabled: () => false,
   onChange: () => undefined,
+  points: () => null,
+  flushEveryMs: 10_000,
 };
 
 export class SessionEngine {
   private readonly opts: EngineOptions;
+  // Display names live only here, in memory, for the life of the session (non-negotiable 2).
+  private readonly names = new Map<string, string>();
+  private readonly sessionTotals = new Map<string, number>();
+  private leaderboard: { channelId: string; points: number }[] = [];
+  private lastFlush = 0;
 
   constructor(
     private readonly storage: SessionStorage,
@@ -95,6 +114,57 @@ export class SessionEngine {
     }
   }
 
+  private async loadTally(): Promise<PointsTally> {
+    return new PointsTally(await this.storage.get<{ pending: [string, PointsDelta][]; joined: string[] }>("points"));
+  }
+
+  private leaderboardView(): LeaderboardEntry[] {
+    const source =
+      this.leaderboard.length > 0
+        ? this.leaderboard
+        : [...this.sessionTotals.entries()].map(([channelId, points]) => ({ channelId, points })).sort((a, b) => b.points - a.points);
+    return source.slice(0, LEADERBOARD_SIZE).map((e, i) => ({ rank: i + 1, name: this.names.get(e.channelId) ?? null, points: e.points }));
+  }
+
+  private rememberName(channelId: string, name: string): void {
+    if (!name) return;
+    if (!this.names.has(channelId) && this.names.size >= MAX_NAMES) this.names.delete(this.names.keys().next().value!);
+    this.names.set(channelId, name.slice(0, 40));
+  }
+
+  private resetMemory(): void {
+    this.names.clear();
+    this.sessionTotals.clear();
+    this.leaderboard = [];
+    this.lastFlush = 0;
+  }
+
+  private async flushPoints(state: SessionState, tally: PointsTally, force: boolean): Promise<boolean> {
+    const store = state.seasonId ? this.opts.points(state) : null;
+    if (!store || !state.seasonId) return false;
+    const now = this.clock.now().getTime();
+    if (!tally.hasPending() || (!force && now - this.lastFlush < this.opts.flushEveryMs)) return false;
+    const deltas = tally.takePending();
+    try {
+      await store.flush(state.seasonId, deltas);
+      this.lastFlush = now;
+      this.leaderboard = await store.top(state.seasonId, LEADERBOARD_SIZE);
+      return true;
+    } catch {
+      tally.restorePending(deltas);
+      return false;
+    }
+  }
+
+  async eraseViewer(channelId: string): Promise<void> {
+    const tally = await this.loadTally();
+    tally.erase(channelId);
+    await this.storage.put("points", tally.snapshot());
+    this.names.delete(channelId);
+    this.sessionTotals.delete(channelId);
+    this.leaderboard = this.leaderboard.filter((e) => e.channelId !== channelId);
+  }
+
   private view(state: SessionState | undefined, poll: Poll | null): SessionStatus {
     const pollView: PollView | null = poll && {
       question: poll.question,
@@ -112,6 +182,8 @@ export class SessionEngine {
       ...(state.stopReason && { stopReason: state.stopReason }),
       messagesSeen: state.messagesSeen,
       poll: pollView,
+      season: state.seasonName ?? null,
+      leaderboard: this.leaderboardView(),
     };
   }
 
@@ -132,9 +204,14 @@ export class SessionEngine {
       startedAt: this.clock.now().toISOString(),
       failures: 0,
       messagesSeen: 0,
+      ...(input.startedBy && { startedBy: input.startedBy }),
+      seasonId: input.mode === "demo" ? null : (input.seasonId ?? null),
+      seasonName: input.mode === "demo" ? null : (input.seasonName ?? null),
     };
     this.sources.invalidate();
+    this.resetMemory();
     await this.storage.delete("poll");
+    await this.storage.delete("points");
     await this.storage.put("session", state);
     await this.storage.setAlarm(this.clock.now().getTime());
     return this.changed({ ok: true, value: this.view(state, null) });
@@ -148,6 +225,8 @@ export class SessionEngine {
       poll.close();
       await this.storage.put("poll", poll.snapshot());
     }
+    await this.flushPoints(state, await this.loadTally(), true);
+    await this.storage.delete("points");
     // YouTube identifiers and the token copy go at stop, so nothing YouTube-derived lingers in DO storage (NN3).
     const stopped: SessionState = {
       ...state,
@@ -162,7 +241,9 @@ export class SessionEngine {
     await this.storage.put("session", stopped);
     await this.storage.deleteAlarm();
     this.sources.invalidate();
-    return this.changed({ ok: true, value: this.view(stopped, poll) }).value;
+    const result = this.changed({ ok: true, value: this.view(stopped, poll) }).value;
+    this.names.clear();
+    return result;
   }
 
   async createPoll(input: PollInput): Promise<Result<SessionStatus>> {
@@ -237,15 +318,32 @@ export class SessionEngine {
     }
 
     const poll = await this.loadPoll();
+    const tally = await this.loadTally();
+    let scored = false;
     for (const message of page.messages) {
+      this.rememberName(message.channelId, message.displayName);
       const command = parseCommand(message.text);
-      if (command?.kind === "vote" && poll?.status === "open") poll.vote(message.channelId, command.option);
+      let earned = 0;
+      if (command?.kind === "vote" && poll?.status === "open" && poll.vote(message.channelId, command.option) === "counted") {
+        tally.countedVote(message.channelId);
+        earned = POINTS.countedVote;
+      } else if (command?.kind === "join" && tally.join(message.channelId)) {
+        earned = POINTS.join;
+      }
+      if (earned > 0) {
+        scored = true;
+        this.sessionTotals.set(message.channelId, (this.sessionTotals.get(message.channelId) ?? 0) + earned);
+      }
     }
     if (poll) await this.storage.put("poll", poll.snapshot());
+    // Without a season nothing is ever flushed, so viewer ids stay in memory only.
+    if (scored && state.seasonId) await this.storage.put("points", tally.snapshot());
+    const flushed = await this.flushPoints(state, tally, false);
+    if (flushed) await this.storage.put("points", tally.snapshot());
     const next = { ...state, pageToken: page.nextPageToken, failures: 0, messagesSeen: state.messagesSeen + page.messages.length };
     await this.storage.put("session", next);
     await this.storage.setAlarm(now + page.waitMs);
-    if (poll?.status === "open" && page.messages.length > 0) this.changed({ ok: true, value: this.view(next, poll) });
+    if ((poll?.status === "open" && page.messages.length > 0) || scored || flushed) this.changed({ ok: true, value: this.view(next, poll) });
   }
 
   private async handleFailure(state: SessionState, error: unknown, now: number): Promise<void> {

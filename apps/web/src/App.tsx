@@ -3,6 +3,7 @@ import type { MeResponse, SignInOutcome, WorkspaceResponse } from "@et/worker/ap
 import { api, ApiError, signInUrl } from "./api";
 import { LivePanel } from "./LivePanel";
 import { OverlayLinks } from "./OverlayLinks";
+import { SeasonPanel } from "./SeasonPanel";
 import { translator, type MessageKey } from "./i18n";
 
 const t = translator("vi");
@@ -151,6 +152,7 @@ function Workspace({ id, onError }: { id: string; onError: (message: string) => 
   return (
     <>
     <LivePanel workspaceId={id} youtubeConnected={data.youtube !== null} />
+    <SeasonPanel workspaceId={id} isOwner={isOwner} />
     <OverlayLinks workspaceId={id} isOwner={isOwner} />
     <div className="card">
       <h2>

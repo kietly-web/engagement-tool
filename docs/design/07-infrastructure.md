@@ -44,7 +44,9 @@ Worker `vars` (in `wrangler.jsonc`) hold only non-secret values. Secrets are set
 
 ## Cron
 
-Daily at 03:00 Asia/Ho_Chi_Minh (20:00 UTC): delete ended-season viewer rows and stale YouTube data (ADR-006), process pending disconnect deletions (FR-09), write a heartbeat row the smoke test checks.
+Daily at 03:00 Asia/Ho_Chi_Minh (20:00 UTC, `triggers.crons` in `wrangler.jsonc`): `app.daily_maintenance()` deletes ended-season viewer rows, idle sessions and orphan members, and writes the heartbeat row (ADR-006). Still to come: refresh-or-delete for channel metadata older than 30 days, and a queue of pending revocations (SETUP §3).
+
+ET-8 load: a points flush is one Hyperdrive transaction of about 6 queries, at most every 10 s per live session, plus a top-10 read after each flush. That's about 360 transactions per stream-hour.
 
 ## Observability
 

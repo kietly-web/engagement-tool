@@ -75,7 +75,10 @@ describe("overlay links", () => {
       tx.query("INSERT INTO app.workspace_member (workspace_id, member_id, role) SELECT $1, id, 'moderator' FROM app.member WHERE google_sub = 'g-mod'", [ws]),
     );
     const list = (await (await mod.request(`/api/workspaces/${ws}/overlays`)).json()) as { overlays: { widget: string; rotatedAt: string | null }[] };
-    expect(list.overlays).toEqual([{ widget: "poll", rotatedAt: expect.any(String) }]);
+    expect(list.overlays).toEqual([
+      { widget: "poll", rotatedAt: expect.any(String) },
+      { widget: "leaderboard", rotatedAt: null },
+    ]);
     expect(JSON.stringify(list)).not.toMatch(/\/o\//);
     expect((await mod.post(`/api/workspaces/${ws}/overlays/poll/rotate`)).status).toBe(403);
 
@@ -114,7 +117,7 @@ describe("overlay links", () => {
   it("rejects widgets that aren't built yet and cross-origin rotation", async () => {
     const h = await makeHarness();
     const { b, ws } = await owner(h);
-    expect((await b.post(`/api/workspaces/${ws}/overlays/leaderboard/rotate`)).status).toBe(400);
+    expect((await b.post(`/api/workspaces/${ws}/overlays/game/rotate`)).status).toBe(400);
     expect((await b.request(`/api/workspaces/${ws}/overlays/poll/rotate`, { method: "POST" })).status).toBe(403);
   });
 });
@@ -128,6 +131,9 @@ describe("overlayView", () => {
       poll: { question: "Q", options: ["a", "b"], status: "open", voteChange: "first", counts: [2, 1], total: 3 },
     });
     expect(view).toEqual({ type: "poll", live: true, poll: { question: "Q", options: ["a", "b"], counts: [2, 1], total: 3, status: "open" } });
-    expect(overlayView("leaderboard", { status: "idle", messagesSeen: 0, poll: null })).toBeNull();
+    expect(overlayView("game", { status: "idle", messagesSeen: 0, poll: null })).toBeNull();
+    expect(
+      overlayView("leaderboard", { status: "live", messagesSeen: 1, poll: null, season: "Mùa 1", leaderboard: [{ rank: 1, name: "A", points: 10 }] }),
+    ).toEqual({ type: "leaderboard", live: true, title: "Mùa 1", entries: [{ rank: 1, name: "A", points: 10 }] });
   });
 });

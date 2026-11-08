@@ -20,6 +20,8 @@
       "invocation_logs": false
     }
   },
+  // 03:00 Asia/Ho_Chi_Minh: daily retention (docs/design/07-infrastructure.md).
+  "triggers": { "crons": ["0 20 * * *"] },
   "durable_objects": {
     "bindings": [
       { "name": "LIVE_SESSION", "class_name": "LiveSession" },
