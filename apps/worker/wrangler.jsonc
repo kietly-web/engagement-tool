@@ -1,0 +1,27 @@
+{
+  "$schema": "../../node_modules/wrangler/config-schema.json",
+  "name": "engagement-tool",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": true,
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*", "/o/*", "/healthz"]
+  },
+  // Invocation logs record full URLs, and overlay URLs carry bearer tokens (ADR-007).
+  "observability": {
+    "enabled": true,
+    "logs": {
+      "enabled": true,
+      "invocation_logs": false
+    }
+  },
+  // Non-secret values only; secrets go through `wrangler secret put` (docs/SETUP.md).
+  "vars": {
+    "APP_ENV": "production"
+  }
+}

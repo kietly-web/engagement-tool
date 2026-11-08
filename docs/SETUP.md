@@ -8,7 +8,7 @@ Last updated: 08/11/2026.
 
 | Done | Step | Where | Who |
 | --- | --- | --- | --- |
-| [ ] | Protect `main`: require PR, require status checks `lint, typecheck, test, build`, `dependency audit`, `secret scan`, `code scan`, `what-changed`; block force-push and deletion. Do it after ET-2 makes CI green | GitHub → repo → Settings → Rules → Rulesets → New branch ruleset | Owner |
+| [ ] | Protect `main`: require PR, require status checks `lint, typecheck, test, build`, `dependency audit`, `secret scan`, `code scan`, `what-changed`; block force-push and deletion. Do it once ET-2 is merged (CI now runs every job) | GitHub → repo → Settings → Rules → Rulesets → New branch ruleset | Owner |
 | [ ] | Turn on Dependabot alerts, secret scanning and push protection | GitHub → repo → Settings → Advanced Security | Owner |
 
 ## 1. Configuration not done yet
@@ -18,7 +18,7 @@ P0: production doesn't work without it. P1: a feature or workflow is degraded. P
 | Done | Pri | Setting | Where | How / value | Unlocks | Who |
 | --- | --- | --- | --- | --- | --- | --- |
 | [ ] | P0 | Cloudflare account, **no payment method** | dash.cloudflare.com → Sign up | Free plan only; then run `npx wrangler login` so Claude can deploy previews | ET-2 deploy | Owner |
-| [ ] | P0 | Connect repo to Workers Builds | Cloudflare → Workers & Pages → Create → Import a repository → `kietly-web/engagement-tool` | Production branch `main`; enable preview builds for other branches | ET-2 | Owner |
+| [ ] | P0 | Connect repo to Workers Builds | Cloudflare → Workers & Pages → Create → Import a repository → `kietly-web/engagement-tool` | Project name `engagement-tool`; root directory `/`; build command `pnpm build`; deploy command `pnpm --filter @et/worker exec wrangler deploy`; non-production branch deploy command `pnpm --filter @et/worker exec wrangler versions upload`; production branch `main` | Production deploy of ET-2 | Owner |
 | [ ] | P0 | Neon account (Free, no card) and project in **Singapore** | console.neon.tech → New project → Region AWS Asia Pacific (Singapore) | Postgres 17; keep the owner connection string in a password manager, never in the repo | ET-4 | Owner |
 | [ ] | P0 | `DATABASE_URL` (Secret), runtime role `app_runtime` | `wrangler secret put DATABASE_URL` | Connection string for `app_runtime` (created by ET-4's migration), never the owner role; or a Hyperdrive binding if ET-4 picks it (Q-T2) | ET-4 | Owner |
 | [ ] | P0 | Google Cloud project, **no billing account** | console.cloud.google.com → New project | Then APIs & Services → Library → enable "YouTube Data API v3" | ET-5 | Owner |
@@ -45,8 +45,8 @@ P0: production doesn't work without it. P1: a feature or workflow is degraded. P
 
 | Done | Gap | Fix | Where |
 | --- | --- | --- | --- |
-| [ ] | CI skips Node jobs while there's no `package.json` | Remove the `detect` job in ET-2 | `.github/workflows/ci.yml` |
-| [ ] | Smoke test paths are placeholders until the app exists | ET-2 serves `/` and `/healthz` | `.github/workflows/smoke.yml` |
+| [x] 08/11/2026 | CI skips Node jobs while there's no `package.json` | Removed the `detect` job in ET-2 | `.github/workflows/ci.yml` |
+| [x] 08/11/2026 | Smoke test paths are placeholders until the app exists | ET-2 serves `/` and `/healthz` | `.github/workflows/smoke.yml` |
 | [ ] | Cron heartbeat check not built | `/healthz` returns 503 when the retention cron heartbeat is over 36 h old (with the cron in ET-5) | `apps/worker`, runbook |
 
 ## 4. Remaining backlog

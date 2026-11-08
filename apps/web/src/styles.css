@@ -1,0 +1,44 @@
+:root {
+  color-scheme: light dark;
+  --bg: #f7f7f8;
+  --fg: #16161a;
+  --muted: #5c5c66;
+  --ok: #1a7f37;
+  --down: #b42318;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #121214;
+    --fg: #ececf1;
+    --muted: #a0a0ab;
+    --ok: #4ac26b;
+    --down: #ff7b72;
+  }
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+}
+
+.page {
+  max-width: 40rem;
+  margin: 0 auto;
+  padding: 3rem 1rem;
+}
+
+.page p {
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.page .health-ok {
+  color: var(--ok);
+}
+
+.page .health-down {
+  color: var(--down);
+}

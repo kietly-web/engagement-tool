@@ -1,0 +1,20 @@
+{
+  "name": "@et/worker",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./api-types": "./src/api-types.ts"
+  },
+  "scripts": {
+    "dev": "wrangler dev",
+    "build": "wrangler deploy --dry-run --outdir dist",
+    "typecheck": "wrangler types --check && tsc -p .",
+    "types": "wrangler types"
+  },
+  "dependencies": {
+    "hono": "^4.13.15"
+  },
+  "devDependencies": {
+    "wrangler": "^4.156.0"
+  }
+}
