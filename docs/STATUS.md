@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 08/11/2026 (ET-5). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
+Last updated: 08/11/2026 (ET-6 offline). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
 
 ## Where we are
 
@@ -10,19 +10,22 @@ Last updated: 08/11/2026 (ET-5). Update in every slice PR. Read after `CLAUDE.md
 | ET-2 Repo skeleton (workspace, six packages, Hono Worker, dashboard and overlay hello pages, `pnpm check`) | Done, [PR #2](https://github.com/kietly-web/engagement-tool/pull/2); runs locally, not deployed yet |
 | ET-3 Command engine (normalisation, `!vote`/`!join` parser, polls, synthetic chat; `05-domain-engine.md`) | Done, [PR #3](https://github.com/kietly-web/engagement-tool/pull/3) |
 | ET-4 Database foundation (tenancy migration, forced RLS, role-derived policies, `withWorkspace`, PGlite isolation suite; `02-data-model.md`; Q-T2 decided) | Done, [PR #4](https://github.com/kietly-web/engagement-tool/pull/4); not applied to Neon yet |
-| ET-5 Google sign-in (OAuth + PKCE, encrypted refresh token, sessions, disconnect, export, account deletion, Vietnamese dashboard) | In review on branch `ET-5-google-sign-in`; tested against a fake Google; **not verified with real Google** |
+| ET-5 Google sign-in (OAuth + PKCE, encrypted refresh token, sessions, disconnect, export, account deletion, Vietnamese dashboard) | Done, [PR #5](https://github.com/kietly-web/engagement-tool/pull/5); tested against a fake Google; **not verified with real Google** |
+| ET-6 offline (session engine, `LiveSession` + `QuotaKeeper` Durable Objects, demo mode, YouTube polling reader, session and poll API, dashboard live panel) | In review on branch `ET-6-live-session-offline`; the `streamList` spike is still open |
 
 ## Next
 
-**Blocked on the owner's setup** (SETUP §0–1, P0 rows): Cloudflare account and Workers Builds; Neon project, migrations, `app_worker`, Hyperdrive (caching disabled); Google Cloud project, consent screen (Testing, beta users as test users) and OAuth client; Worker secrets `GOOGLE_CLIENT_SECRET`, `TOKEN_ENCRYPTION_KEY`, `SESSION_SECRET`. Then send Claude the Hyperdrive ID and Google client ID to put in `wrangler.jsonc`, and click through sign-in once.
+The owner asked Claude to keep building whatever doesn't need their setup. Order:
 
-**ET-6 LiveSession and ChatSource** (FR-03, FR-11, NFR-QUOTA, NFR-REL, R1) starts with a spike against a real live stream: `streamList` with `youtube.readonly` from a Durable Object (Q-T1). That needs the setup above plus a test live stream on the owner's channel. The fake-source parts (DO skeleton, quota ledger, start/stop API) could be built earlier if the owner prefers.
+1. **ET-7 Overlays** (FR-05, US-02, US-07, R5): per-widget tokens with rotation, overlay WebSocket from `LiveSession`, the poll widget in `apps/overlay`, text-only rendering, CSP. Then drop the dashboard's 2-second polling.
+2. **ET-8 Points and seasons**, **ET-9 Moderators** (invites via a definer function, audit log), **ET-10 First mini-game**, **ET-11 Launch readiness** documents.
+3. **Still waiting on the owner's setup** (SETUP §0–1, P0 rows) for the first real run and the ET-6 `streamList` spike against a live stream. Unverified pieces are listed in SETUP §3.
 
 ## Open PRs
 
 | PR | What | Action |
 | --- | --- | --- |
-| ET-5 | Google sign-in | Merge when CI is green and review findings are fixed |
+| ET-6 | Live session (offline parts) | Merge when CI is green and review findings are fixed |
 
 ## Waiting on the owner
 
@@ -48,6 +51,8 @@ Everything not done lives in [SETUP.md](SETUP.md), with priorities and exact ste
 - `pnpm-workspace.yaml` enforces `minimumReleaseAge` (7 days) and an `allowBuilds` list (only `esbuild`, `workerd`), and blocks exotic sub-dependencies and provenance downgrades. Add to `allowBuilds` only after checking what the script does.
 - TypeScript stays on 6.0 until typescript-eslint supports 7 (its peer range is `<6.1`).
 - `wrangler.jsonc` changes need `pnpm --filter @et/worker types` and committing `worker-configuration.d.ts`; `pnpm typecheck` fails until you do.
+- `wrangler types` types `vars` as literals, so compare them as strings (`String(env.SESSIONS_DISABLED) === "true"`).
+- Durable Object RPC loses custom error classes, so `LiveSession` methods return `{ ok, value | error }` results instead of throwing.
 - Workers Logs invocation logs are off on purpose: they record full URLs, and overlay URLs carry tokens. Log with `console.log` and never include `/o/*` paths.
 - Static assets (dashboard, overlay files) are served without invoking the Worker, so they don't count toward the 100,000 requests/day; only `/api/*`, `/o/*` and `/healthz` do (`run_worker_first`).
 - Static-asset security headers live in `apps/web/public/_headers`; Worker responses get them from `apps/worker/src/security-headers.ts`. Change both together.

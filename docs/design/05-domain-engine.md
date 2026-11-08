@@ -41,7 +41,7 @@ Everything else returns `null` and costs one bounded normalisation and two ancho
 
 ### Viewer data
 
-The poll's channel-ID → option map links a viewer to a choice, so it lives only in Durable Object memory and storage while the poll is open (data inventory row "Viewer's choice in an open poll"). `close()` returns the voter IDs once and clears the map; only the counts survive, and a closed poll's snapshot holds no viewer IDs. From ET-8 the session awards participation points from that returned list, server-side only. Voter IDs never go into an overlay payload. Chat text never enters the poll.
+The poll's channel-ID → option map links a viewer to a choice, so it lives only in Durable Object memory and storage while the poll is open (data inventory row "Viewer's choice in an open poll"). `close()` returns the voter IDs once and clears the map; only the counts survive. A closed poll's snapshot holds its validated counts and no viewer IDs. ET-6 caught a bug here: restoring a closed poll used to rebuild counts from the cleared map and reset them to zero. From ET-8 the session awards participation points from that returned list, server-side only. Voter IDs never go into an overlay payload. Chat text never enters the poll.
 
 ## Synthetic chat
 

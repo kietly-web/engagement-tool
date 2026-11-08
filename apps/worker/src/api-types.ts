@@ -29,3 +29,40 @@ export type SignInOutcome =
 export interface ApiError {
   error: string;
 }
+
+export type SessionMode = "youtube" | "demo";
+export type StopReason = "manual" | "broadcast_ended" | "quota" | "reconnect_required" | "youtube_unavailable" | "demo_finished";
+
+export interface PollView {
+  question: string;
+  options: string[];
+  status: "draft" | "open" | "closed";
+  voteChange: "first" | "latest";
+  counts: number[];
+  total: number;
+}
+
+export interface SessionStatus {
+  status: "idle" | "live" | "stopped";
+  mode?: SessionMode;
+  startedAt?: string;
+  stoppedAt?: string;
+  stopReason?: StopReason;
+  messagesSeen: number;
+  poll: PollView | null;
+}
+
+export interface QuotaView {
+  day: string;
+  workspaceUsed: number;
+  workspaceLimit: number;
+  projectUsed: number;
+  projectLimit: number;
+}
+
+export interface SessionResponse {
+  session: SessionStatus;
+  quota: QuotaView;
+}
+
+export type SessionStartError = "not_connected" | "not_live" | "reconnect_required" | "quota_exhausted" | "youtube_unavailable" | "already_live" | "disabled";

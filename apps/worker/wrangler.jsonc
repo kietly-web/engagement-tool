@@ -20,8 +20,19 @@
       "invocation_logs": false
     }
   },
+  "durable_objects": {
+    "bindings": [
+      { "name": "LIVE_SESSION", "class_name": "LiveSession" },
+      { "name": "QUOTA", "class_name": "QuotaKeeper" }
+    ]
+  },
+  // The free plan only allows SQLite-backed Durable Objects.
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["LiveSession", "QuotaKeeper"] }],
   // Non-secret values only; secrets go through `wrangler secret put` (docs/SETUP.md).
   "vars": {
-    "APP_ENV": "production"
+    "APP_ENV": "production",
+    "SESSIONS_DISABLED": "false",
+    "QUOTA_PROJECT_DAILY": "9000",
+    "QUOTA_WORKSPACE_DAILY": "3000"
   }
 }

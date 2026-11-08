@@ -1,8 +1,12 @@
 import type { Database } from "@et/db";
 import { loadMigrations } from "@et/db/migrations";
 import { createTestDatabase } from "@et/db/testing";
-import type { FetchLike } from "@et/youtube";
+import { QuotaBudget, type FetchLike } from "@et/youtube";
 import { createApp } from "../src/app";
+import { googleCredentials, type QuotaUsageClient } from "../src/live/clients";
+import { SessionEngine } from "../src/live/engine";
+import { LiveSourceProvider } from "../src/live/sources";
+import { MemoryStorage } from "./memory-storage";
 import { toBase64Url } from "../src/crypto";
 import type { AppEnv } from "../src/env";
 import { GOOGLE } from "../src/google";
@@ -27,11 +31,23 @@ export class FakeGoogle {
   revoked: string[] = [];
   revokeStatus = 200;
   calls: string[] = [];
+  live: { broadcastId: string; liveChatId: string } | null = null;
+  refreshInvalid = false;
+  chatPages: unknown[] = [];
 
   fetch: FetchLike = async (url, init) => {
     this.calls.push(url.split("?")[0]!);
     const json = (status: number, body: unknown) => ({ ok: status < 400, status, json: async () => body });
     const a = this.account;
+    if (url === GOOGLE.tokenUrl && new URLSearchParams(init?.body).get("grant_type") === "refresh_token") {
+      return this.refreshInvalid ? json(400, { error: "invalid_grant" }) : json(200, { access_token: "live-at", expires_in: 3600 });
+    }
+    if (url.startsWith("https://www.googleapis.com/youtube/v3/liveBroadcasts")) {
+      return json(200, { items: this.live ? [{ id: this.live.broadcastId, snippet: { liveChatId: this.live.liveChatId } }] : [] });
+    }
+    if (url.startsWith("https://www.googleapis.com/youtube/v3/liveChat/messages")) {
+      return json(200, this.chatPages.shift() ?? { items: [], nextPageToken: "same", pollingIntervalMillis: 5000 });
+    }
     if (url === GOOGLE.tokenUrl) {
       const enc = (o: unknown) => toBase64Url(new TextEncoder().encode(JSON.stringify(o)));
       const claims = {
@@ -100,14 +116,37 @@ export interface Harness {
   db: Database;
   google: FakeGoogle;
   clock: { now: Date };
+  engines: Map<string, SessionEngine>;
+  quota: QuotaBudget;
   browser(): Browser;
 }
 
-export async function makeHarness(opts: { configured?: boolean } = {}): Promise<Harness> {
+export async function makeHarness(opts: { configured?: boolean; quota?: { projectDaily: number; workspaceDaily: number } } = {}): Promise<Harness> {
   const db = await createTestDatabase(await loadMigrations());
   const google = new FakeGoogle();
   const clock = { now: new Date("2026-11-08T12:00:00Z") };
-  const app = createApp({ database: () => db, fetch: google.fetch, now: () => clock.now });
+  const engines = new Map<string, SessionEngine>();
+  const quota = new QuotaBudget(opts.quota ?? { projectDaily: 9000, workspaceDaily: 3000 });
+  const quotaClient: QuotaUsageClient = {
+    reserve: async (ws, units) => quota.reserve(ws, units, clock.now),
+    usage: async (ws) => quota.usage(ws, clock.now),
+  };
+  const engineClock = { now: () => clock.now };
+  const app = createApp({
+    database: () => db,
+    fetch: google.fetch,
+    now: () => clock.now,
+    quota: () => quotaClient,
+    liveSession: (env, ws) => {
+      let engine = engines.get(ws);
+      if (!engine) {
+        const provider = new LiveSourceProvider({ fetch: google.fetch, quota: quotaClient, clock: engineClock, credentials: () => googleCredentials(env) });
+        engine = new SessionEngine(new MemoryStorage(), provider, engineClock);
+        engines.set(ws, engine);
+      }
+      return engine;
+    },
+  });
   const env = {
     APP_ENV: "production",
     ASSETS: { fetch: async () => new Response(null, { status: 404 }) },
@@ -115,6 +154,6 @@ export async function makeHarness(opts: { configured?: boolean } = {}): Promise<
       ? {}
       : { GOOGLE_CLIENT_ID: "client-1", GOOGLE_CLIENT_SECRET: "secret", SESSION_SECRET: key(1), TOKEN_ENCRYPTION_KEY: key(2) }),
   } as unknown as AppEnv;
-  const h: Harness = { app, env, db, google, clock, browser: () => new Browser(h) };
+  const h: Harness = { app, env, db, google, clock, engines, quota, browser: () => new Browser(h) };
   return h;
 }

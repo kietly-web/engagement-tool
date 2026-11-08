@@ -25,7 +25,7 @@ interface AuthConfig {
   tokenKey: CryptoKey;
 }
 
-type Vars = { db: Database; memberId: string; config: AuthConfig };
+export type Vars = { db: Database; memberId: string; config: AuthConfig };
 type Ctx = Context<{ Bindings: AppEnv; Variables: Vars }>;
 
 async function loadConfig(env: AppEnv): Promise<AuthConfig | null> {

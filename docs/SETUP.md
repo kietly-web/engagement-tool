@@ -55,10 +55,13 @@ P0: production doesn't work without it. P1: a feature or workflow is degraded. P
 | [ ] | Production check that `SET LOCAL ROLE app_runtime` works through Hyperdrive (`current_user` is `app_runtime` inside a transaction) | Run once by hand after setup; automate in the smoke test when `/healthz` gains a DB probe | Smoke test |
 | [ ] | If Google's revoke endpoint is down, disconnect and account deletion return 502 and rely on the user retrying | Queue a pending revoke-and-delete for the daily cron, so the 7-day promise (NN3) holds without a retry (ET-8 cron) | `apps/worker`, `packages/db` |
 | [ ] | Token encryption key rotation not built | Ciphertexts carry a version byte; add `TOKEN_ENCRYPTION_KEY_V2` handling and a re-encrypt job when a rotation is needed | `apps/worker/src/crypto.ts` |
+| [ ] | Chat is read by polling `liveChatMessages.list` (about 3,600 units per stream-hour), so a workspace gets about 50 live minutes a day | ET-6 spike: implement and verify `streamList` (ADR-004) against a real stream; then raise the per-workspace budget | `packages/youtube`, `apps/worker/src/live` |
+| [ ] | `LiveSession`/`QuotaKeeper` adapters only boot-checked with `wrangler dev`; the engine and routes are tested in Node with in-memory storage | First real run after owner setup: start a demo session, then a YouTube session | `apps/worker/src/live/durable.ts` |
+| [ ] | Dashboard polls `/session` every 2 s while live (one Worker request plus a DO call each) | Push updates over the overlay WebSocket in ET-7 and drop the polling | `apps/web` |
 | [ ] | No rate limit on sign-in and session lookups | Add Workers Rate Limiting binding (free plan) or a per-IP Durable Object counter before open sign-up | `apps/worker` |
 | [ ] | Audit log not built (membership, disconnect, account deletion, token rotation) | ET-9 with moderators | `packages/db`, `apps/worker` |
 | [ ] | Preview deployments can't sign in (Google needs exact redirect URIs) | Dev-only sign-in stub compiled out of production, if previews need it | `apps/worker` |
-| [ ] | `channels.list` (1 unit per creator sign-in) isn't counted by a quota ledger yet | ET-6 quota ledger | `packages/youtube` |
+| [ ] | `channels.list` (1 unit per creator sign-in) isn't counted by the quota ledger | Route sign-in's channel lookup through `QuotaKeeper` | `apps/worker/src/auth.ts` |
 | [ ] | Dashboard tested by unit and route tests only; not yet clicked through against real Google | First run after owner setup | `apps/web` |
 | [ ] | Invites need a definer function | ET-9 adds `accept_invite(token)`; `app_runtime` has no `INSERT` on `workspace_member` until then | `packages/db` |
 | [ ] | Tests can't prove `app_worker` is unable to `SET ROLE app_definer` (PGlite ignores login users) | Postgres 16+ rules forbid it; add a real-Postgres CI job if a paid-free option appears, or check once by hand on Neon | CI |
