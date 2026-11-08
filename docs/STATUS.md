@@ -40,7 +40,8 @@ Everything not done lives in [SETUP.md](SETUP.md), with priorities and exact ste
 - Actions were re-pinned to release SHAs on 08/11/2026; Dependabot keeps them current.
 - The shell is zsh: unquoted variables holding several words don't split.
 - Branch protection is off, so auto-merge would merge before CI. Wait for CI by hand until required checks are set (SETUP §1).
-- `pnpm-workspace.yaml` enforces `minimumReleaseAge` (7 days) and an `allowBuilds` list (only `esbuild`, `workerd`). Add to `allowBuilds` only after checking what the script does.
+- Write invisible and bidi characters as `\u` escapes in source and tests, never literally; Semgrep blocks literal ones (Trojan Source). Tool-written files can decode escapes, so grep for them before pushing.
+- `pnpm-workspace.yaml` enforces `minimumReleaseAge` (7 days) and an `allowBuilds` list (only `esbuild`, `workerd`), and blocks exotic sub-dependencies and provenance downgrades. Add to `allowBuilds` only after checking what the script does.
 - TypeScript stays on 6.0 until typescript-eslint supports 7 (its peer range is `<6.1`).
 - `wrangler.jsonc` changes need `pnpm --filter @et/worker types` and committing `worker-configuration.d.ts`; `pnpm typecheck` fails until you do.
 - Workers Logs invocation logs are off on purpose: they record full URLs, and overlay URLs carry tokens. Log with `console.log` and never include `/o/*` paths.

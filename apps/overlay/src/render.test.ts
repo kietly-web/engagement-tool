@@ -7,7 +7,7 @@ describe("safeText", () => {
   });
 
   it("strips bidi overrides and control characters", () => {
-    expect(safeText("abc‮dcba⁦x\u0007")).toBe("abcdcbax");
+    expect(safeText("abc\u202Edcba\u2066x\u0007")).toBe("abcdcbax");
   });
 
   it("normalises Vietnamese to NFC", () => {

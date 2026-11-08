@@ -1,7 +1,7 @@
 const MAX_TEXT_LENGTH = 80;
 
 // Bidi overrides/isolates and C0/C1 controls let chat text reorder or hide what's on screen.
-const UNSAFE_CHARS = /[\p{Cc}‎‏‪-‮⁦-⁩]/gu;
+const UNSAFE_CHARS = /[\p{Cc}\u200E\u200F\u202A-\u202E\u2066-\u2069]/gu;
 
 export function safeText(input: string, maxLength = MAX_TEXT_LENGTH): string {
   const cleaned = input.normalize("NFC").replace(UNSAFE_CHARS, "").trim();
