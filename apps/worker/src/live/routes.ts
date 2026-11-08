@@ -1,4 +1,4 @@
-import { ContextError, withWorkspace, workspaces, youtube } from "@et/db";
+import { ContextError, seasons, withWorkspace, workspaces, youtube } from "@et/db";
 import type { PollInput } from "@et/core";
 import { ChatSourceError } from "@et/youtube";
 import { Hono, type Context } from "hono";
@@ -70,11 +70,19 @@ export function sessionRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps
     const mode = body?.mode === "demo" ? "demo" : body?.mode === "youtube" ? "youtube" : null;
     if (!mode) return c.json({ error: "invalid_mode" }, 400);
     const client = deps.liveSession(c.env, m.workspaceId);
+    const season = await withWorkspace(c.var.db, { memberId: c.var.memberId, workspaceId: m.workspaceId }, (tx) => seasons.active(tx));
+    const common = {
+      workspaceId: m.workspaceId,
+      startedBy: c.var.memberId,
+      seasonId: season?.id ?? null,
+      seasonName: season?.name ?? null,
+      seasonEndsAt: season?.endsAt ?? null,
+    };
 
     if (mode === "demo") {
       if (await live(c, m.workspaceId)) return startError(c, "already_live", 409);
       if (!(await deps.quota(c.env).reserveDemo(m.workspaceId))) return startError(c, "demo_limit", 429);
-      return fromResult(c, m.workspaceId, await client.start({ workspaceId: m.workspaceId, mode, broadcastId: "demo", liveChatId: "demo" }), 201);
+      return fromResult(c, m.workspaceId, await client.start({ ...common, mode, broadcastId: "demo", liveChatId: "demo" }), 201);
     }
 
     const ciphertext = await withWorkspace(c.var.db, { memberId: c.var.memberId, workspaceId: m.workspaceId }, (tx) => youtube.refreshTokenCiphertext(tx));
@@ -97,7 +105,7 @@ export function sessionRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps
     return fromResult(
       c,
       m.workspaceId,
-      await client.start({ workspaceId: m.workspaceId, mode, broadcastId: chat.broadcastId, liveChatId: chat.liveChatId, tokenCiphertext: ciphertext }),
+      await client.start({ ...common, mode, broadcastId: chat.broadcastId, liveChatId: chat.liveChatId, tokenCiphertext: ciphertext }),
       201,
     );
   });

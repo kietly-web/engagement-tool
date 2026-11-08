@@ -70,3 +70,18 @@ body {
   font-size: 20px;
   opacity: 0.8;
 }
+
+.lb-row {
+  display: grid;
+  grid-template-columns: 64px 1fr auto;
+  align-items: center;
+  gap: 12px;
+  margin: 8px 0;
+  font-size: 26px;
+  font-weight: 600;
+}
+
+.lb-rank {
+  color: #ffb347;
+  font-variant-numeric: tabular-nums;
+}

@@ -51,6 +51,14 @@ The poll's channel-ID → option map links a viewer to a choice, so it lives onl
 - Viewer IDs are valid channel IDs prefixed `UCSYNTH`, so synthetic data is recognisable anywhere it appears.
 - The adversarial mix covers HTML and script tags, bidi overrides, zero-width joiners, zalgo, Cyrillic look-alikes, Arabic-Indic digits, 5,000-character messages, huge numbers and URLs.
 
+## Points and seasons (ET-8)
+
+- `!join` (or `!tham gia`, `!tg`) earns 10 points once per live session; each counted vote earns 5. No points for chatting, no other way to earn, and nothing to redeem (non-negotiable 6).
+- `PointsTally` holds per-viewer deltas between flushes: channel ID and counters only. A flush takes the pending deltas as one batch with an ID, saves it, and sends it. The database records batch IDs, so a retry after a lost response or an eviction is applied once, and the top-10 read runs in the same transaction. The engine flushes about every 10 s and at stop, as the member who started the session. Failures back off up to 5 minutes; after 5 failures, or when the season's end passes, the session stops writing points.
+- Erasing a viewer waits for any flush in flight, removes them from pending and in-flight deltas, and blocks further credit for the session. Only then does the route delete their rows.
+- Seasons last 1 to 29 days (`seasonWindow`), one at a time per workspace. Without a running season, or in demo mode, points live only in session memory as a preview leaderboard.
+- The leaderboard shows the top 10 with display names only for viewers seen in the current session; others show as "Khán giả". Channel IDs never reach an overlay.
+
 ## Not yet
 
-Points, seasons and leaderboards (ET-8); games (ET-10); configurable aliases per workspace (backlog idea).
+Games (ET-10); configurable aliases per workspace (backlog idea).

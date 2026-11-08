@@ -111,7 +111,7 @@ CREATE FUNCTION app.purge_expired(p_idle_seconds integer) RETURNS void
   SET search_path = pg_catalog
   AS $$
     DELETE FROM app.session s
-     WHERE s.expires_at <= now() OR s.last_seen_at <= now() - make_interval(secs => p_idle_seconds);
+     WHERE s.expires_at <= now() OR s.last_seen_at <= now() - make_interval(secs => greatest(p_idle_seconds, 86400));
     DELETE FROM app.member m
      WHERE m.updated_at <= now() - interval '30 days'
        AND NOT EXISTS (SELECT 1 FROM app.workspace_member wm WHERE wm.member_id = m.id)

@@ -13,6 +13,7 @@ export interface SessionClient {
   closePoll(): Promise<Result<SessionStatus>>;
   purge(): Promise<void>;
   closeOverlays(widget: OverlayWidget): Promise<void>;
+  eraseViewer(channelId: string): Promise<void>;
 }
 
 export interface QuotaUsageClient extends QuotaClient {

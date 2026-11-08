@@ -4,13 +4,15 @@ import { DurableObject } from "cloudflare:workers";
 import { defaultDeps, type AppEnv } from "../env";
 import { SessionEngine, type StartInput, type StopReason } from "./engine";
 import type { OverlayWidget, SessionStatus } from "../api-types";
+import { createPgDatabase } from "@et/db";
 import { googleCredentials, quotaClient } from "./clients";
+import { DbPointsStore } from "./points-store";
 import { overlayView } from "./overlay-view";
 import { quotaLimits } from "./limits";
 import { LiveSourceProvider } from "./sources";
 
 const systemClock = { now: () => new Date() };
-const WIDGETS: readonly OverlayWidget[] = ["poll"];
+const WIDGETS: readonly OverlayWidget[] = ["poll", "leaderboard"];
 const MAX_SOCKETS_PER_WIDGET = 20;
 const isWidget = (value: string | null): value is OverlayWidget => WIDGETS.includes(value as OverlayWidget);
 
@@ -36,6 +38,10 @@ export class LiveSession extends DurableObject<AppEnv> {
     this.engine = new SessionEngine(storage, provider, systemClock, {
       disabled: () => String(env.SESSIONS_DISABLED) === "true",
       onChange: (status) => this.broadcast(status),
+      points: (state) =>
+        env.HYPERDRIVE && state.startedBy
+          ? new DbPointsStore(createPgDatabase(env.HYPERDRIVE.connectionString), { memberId: state.startedBy, workspaceId: state.workspaceId })
+          : null,
     });
   }
 
@@ -99,6 +105,9 @@ export class LiveSession extends DurableObject<AppEnv> {
   }
   purge() {
     return this.engine.purge();
+  }
+  eraseViewer(channelId: string) {
+    return this.engine.eraseViewer(channelId);
   }
   override async alarm() {
     await this.engine.tick();

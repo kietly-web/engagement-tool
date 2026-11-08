@@ -1,5 +1,5 @@
 import type { OverlayMessage } from "@et/worker/api-types";
-import { backoffMs, parseMessage, parseOverlayPath, pollModel, shouldReconnect } from "./model";
+import { backoffMs, leaderboardModel, parseMessage, parseOverlayPath, pollModel, shouldReconnect } from "./model";
 import { t } from "./i18n";
 import "./overlay.css";
 
@@ -12,7 +12,22 @@ function el(tag: string, className: string, text?: string): HTMLElement {
   return node;
 }
 
+function renderLeaderboard(message: OverlayMessage): void {
+  const model = leaderboardModel(message);
+  root.replaceChildren();
+  if (!model) return;
+  const card = el("div", "poll leaderboard");
+  card.append(el("div", "question", model.title ?? t["leaderboard.title"]));
+  for (const row of model.rows) {
+    const line = el("div", "lb-row");
+    line.append(el("span", "lb-rank", `#${row.rank}`), el("span", "label", row.name ?? t["leaderboard.anonymous"]), el("span", "count", t["leaderboard.points"](row.points)));
+    card.append(line);
+  }
+  root.append(card);
+}
+
 function render(message: OverlayMessage): void {
+  if (message.type === "leaderboard") return renderLeaderboard(message);
   const model = pollModel(message);
   root.replaceChildren();
   if (!model) return;

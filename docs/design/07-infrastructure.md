@@ -21,7 +21,7 @@ Figures as published at kickoff; re-check in the console when a slice adds load.
 | Workers Builds | 3,000 build minutes/month | ~2 min per build |
 | Cron Triggers | 5 per account | 1 daily job (retention, refresh, heartbeat) |
 | Neon free | 1 GB storage, 100 CU-hours/month (~400 h at 0.25 CU), 5 GB transfer, scale to zero after 5 min, never paused, 6 h point-in-time restore | Tiny rows; compute active only during streams and dashboard use |
-| Hyperdrive (caching disabled) | 100,000 queries/day | ~4–6 queries per transaction (`BEGIN`, `SET ROLE`, settings, work, `COMMIT`); points flush in batches, so beta use is a few thousand a day |
+| Hyperdrive (caching disabled) | 100,000 queries/day | About 2,900 per stream-hour from points flushes plus a few per API call: about 34 stream-hours a day |
 | YouTube Data API | 10,000 units/day per Google Cloud project; `streamList` and `list` both 5 units per call | `streamList`: 5 units per connection, so tens of units per stream-hour (measured in ET-6, Q-T1). Polling fallback: ~3,600 units per stream-hour, under 3 stream-hours/day for everyone combined |
 | GitHub Actions | Free for public repositories | CI per push |
 
@@ -44,7 +44,9 @@ Worker `vars` (in `wrangler.jsonc`) hold only non-secret values. Secrets are set
 
 ## Cron
 
-Daily at 03:00 Asia/Ho_Chi_Minh (20:00 UTC): delete ended-season viewer rows and stale YouTube data (ADR-006), process pending disconnect deletions (FR-09), write a heartbeat row the smoke test checks.
+Every 6 hours (`0 */6 * * *` in `wrangler.jsonc`), `app.daily_maintenance()` deletes ended-season viewer rows and batch markers, idle sessions and orphan members, and writes the heartbeat row (ADR-006). A failure logs `daily_maintenance_failed`. Still to come: refresh-or-delete for channel metadata older than 30 days, and a queue of pending revocations (SETUP §3).
+
+ET-8 load (corrected in review): a points flush is one Hyperdrive transaction of about 8 queries (role, settings, batch marker, upsert, top 10, commit), at most every 10 s per live session. That's about 2,900 queries per stream-hour, so the 100,000-query daily limit allows about 34 stream-hours, more than the Durable Objects' 28.
 
 ## Observability
 

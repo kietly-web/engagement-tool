@@ -1,8 +1,14 @@
-import { parseCommand, Poll, PollError, type Clock, type PollInput, type PollSnapshot } from "@et/core";
+import { parseCommand, Poll, PollError, POINTS, PointsTally, type Clock, type PointsTallySnapshot, type PollInput, type PollSnapshot } from "@et/core";
 import { ChatSourceError, type ChatSource } from "@et/youtube";
-import type { PollView, SessionMode, SessionStatus, StopReason } from "../api-types";
+import type { LeaderboardEntry, PollView, SessionMode, SessionStatus, StopReason } from "../api-types";
+import type { PointsStore } from "./points-store";
 
 export type { PollView, SessionMode, SessionStatus, StopReason };
+
+const LEADERBOARD_SIZE = 10;
+const MAX_NAMES = 5_000;
+const MAX_FLUSH_FAILURES = 5;
+const MAX_FLUSH_BACKOFF_MS = 5 * 60_000;
 
 export interface SessionStorage {
   get<T>(key: string): Promise<T | undefined>;
@@ -28,6 +34,10 @@ export interface SessionState {
   stopReason?: StopReason;
   failures: number;
   messagesSeen: number;
+  startedBy?: string;
+  seasonId?: string | null;
+  seasonName?: string | null;
+  seasonEndsAt?: string | null;
 }
 
 export type Result<T> = { ok: true; value: T } | { ok: false; error: SessionErrorCode };
@@ -38,6 +48,10 @@ export interface StartInput {
   broadcastId: string;
   liveChatId: string;
   tokenCiphertext?: string;
+  startedBy?: string;
+  seasonId?: string | null;
+  seasonName?: string | null;
+  seasonEndsAt?: string | null;
 }
 
 export interface SourceProvider {
@@ -58,6 +72,8 @@ export interface EngineOptions {
   maxBackoffMs: number;
   disabled(): boolean;
   onChange(status: SessionStatus): void;
+  points(state: SessionState): PointsStore | null;
+  flushEveryMs: number;
 }
 
 const DEFAULTS: EngineOptions = {
@@ -66,10 +82,21 @@ const DEFAULTS: EngineOptions = {
   maxBackoffMs: 60_000,
   disabled: () => false,
   onChange: () => undefined,
+  points: () => null,
+  flushEveryMs: 10_000,
 };
 
 export class SessionEngine {
   private readonly opts: EngineOptions;
+  // Display names live only here, in memory, for the life of the session (non-negotiable 2).
+  private readonly names = new Map<string, string>();
+  private readonly sessionTotals = new Map<string, number>();
+  private leaderboard: { channelId: string; points: number }[] = [];
+  private lastFlush = 0;
+  private tally: PointsTally | null = null;
+  private flushing: Promise<unknown> | null = null;
+  private flushFailures = 0;
+  private nextFlushAt = 0;
 
   constructor(
     private readonly storage: SessionStorage,
@@ -95,6 +122,92 @@ export class SessionEngine {
     }
   }
 
+  // Kept in memory even without a season, so !join dedupes per session; persisted only while points are written.
+  private async loadTally(): Promise<PointsTally> {
+    this.tally ??= new PointsTally(await this.storage.get<PointsTallySnapshot>("points"));
+    return this.tally;
+  }
+
+  private async saveTally(state: SessionState): Promise<void> {
+    if (state.seasonId && this.tally) await this.storage.put("points", this.tally.snapshot());
+  }
+
+  private async disablePoints(state: SessionState, event: string): Promise<SessionState> {
+    const next = { ...state, seasonId: null, seasonEndsAt: null };
+    this.tally?.dropUnwritten();
+    await this.storage.delete("points");
+    await this.storage.put("session", next);
+    console.error(JSON.stringify({ event }));
+    return next;
+  }
+
+  private leaderboardView(): LeaderboardEntry[] {
+    const source =
+      this.leaderboard.length > 0
+        ? this.leaderboard
+        : [...this.sessionTotals.entries()].map(([channelId, points]) => ({ channelId, points })).sort((a, b) => b.points - a.points);
+    return source.slice(0, LEADERBOARD_SIZE).map((e, i) => ({ rank: i + 1, name: this.names.get(e.channelId) ?? null, points: e.points }));
+  }
+
+  private rememberName(channelId: string, name: string): void {
+    if (!name) return;
+    if (!this.names.has(channelId) && this.names.size >= MAX_NAMES) this.names.delete(this.names.keys().next().value!);
+    this.names.set(channelId, name.slice(0, 40));
+  }
+
+  private resetMemory(): void {
+    this.names.clear();
+    this.sessionTotals.clear();
+    this.leaderboard = [];
+    this.lastFlush = 0;
+    this.tally = null;
+    this.flushFailures = 0;
+    this.nextFlushAt = 0;
+  }
+
+  private async flushPoints(state: SessionState, force: boolean): Promise<{ flushed: boolean; state: SessionState }> {
+    const seasonId = state.seasonId;
+    const store = seasonId ? this.opts.points(state) : null;
+    if (!store || !seasonId) return { flushed: false, state };
+    const now = this.clock.now().getTime();
+    if (!force && (now < this.nextFlushAt || now - this.lastFlush < this.opts.flushEveryMs)) return { flushed: false, state };
+    const tally = await this.loadTally();
+    const batch = tally.beginBatch(crypto.randomUUID());
+    if (!batch) return { flushed: false, state };
+    await this.saveTally(state);
+
+    const attempt = store.flushAndTop(seasonId, batch.id, batch.deltas, LEADERBOARD_SIZE);
+    this.flushing = attempt.catch(() => undefined);
+    try {
+      this.leaderboard = await attempt;
+      tally.completeBatch(batch.id);
+      this.lastFlush = now;
+      this.flushFailures = 0;
+      this.nextFlushAt = 0;
+      await this.saveTally(state);
+      return { flushed: true, state };
+    } catch {
+      this.flushFailures += 1;
+      this.nextFlushAt = now + Math.min(this.opts.flushEveryMs * 2 ** this.flushFailures, MAX_FLUSH_BACKOFF_MS);
+      if (this.flushFailures >= MAX_FLUSH_FAILURES) return { flushed: false, state: await this.disablePoints(state, "points_flush_failed") };
+      return { flushed: false, state };
+    } finally {
+      this.flushing = null;
+    }
+  }
+
+  // Waits for any flush in flight, so a batch already on its way can't re-insert the viewer after the database delete.
+  async eraseViewer(channelId: string): Promise<void> {
+    if (this.flushing) await this.flushing;
+    const tally = await this.loadTally();
+    tally.erase(channelId);
+    const state = await this.loadState();
+    if (state) await this.saveTally(state);
+    this.names.delete(channelId);
+    this.sessionTotals.delete(channelId);
+    this.leaderboard = this.leaderboard.filter((e) => e.channelId !== channelId);
+  }
+
   private view(state: SessionState | undefined, poll: Poll | null): SessionStatus {
     const pollView: PollView | null = poll && {
       question: poll.question,
@@ -112,6 +225,8 @@ export class SessionEngine {
       ...(state.stopReason && { stopReason: state.stopReason }),
       messagesSeen: state.messagesSeen,
       poll: pollView,
+      season: state.seasonName ?? null,
+      leaderboard: this.leaderboardView(),
     };
   }
 
@@ -132,9 +247,15 @@ export class SessionEngine {
       startedAt: this.clock.now().toISOString(),
       failures: 0,
       messagesSeen: 0,
+      ...(input.startedBy && { startedBy: input.startedBy }),
+      seasonId: input.mode === "demo" ? null : (input.seasonId ?? null),
+      seasonName: input.mode === "demo" ? null : (input.seasonName ?? null),
+      seasonEndsAt: input.mode === "demo" ? null : (input.seasonEndsAt ?? null),
     };
     this.sources.invalidate();
+    this.resetMemory();
     await this.storage.delete("poll");
+    await this.storage.delete("points");
     await this.storage.put("session", state);
     await this.storage.setAlarm(this.clock.now().getTime());
     return this.changed({ ok: true, value: this.view(state, null) });
@@ -148,6 +269,9 @@ export class SessionEngine {
       poll.close();
       await this.storage.put("poll", poll.snapshot());
     }
+    await this.flushPoints(state, true);
+    await this.storage.delete("points");
+    this.tally = null;
     // YouTube identifiers and the token copy go at stop, so nothing YouTube-derived lingers in DO storage (NN3).
     const stopped: SessionState = {
       ...state,
@@ -162,7 +286,9 @@ export class SessionEngine {
     await this.storage.put("session", stopped);
     await this.storage.deleteAlarm();
     this.sources.invalidate();
-    return this.changed({ ok: true, value: this.view(stopped, poll) }).value;
+    const result = this.changed({ ok: true, value: this.view(stopped, poll) }).value;
+    this.names.clear();
+    return result;
   }
 
   async createPoll(input: PollInput): Promise<Result<SessionStatus>> {
@@ -215,8 +341,11 @@ export class SessionEngine {
   }
 
   private async tickOnce(): Promise<void> {
-    const state = await this.loadState();
+    let state = await this.loadState();
     if (state?.status !== "live") return;
+    if (state.seasonId && state.seasonEndsAt && this.clock.now().getTime() >= Date.parse(state.seasonEndsAt)) {
+      state = await this.disablePoints(state, "season_ended_mid_session");
+    }
     if (this.opts.disabled()) {
       await this.stop("disabled");
       return;
@@ -237,15 +366,31 @@ export class SessionEngine {
     }
 
     const poll = await this.loadPoll();
+    const tally = await this.loadTally();
+    let scored = false;
     for (const message of page.messages) {
+      this.rememberName(message.channelId, message.displayName);
       const command = parseCommand(message.text);
-      if (command?.kind === "vote" && poll?.status === "open") poll.vote(message.channelId, command.option);
+      let earned = 0;
+      if (command?.kind === "vote" && poll?.status === "open" && poll.vote(message.channelId, command.option) === "counted") {
+        if (tally.countedVote(message.channelId)) earned = POINTS.countedVote;
+      } else if (command?.kind === "join" && tally.join(message.channelId)) {
+        earned = POINTS.join;
+      }
+      if (earned > 0) {
+        scored = true;
+        this.sessionTotals.set(message.channelId, (this.sessionTotals.get(message.channelId) ?? 0) + earned);
+      }
     }
     if (poll) await this.storage.put("poll", poll.snapshot());
+    if (scored) await this.saveTally(state);
+    const flush = await this.flushPoints(state, false);
+    const flushed = flush.flushed;
+    state = flush.state;
     const next = { ...state, pageToken: page.nextPageToken, failures: 0, messagesSeen: state.messagesSeen + page.messages.length };
     await this.storage.put("session", next);
     await this.storage.setAlarm(now + page.waitMs);
-    if (poll?.status === "open" && page.messages.length > 0) this.changed({ ok: true, value: this.view(next, poll) });
+    if ((poll?.status === "open" && page.messages.length > 0) || scored || flushed) this.changed({ ok: true, value: this.view(next, poll) });
   }
 
   private async handleFailure(state: SessionState, error: unknown, now: number): Promise<void> {
