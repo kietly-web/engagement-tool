@@ -21,7 +21,7 @@ Figures as published at kickoff; re-check in the console when a slice adds load.
 | Workers Builds | 3,000 build minutes/month | ~2 min per build |
 | Cron Triggers | 5 per account | 1 daily job (retention, refresh, heartbeat) |
 | Neon free | 1 GB storage, 100 CU-hours/month (~400 h at 0.25 CU), 5 GB transfer, scale to zero after 5 min, never paused, 6 h point-in-time restore | Tiny rows; compute active only during streams and dashboard use |
-| Hyperdrive (if chosen in ET-4) | 100,000 queries/day | ~5 queries per batched transaction |
+| Hyperdrive (caching disabled) | 100,000 queries/day | ~4–6 queries per transaction (`BEGIN`, `SET ROLE`, settings, work, `COMMIT`); points flush in batches, so beta use is a few thousand a day |
 | YouTube Data API | 10,000 units/day per Google Cloud project; `streamList` and `list` both 5 units per call | `streamList`: 5 units per connection, so tens of units per stream-hour (measured in ET-6, Q-T1). Polling fallback: ~3,600 units per stream-hour, under 3 stream-hours/day for everyone combined |
 | GitHub Actions | Free for public repositories | CI per push |
 

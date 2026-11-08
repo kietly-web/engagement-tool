@@ -9,9 +9,9 @@ Each creator's workspace is a tenant, with moderators inside it (FR-02). A cross
 ## Decision
 
 - Neon free plan, region AWS Asia Pacific (Singapore) `aws-ap-southeast-1`, the nearest region to Vietnam. One project for production; preview and dev use Neon branches seeded with synthetic data only (non-negotiable 8).
-- Every workspace table has `workspace_id`, RLS enabled and forced, and policies per role. The Worker connects as `app_runtime`, a role that does not own tables and has no `BYPASSRLS`. Migrations run as the owner role from CI or the owner's machine, never from the Worker.
-- Every query runs in a transaction that first sets `app.workspace_id` and `app.member_role` with `set_config(..., true)`; policies read those settings. Only `packages/db` touches the driver.
-- Connection path is decided in ET-4 (Q-T2): Cloudflare Hyperdrive (free, 100,000 queries/day) with a standard Postgres driver, or Neon's serverless driver over WebSockets. Either must support interactive transactions for the RLS context.
+- Every workspace table has `workspace_id`, RLS enabled and forced, and policies per role. The Worker logs in as `app_worker` and every transaction runs `SET LOCAL ROLE app_runtime`, a role that owns nothing and has no `BYPASSRLS`. Migrations run as the owner role from the owner's machine, never from the Worker. Roles and policies are detailed in `02-data-model.md`.
+- Every query runs in a transaction that first sets `app.member_id` and, inside a workspace, `app.workspace_id` with `set_config(..., true)`. Policies derive the member's role from `workspace_member`; the app never asserts it. Only `packages/db` touches the driver.
+- Connection (Q-T2, decided in ET-4): Cloudflare Hyperdrive (free, 100,000 queries/day) with node-postgres (`pg`), one short-lived client per transaction. Hyperdrive is created with `--caching-disabled`: its query cache keys on SQL text, not on the RLS context, so a cached read could cross workspaces. Neon's HTTP driver can't run interactive transactions, and its WebSocket driver would add a second driver for no gain.
 
 ## Consequences
 

@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 08/11/2026 (ET-3). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
+Last updated: 08/11/2026 (ET-4). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
 
 ## Where we are
 
@@ -8,11 +8,12 @@ Last updated: 08/11/2026 (ET-3). Update in every slice PR. Read after `CLAUDE.md
 | --- | --- |
 | ET-1 Kickoff (rules, discovery, ADR-001–007, design 00/01/03/07/08, CI guardrails) | Done, [PR #1](https://github.com/kietly-web/engagement-tool/pull/1) |
 | ET-2 Repo skeleton (workspace, six packages, Hono Worker, dashboard and overlay hello pages, `pnpm check`) | Done, [PR #2](https://github.com/kietly-web/engagement-tool/pull/2); runs locally, not deployed yet |
-| ET-3 Command engine (normalisation, `!vote`/`!join` parser, polls, synthetic chat; `05-domain-engine.md`) | In review on branch `ET-3-command-engine` |
+| ET-3 Command engine (normalisation, `!vote`/`!join` parser, polls, synthetic chat; `05-domain-engine.md`) | Done, [PR #3](https://github.com/kietly-web/engagement-tool/pull/3) |
+| ET-4 Database foundation (tenancy migration, forced RLS, role-derived policies, `withWorkspace`, PGlite isolation suite; `02-data-model.md`; Q-T2 decided) | In review on branch `ET-4-database-foundation`; not applied to Neon yet |
 
 ## Next
 
-**ET-4 Database foundation** (NFR-SEC, R7): `packages/db` with migrations, `workspace` and `member` tables, the `app_runtime` role, forced RLS, a `withWorkspace` transaction wrapper and a PGlite isolation harness; refine the `new-workspace-table` skill; write `docs/design/02-data-model.md`; decide Q-T2 (Hyperdrive vs Neon serverless driver). Needs the security review. Builds and tests fully on PGlite; only applying migrations to production needs the owner's Neon project (SETUP §1).
+**ET-5 Google sign-in and workspace** (FR-01, FR-09, US-01, US-08): OAuth with PKCE in `apps/worker`, ID-token verification, `app.upsert_member` + `app.create_workspace`, encrypted refresh token, `__Host-` session cookie with hashed session IDs, disconnect = revoke + scheduled deletion, account export/delete, the `HYPERDRIVE` binding. Needs the security review. The code and its tests can be built now with a fake Google endpoint. **Verifying it end to end needs the owner's setup:** Google Cloud project, consent screen and OAuth client, Neon project, migrations applied, `app_worker` role, Hyperdrive, and the Worker secrets (SETUP §1, P0 rows).
 
 Deploying the Worker needs the owner's Cloudflare account and Workers Builds connection (SETUP §1, first two rows); it can happen any time.
 
@@ -20,7 +21,7 @@ Deploying the Worker needs the owner's Cloudflare account and Workers Builds con
 
 | PR | What | Action |
 | --- | --- | --- |
-| ET-3 | Command engine | Merge when CI is green and review findings are fixed |
+| ET-4 | Database foundation | Merge when CI is green and review findings are fixed |
 
 ## Waiting on the owner
 
@@ -51,7 +52,11 @@ Everything not done lives in [SETUP.md](SETUP.md), with priorities and exact ste
 - Static-asset security headers live in `apps/web/public/_headers`; Worker responses get them from `apps/worker/src/security-headers.ts`. Change both together.
 - Google Testing-mode apps: refresh tokens for sensitive scopes expire after 7 days; beta creators will need to reconnect weekly until verification (R4).
 - Neon free compute sleeps after 5 minutes idle and takes a few hundred ms to wake; the Durable Object buffers writes, so never block chat handling on a database call.
-- Pooled connections forbid session-level `SET`; set the RLS context with `set_config(..., true)` inside the transaction.
+- Pooled connections forbid session-level `SET`; set the RLS context with `set_config(..., true)` inside the transaction (`withWorkspace` does this).
+- Hyperdrive must keep `--caching-disabled`: its cache ignores the RLS context.
+- Create Neon login roles with SQL, not the console (console roles join `neon_superuser`, which bypasses RLS).
+- Never edit an applied migration; the migrator compares checksums and refuses. Add a new numbered file.
+- `node` runs `packages/db/scripts/*.ts` directly (Node 24 type stripping), so those imports need explicit `.ts` extensions.
 - Stack reviewed 08/11/2026 against current free tiers: Supabase replaced by Neon (no inactivity pause), YouTube chat read with `streamList` instead of polling (ADR-002, ADR-004).
 - Test against a real Postgres engine (PGlite); never mock the database. Read every generated migration and reorder by hand if needed.
 - Never hold a database transaction open across a network call (YouTube, Google).
