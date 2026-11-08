@@ -43,6 +43,10 @@ describe("commandKey", () => {
     expect(commandKey("!vote ٢")).toBe("!vote ٢");
   });
 
+  it("stays bounded when NFKC expands characters", () => {
+    expect(commandKey("\uFDFA".repeat(300)).length).toBeLessThanOrEqual(MAX_SCAN_LENGTH);
+  });
+
   it("scans a bounded prefix of very long input", () => {
     const key = commandKey("!vote 2 " + "a".repeat(100_000));
     expect(key.length).toBeLessThanOrEqual(MAX_SCAN_LENGTH);

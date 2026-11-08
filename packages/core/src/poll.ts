@@ -42,7 +42,8 @@ export class PollError extends Error {
       | "empty_text"
       | "text_too_long"
       | "duplicate_option"
-      | "invalid_transition",
+      | "invalid_transition"
+      | "corrupt_snapshot",
   ) {
     super(code);
     this.name = "PollError";
@@ -54,6 +55,13 @@ function cleanText(value: string, maxLength: number): string {
   if (!text) throw new PollError("empty_text");
   if (Array.from(text).length > maxLength) throw new PollError("text_too_long");
   return text;
+}
+
+function parseTime(value: unknown): Date | null | undefined {
+  if (value === null) return null;
+  if (typeof value !== "string") return undefined;
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? undefined : date;
 }
 
 export class Poll {
@@ -83,16 +91,31 @@ export class Poll {
     return new Poll(question, options, input.voteChange ?? "first", clock);
   }
 
+  // Restores without re-applying text limits, so tightening them later can't break a poll open mid-stream.
   static restore(snapshot: PollSnapshot, clock: Clock): Poll {
-    const poll = Poll.create(
-      { question: snapshot.question, options: snapshot.options, voteChange: snapshot.voteChange },
-      clock,
-    );
-    poll.statusValue = snapshot.status;
-    poll.openedAtValue = snapshot.openedAt ? new Date(snapshot.openedAt) : null;
-    poll.closedAtValue = snapshot.closedAt ? new Date(snapshot.closedAt) : null;
-    for (const [channelId, option] of snapshot.votes) {
-      if (poll.votes.has(channelId) || !isChannelId(channelId)) continue;
+    const corrupt = () => new PollError("corrupt_snapshot");
+    const { question, options, voteChange, status } = snapshot;
+    if (typeof question !== "string" || !Array.isArray(options) || !options.every((o) => typeof o === "string")) throw corrupt();
+    if (options.length < POLL_LIMITS.minOptions || options.length > POLL_LIMITS.maxOptions) throw corrupt();
+    if (voteChange !== "first" && voteChange !== "latest") throw corrupt();
+
+    const openedAt = parseTime(snapshot.openedAt);
+    const closedAt = parseTime(snapshot.closedAt);
+    if (openedAt === undefined || closedAt === undefined || !Array.isArray(snapshot.votes)) throw corrupt();
+    const consistent =
+      (status === "draft" && !openedAt && !closedAt && snapshot.votes.length === 0) ||
+      (status === "open" && openedAt && !closedAt) ||
+      (status === "closed" && openedAt && closedAt && snapshot.votes.length === 0);
+    if (!consistent) throw corrupt();
+
+    const poll = new Poll(question, [...options], voteChange, clock);
+    poll.statusValue = status;
+    poll.openedAtValue = openedAt;
+    poll.closedAtValue = closedAt;
+    for (const entry of snapshot.votes) {
+      if (!Array.isArray(entry)) continue;
+      const [channelId, option] = entry;
+      if (typeof channelId !== "string" || !isChannelId(channelId) || poll.votes.has(channelId)) continue;
       if (!Number.isInteger(option) || option < 1 || option > poll.options.length) continue;
       poll.votes.set(channelId, option);
       poll.counts[option - 1]! += 1;
@@ -118,10 +141,14 @@ export class Poll {
     this.openedAtValue = this.clock.now();
   }
 
-  close(): void {
+  // Returns the voters once and forgets which viewer chose what (ADR-006); only the counts survive.
+  close(): string[] {
     if (this.statusValue !== "open") throw new PollError("invalid_transition");
     this.statusValue = "closed";
     this.closedAtValue = this.clock.now();
+    const voters = [...this.votes.keys()];
+    this.votes.clear();
+    return voters;
   }
 
   vote(channelId: string, option: number): VoteOutcome {
@@ -144,11 +171,7 @@ export class Poll {
   }
 
   results(): PollResults {
-    return { counts: [...this.counts], total: this.votes.size };
-  }
-
-  voters(): string[] {
-    return [...this.votes.keys()];
+    return { counts: [...this.counts], total: this.counts.reduce((sum, n) => sum + n, 0) };
   }
 
   snapshot(): PollSnapshot {

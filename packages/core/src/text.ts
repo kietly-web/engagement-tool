@@ -15,6 +15,6 @@ export function foldVietnamese(text: string): string {
 
 // Matching key only: never shown or stored, since folding loses meaning ("chọn" and "chôn" collide).
 export function commandKey(text: string): string {
-  const compat = text.slice(0, MAX_SCAN_LENGTH).normalize("NFKC").replace(FORMAT_CHARS, "");
-  return foldVietnamese(compat).toLowerCase().replace(WHITESPACE_RUN, " ").trim();
+  const compat = text.slice(0, MAX_SCAN_LENGTH).normalize("NFKC").slice(0, MAX_SCAN_LENGTH).replace(FORMAT_CHARS, "");
+  return foldVietnamese(compat).toLowerCase().replace(WHITESPACE_RUN, " ").trim().slice(0, MAX_SCAN_LENGTH);
 }
