@@ -42,3 +42,83 @@ body {
 .page .health-down {
   color: var(--down);
 }
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.button {
+  display: inline-block;
+  padding: 0.6rem 1rem;
+  border: 1px solid var(--muted);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.button:focus-visible {
+  outline: 3px solid var(--ok);
+  outline-offset: 2px;
+}
+
+.button.primary {
+  background: var(--fg);
+  color: var(--bg);
+  border-color: var(--fg);
+}
+
+.button.danger {
+  border-color: var(--down);
+  color: var(--down);
+}
+
+.card {
+  border: 1px solid color-mix(in srgb, var(--muted) 40%, transparent);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  margin: 1rem 0;
+}
+
+.badge {
+  font-size: 0.75rem;
+  font-weight: 500;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  border: 1px solid var(--muted);
+  vertical-align: middle;
+}
+
+.page .muted {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.page .notice {
+  color: var(--fg);
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+  padding: 0.6rem 0.8rem;
+  border-radius: 8px;
+}
+
+.page .error {
+  color: var(--down);
+}
+
+dl {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 0.25rem 1rem;
+}
+
+dt {
+  color: var(--muted);
+}
+
+dd {
+  margin: 0;
+}

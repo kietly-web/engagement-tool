@@ -14,6 +14,11 @@ describe("message catalogs", () => {
     }
   });
 
+  it("has copy for every sign-in outcome the API can report", () => {
+    const outcomes = ["denied", "state", "google", "youtube_denied", "no_refresh_token", "no_channel", "youtube_error", "channel_in_use"];
+    for (const o of outcomes) expect(Object.keys(vi)).toContain(`signin.outcome.${o}`);
+  });
+
   it("defaults to Vietnamese copy", () => {
     expect(translator("vi")("health.ok")).toBe("Máy chủ đang hoạt động");
   });

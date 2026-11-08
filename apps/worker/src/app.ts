@@ -1,14 +1,40 @@
 import { Hono } from "hono";
 import type { HealthResponse } from "./api-types";
+import { authRoutes, memberRoutes } from "./auth";
+import { defaultDeps, type AppDeps, type AppEnv } from "./env";
 import { securityHeaders } from "./security-headers";
 
-export const app = new Hono<{ Bindings: Env }>();
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
-app.use("*", securityHeaders);
+export function createApp(overrides: Partial<AppDeps> = {}) {
+  const deps: AppDeps = { ...defaultDeps, ...overrides };
+  const app = new Hono<{ Bindings: AppEnv }>();
 
-app.get("/healthz", (c) => c.json<HealthResponse>({ ok: true, env: c.env.APP_ENV }));
+  app.use("*", securityHeaders);
 
-// Overlay tokens arrive in ET-7; until then no overlay URL resolves.
-app.all("/o/*", (c) => c.notFound());
+  app.onError((error, c) => {
+    console.error(JSON.stringify({ event: "unhandled_error", name: error.name, route: c.req.routePath }));
+    return c.json({ error: "internal" }, 500);
+  });
 
-app.all("/api/*", (c) => c.json({ error: "not_found" }, 404));
+  app.get("/healthz", (c) => c.json<HealthResponse>({ ok: true, env: c.env.APP_ENV }));
+
+  // Overlay tokens arrive in ET-7; until then no overlay URL resolves.
+  app.all("/o/*", (c) => c.notFound());
+
+  app.use("/api/*", async (c, next) => {
+    if (!SAFE_METHODS.has(c.req.method) && c.req.header("Origin") !== new URL(c.req.url).origin) {
+      return c.json({ error: "bad_origin" }, 403);
+    }
+    await next();
+  });
+
+  const auth = authRoutes(deps);
+  app.route("/api/auth", auth.app);
+  app.route("/api", memberRoutes(auth, deps));
+
+  app.all("/api/*", (c) => c.json({ error: "not_found" }, 404));
+  return app;
+}
+
+export const app = createApp();

@@ -11,7 +11,7 @@ describe("safeText", () => {
   });
 
   it("normalises Vietnamese to NFC", () => {
-    const decomposed = "Việt Nam";
+    const decomposed = "Vie\u0302\u0323t Nam";
     expect(safeText(decomposed)).toBe("Việt Nam");
   });
 
