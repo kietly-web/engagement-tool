@@ -53,6 +53,8 @@ P0: production doesn't work without it. P1: a feature or workflow is degraded. P
 | [ ] | `Poll.close()` returns voter channel IDs for points | ET-8 uses them server-side only; never in overlay payloads or logs (ET-3 review note) | `apps/worker` LiveSession |
 | [x] 08/11/2026 | ET-4 review note: call `app.upsert_member` only after ID-token verification | Done in ET-5 (`auth.ts` callback) | `apps/worker` |
 | [ ] | Production check that `SET LOCAL ROLE app_runtime` works through Hyperdrive (`current_user` is `app_runtime` inside a transaction) | Run once by hand after setup; automate in the smoke test when `/healthz` gains a DB probe | Smoke test |
+| [ ] | If Google's revoke endpoint is down, disconnect and account deletion return 502 and rely on the user retrying | Queue a pending revoke-and-delete for the daily cron, so the 7-day promise (NN3) holds without a retry (ET-8 cron) | `apps/worker`, `packages/db` |
+| [ ] | Token encryption key rotation not built | Ciphertexts carry a version byte; add `TOKEN_ENCRYPTION_KEY_V2` handling and a re-encrypt job when a rotation is needed | `apps/worker/src/crypto.ts` |
 | [ ] | No rate limit on sign-in and session lookups | Add Workers Rate Limiting binding (free plan) or a per-IP Durable Object counter before open sign-up | `apps/worker` |
 | [ ] | Audit log not built (membership, disconnect, account deletion, token rotation) | ET-9 with moderators | `packages/db`, `apps/worker` |
 | [ ] | Preview deployments can't sign in (Google needs exact redirect URIs) | Dev-only sign-in stub compiled out of production, if previews need it | `apps/worker` |

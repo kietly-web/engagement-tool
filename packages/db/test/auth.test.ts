@@ -86,6 +86,25 @@ describe("youtube connection", () => {
   });
 });
 
+describe("purge", () => {
+  it("removes expired and idle sessions, and people who never joined a workspace after 30 days", async () => {
+    const ghost = await withSystem(w.db, (tx) => members.upsertFromGoogle(tx, { googleSub: "sub-ghost", email: "g@example.test", displayName: "g" }));
+    const fresh = await withSystem(w.db, (tx) => members.upsertFromGoogle(tx, { googleSub: "sub-fresh", email: "f@example.test", displayName: "f" }));
+    await withSystem(w.db, (tx) => sessions.create(tx, fresh, "e".repeat(64), 3600));
+    await w.db.transaction((tx) => tx.query("UPDATE app.member SET updated_at = now() - interval '31 days' WHERE id IN ($1, $2, $3)", [ghost, fresh, w.dave]));
+    await w.db.transaction((tx) => tx.query("UPDATE app.session SET last_seen_at = now() - interval '8 days' WHERE token_hash = decode($1, 'hex')", ["e".repeat(64)]));
+
+    await withSystem(w.db, (tx) => sessions.purgeExpired(tx, 7 * 24 * 3600));
+
+    const { rows } = await w.db.transaction((tx) =>
+      tx.query<{ id: string }>("SELECT id FROM app.member WHERE id IN ($1, $2, $3, $4)", [ghost, fresh, w.dave, w.alice]),
+    );
+    expect(rows.map((r) => r.id).sort()).toEqual([w.alice].sort());
+    const left = await w.db.transaction((tx) => tx.query<{ n: number }>("SELECT count(*)::int AS n FROM app.session WHERE expires_at <= now()"));
+    expect(left.rows[0]!.n).toBe(0);
+  });
+});
+
 describe("account deletion", () => {
   it("deletes the owner's workspace, its connection, memberships and sessions, and nobody else's data", async () => {
     await withWorkspace(w.db, { memberId: w.carol, workspaceId: w.wsB }, (tx) =>
@@ -105,7 +124,7 @@ describe("account deletion", () => {
         others: await q("SELECT count(*)::int AS n FROM app.member WHERE id <> $1", [w.carol]),
       };
     });
-    expect(counts).toEqual({ carol: 0, wsB: 0, conn: 0, sessions: 0, others: 3 });
+    expect(counts).toEqual({ carol: 0, wsB: 0, conn: 0, sessions: 0, others: 2 });
     expect(await withMember(w.db, { memberId: w.alice }, (tx) => workspaces.listMine(tx))).toHaveLength(1);
   });
 });

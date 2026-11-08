@@ -76,7 +76,18 @@ export function authRoutes(deps: AppDeps) {
   });
 
   async function connectCreator(c: Ctx, memberId: string, tokens: TokenSet): Promise<SignInOutcome | null> {
-    if (!tokens.scopes.includes(GOOGLE.youtubeScope)) return "youtube_denied";
+    const { db, config } = c.var;
+    const owned = await withMember(db, { memberId }, async (tx) => (await workspaces.listMine(tx)).find((w) => w.role === "owner"));
+    const connected = owned ? (await withWorkspace(db, { memberId, workspaceId: owned.id }, (tx) => youtube.current(tx))) !== null : false;
+    // Google's revoke ends the whole grant, so discarding a new token must not kill an existing connection.
+    const discard = async () => {
+      if (tokens.refreshToken && !connected) await revokeQuietly(tokens.refreshToken);
+    };
+
+    if (!tokens.scopes.includes(GOOGLE.youtubeScope)) {
+      await discard();
+      return "youtube_denied";
+    }
     if (!tokens.refreshToken) return "no_refresh_token";
     const refreshToken = tokens.refreshToken;
 
@@ -84,19 +95,16 @@ export function authRoutes(deps: AppDeps) {
     try {
       channel = await fetchMyChannel(tokens.accessToken, deps.fetch);
     } catch {
-      await revokeQuietly(refreshToken);
+      await discard();
       return "youtube_error";
     }
     if (!channel) {
-      await revokeQuietly(refreshToken);
+      await discard();
       return "no_channel";
     }
 
-    const { db, config } = c.var;
-    const workspaceId = await withMember(db, { memberId }, async (tx) => {
-      const owned = (await workspaces.listMine(tx)).find((w) => w.role === "owner");
-      return owned?.id ?? workspaces.create(tx, Array.from(channel.title).slice(0, 80).join(""));
-    });
+    const workspaceId =
+      owned?.id ?? (await withMember(db, { memberId }, (tx) => workspaces.create(tx, Array.from(channel.title).slice(0, 80).join(""))));
     const ciphertext = await encryptToHex(config.tokenKey, refreshToken, workspaceId);
     try {
       await withWorkspace(db, { memberId, workspaceId }, (tx) =>
@@ -104,18 +112,26 @@ export function authRoutes(deps: AppDeps) {
       );
     } catch (error) {
       if (!isUniqueViolation(error)) throw error;
-      await revokeQuietly(refreshToken);
+      await discard();
       return "channel_in_use";
     }
     return null;
   }
 
-  async function revokeWorkspaceToken(c: Ctx, workspaceId: string): Promise<"revoked" | "none" | "failed"> {
+  // "undecryptable" still lets deletion proceed: nobody can use that ciphertext, and erasure must not be blocked by a key problem.
+  async function revokeWorkspaceToken(c: Ctx, workspaceId: string): Promise<"revoked" | "none" | "undecryptable" | "failed"> {
     const { db, config, memberId } = c.var;
     const ciphertext = await withWorkspace(db, { memberId, workspaceId }, (tx) => youtube.refreshTokenCiphertext(tx));
     if (!ciphertext) return "none";
+    let refreshToken: string;
     try {
-      await revokeToken(deps.fetch, await decryptFromHex(config.tokenKey, ciphertext, workspaceId));
+      refreshToken = await decryptFromHex(config.tokenKey, ciphertext, workspaceId);
+    } catch {
+      console.error(JSON.stringify({ event: "token_undecryptable" }));
+      return "undecryptable";
+    }
+    try {
+      await revokeToken(deps.fetch, refreshToken);
       return "revoked";
     } catch {
       return "failed";
@@ -171,9 +187,15 @@ export function authRoutes(deps: AppDeps) {
     );
     const outcome = saved.intent === "creator" ? await connectCreator(c, memberId, tokens) : null;
 
+    const previous = readSessionCookie(c);
+    const previousHash = previous ? await sessionHash(config.sessionKey, previous) : null;
     const sessionToken = randomToken();
     const hash = await sessionHash(config.sessionKey, sessionToken);
-    await withSystem(db, (tx) => sessions.create(tx, memberId, hash, SESSION_TTL_SECONDS));
+    await withSystem(db, async (tx) => {
+      if (previousHash) await sessions.delete(tx, previousHash);
+      await sessions.create(tx, memberId, hash, SESSION_TTL_SECONDS);
+      await sessions.purgeExpired(tx, SESSION_IDLE_SECONDS);
+    });
     setSessionCookie(c, sessionToken);
     return c.redirect(outcome ? `/?signin=${outcome}` : "/", 302);
   });
@@ -244,7 +266,11 @@ export function memberRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps)
 
   app.get("/account/export", ...guard, async (c) => {
     const { db, memberId } = c.var;
-    const data = await withMember(db, { memberId }, async (tx) => ({ member: await members.me(tx), workspaces: await workspaces.listMine(tx) }));
+    const data = await withMember(db, { memberId }, async (tx) => ({
+      member: await members.me(tx),
+      workspaces: await workspaces.listMineWithDates(tx),
+      sessions: await sessions.mine(tx),
+    }));
     const owned = data.workspaces.find((w) => w.role === "owner");
     const channel = owned ? await withWorkspace(db, { memberId, workspaceId: owned.id }, (tx) => youtube.current(tx)) : null;
     c.header("Content-Disposition", 'attachment; filename="engagement-tool-export.json"');
@@ -252,6 +278,7 @@ export function memberRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps)
       exportedAt: deps.now().toISOString(),
       member: data.member,
       workspaces: data.workspaces,
+      sessions: data.sessions,
       youtube: channel && { channelId: channel.channelId, channelTitle: channel.channelTitle, connectedAt: channel.connectedAt },
     });
   });

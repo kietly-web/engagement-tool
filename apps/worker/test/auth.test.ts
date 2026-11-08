@@ -66,7 +66,7 @@ describe("creator sign-in", () => {
   });
 
   it.each([
-    ["the user refuses YouTube access", { scopes: ["openid", "email", "profile"] }, "youtube_denied", false],
+    ["the user refuses YouTube access", { scopes: ["openid", "email", "profile"] }, "youtube_denied", true],
     ["Google returns no refresh token", { refreshToken: null }, "no_refresh_token", false],
     ["the account has no channel", { channel: null }, "no_channel", true],
     ["the YouTube API errors", { channelStatus: 403 }, "youtube_error", true],
@@ -79,6 +79,19 @@ describe("creator sign-in", () => {
     expect(me.workspaces).toEqual([]);
     expect(await tokenCipher(h)).toEqual([]);
     expect(h.google.revoked).toEqual(revokes ? ["rt-g-2"] : []);
+  });
+
+  it.each([
+    ["YouTube errors", { channelStatus: 500 }, "youtube_error"],
+    ["the user unticks YouTube", { scopes: ["openid", "email", "profile"] }, "youtube_denied"],
+    ["the channel lookup comes back empty", { channel: null }, "no_channel"],
+  ])("a connected creator whose re-sign-in fails because %s keeps the working connection", async (_l, patch, outcome) => {
+    const h = await makeHarness();
+    await h.browser().signIn();
+    h.google.account = { ...h.google.account, ...patch };
+    expect(await h.browser().signIn()).toBe(`/?signin=${outcome}`);
+    expect(h.google.revoked).toEqual([]);
+    expect(await tokenCipher(h)).toHaveLength(1);
   });
 
   it("refuses a channel already connected to another workspace and revokes the new token", async () => {
@@ -174,6 +187,18 @@ describe("sessions", () => {
     expect((await b.request("/api/me")).status).toBe(401);
   });
 
+  it("signing in again in the same browser ends the previous session", async () => {
+    const h = await makeHarness();
+    const b = h.browser();
+    await b.signIn();
+    const first = b.jar.get("__Host-et_session")!;
+    await b.signIn();
+    expect(b.jar.get("__Host-et_session")).not.toBe(first);
+    const stale = h.browser();
+    stale.jar.set("__Host-et_session", first);
+    expect((await stale.request("/api/me")).status).toBe(401);
+  });
+
   it("logs out by deleting the server-side session", async () => {
     const h = await makeHarness();
     const b = h.browser();
@@ -238,6 +263,15 @@ describe("disconnect", () => {
     expect(await tokenCipher(h)).toHaveLength(1);
   });
 
+  it("still deletes a connection whose token can't be decrypted (lost or rotated key), without blocking erasure", async () => {
+    const h = await makeHarness();
+    const { b, ws } = await creator(h);
+    await h.db.transaction((tx) => tx.query("UPDATE app.youtube_connection SET refresh_token_enc = decode(repeat('00', 40), 'hex')"));
+    expect((await b.post(`/api/workspaces/${ws}/youtube/disconnect`)).status).toBe(204);
+    expect(h.google.revoked).toEqual([]);
+    expect(await tokenCipher(h)).toEqual([]);
+  });
+
   it("forbids moderators", async () => {
     const h = await makeHarness();
     const { ws } = await creator(h);
@@ -262,7 +296,12 @@ describe("account", () => {
     const res = await b.request("/api/account/export");
     expect(res.headers.get("Content-Disposition")).toMatch(/attachment/);
     const text = await res.text();
-    expect(JSON.parse(text)).toMatchObject({ member: { email: "creator@example.test" }, youtube: { channelId: "UCSYNTHxAAAAAAAAAAAAAAAA" } });
+    expect(JSON.parse(text)).toMatchObject({
+      member: { email: "creator@example.test" },
+      workspaces: [{ role: "owner", joinedAt: expect.any(String) }],
+      sessions: [{ createdAt: expect.any(String), expiresAt: expect.any(String) }],
+      youtube: { channelId: "UCSYNTHxAAAAAAAAAAAAAAAA" },
+    });
     expect(text).not.toMatch(/rt-g-1|refresh|token/i);
   });
 

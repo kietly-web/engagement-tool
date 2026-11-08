@@ -59,6 +59,16 @@ export const workspaces = {
     return rows[0]!.id;
   },
 
+  async listMineWithDates(tx: Queryable): Promise<(WorkspaceSummary & { joinedAt: string })[]> {
+    const { rows } = await tx.query<WorkspaceSummary & { joinedAt: string }>(
+      `SELECT w.id, w.name, wm.role, wm.created_at::text AS "joinedAt"
+         FROM app.workspace w
+         JOIN app.workspace_member wm ON wm.workspace_id = w.id AND wm.member_id = app.current_member_id()
+        ORDER BY w.created_at`,
+    );
+    return rows;
+  },
+
   async listMine(tx: Queryable): Promise<WorkspaceSummary[]> {
     const { rows } = await tx.query<WorkspaceSummary>(
       `SELECT w.id, w.name, wm.role
@@ -106,6 +116,17 @@ export const sessions = {
 
   async delete(tx: Queryable, tokenHashHex: string): Promise<void> {
     await tx.query("SELECT app.delete_session($1)", [tokenHashHex]);
+  },
+
+  async purgeExpired(tx: Queryable, idleSeconds: number): Promise<void> {
+    await tx.query("SELECT app.purge_expired($1)", [idleSeconds]);
+  },
+
+  async mine(tx: Queryable): Promise<{ createdAt: string; lastSeenAt: string; expiresAt: string }[]> {
+    const { rows } = await tx.query<{ createdAt: string; lastSeenAt: string; expiresAt: string }>(
+      'SELECT created_at::text AS "createdAt", last_seen_at::text AS "lastSeenAt", expires_at::text AS "expiresAt" FROM app.my_sessions()',
+    );
+    return rows;
   },
 };
 

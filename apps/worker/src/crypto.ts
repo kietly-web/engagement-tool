@@ -54,21 +54,25 @@ export async function hmacVerify(key: CryptoKey, data: string, signatureHex: str
   return crypto.subtle.verify("HMAC", key, signature, encoder.encode(data));
 }
 
+// Leading key-version byte lets TOKEN_ENCRYPTION_KEY be rotated later without guessing which key wrote a row.
+const KEY_VERSION = 1;
+
 // The workspace id is bound in as associated data, so a ciphertext copied to another row won't decrypt.
 export async function encryptToHex(key: CryptoKey, plaintext: string, associatedData: string): Promise<string> {
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const ct = new Uint8Array(
     await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: encoder.encode(associatedData) }, key, encoder.encode(plaintext)),
   );
-  return toHex(iv) + toHex(ct);
+  return toHex(new Uint8Array([KEY_VERSION])) + toHex(iv) + toHex(ct);
 }
 
 export async function decryptFromHex(key: CryptoKey, hex: string, associatedData: string): Promise<string> {
   const bytes = fromHex(hex);
+  if (bytes[0] !== KEY_VERSION) throw new Error("unknown key version");
   const pt = await crypto.subtle.decrypt(
-    { name: "AES-GCM", iv: bytes.slice(0, 12), additionalData: encoder.encode(associatedData) },
+    { name: "AES-GCM", iv: bytes.slice(1, 13), additionalData: encoder.encode(associatedData) },
     key,
-    bytes.slice(12),
+    bytes.slice(13),
   );
   return new TextDecoder().decode(pt);
 }

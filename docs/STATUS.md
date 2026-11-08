@@ -61,7 +61,8 @@ Everything not done lives in [SETUP.md](SETUP.md), with priorities and exact ste
 - Stack reviewed 08/11/2026 against current free tiers: Supabase replaced by Neon (no inactivity pause), YouTube chat read with `streamList` instead of polling (ADR-002, ADR-004).
 - Test against a real Postgres engine (PGlite); never mock the database. Read every generated migration and reorder by hand if needed.
 - Never hold a database transaction open across a network call (YouTube, Google); `auth.ts` reads ciphertext in one transaction, calls Google, then writes in another.
-- Don't revoke an old refresh token when a creator reconnects: Google's revoke ends the app's whole grant, including the new token.
+- Don't revoke an old refresh token when a creator reconnects: Google's revoke ends the app's whole grant, including the new token. For the same reason, a failed re-sign-in never revokes the new token if the creator already has a working connection.
+- Safari rejects `Secure`/`__Host-` cookies on `http://localhost`, so local sign-in fails there (`?signin=state`). Test locally in Chrome or Firefox.
 - Worker tests typecheck with `apps/worker/tsconfig.test.json` (adds Node types); production code uses only Workers types.
 - Normalise Unicode (NFC) before matching; test Vietnamese with and without diacritics, full-width digits (`２`) and look-alike characters.
 - Overlay URLs are bearer secrets: never log `/o/*` paths.

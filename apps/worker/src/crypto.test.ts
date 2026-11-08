@@ -24,6 +24,8 @@ describe("crypto helpers", () => {
     await expect(decryptFromHex(key, hex, "workspace-b")).rejects.toThrow();
     const tampered = hex.slice(0, -2) + (hex.endsWith("00") ? "01" : "00");
     await expect(decryptFromHex(key, tampered, "workspace-a")).rejects.toThrow();
+    expect(hex.startsWith("01")).toBe(true);
+    await expect(decryptFromHex(key, `02${hex.slice(2)}`, "workspace-a")).rejects.toThrow(/key version/);
   });
 
   it("verifies HMAC signatures and rejects garbage", async () => {
