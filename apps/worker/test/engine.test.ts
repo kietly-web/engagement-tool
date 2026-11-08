@@ -148,6 +148,28 @@ describe("SessionEngine polls", () => {
   });
 });
 
+describe("SessionEngine change notifications", () => {
+  it("notifies on start, poll changes, votes and stop, and survives a throwing listener", async () => {
+    const source = new ScriptedSource();
+    const storage = new MemoryStorage();
+    const seen: string[] = [];
+    const engine = new SessionEngine(storage, { get: async () => source, invalidate: () => undefined }, fixedClock("2026-11-08T13:00:00Z"), {
+      onChange: (s) => {
+        seen.push(`${s.status}:${s.poll?.status ?? "-"}:${s.poll?.total ?? 0}`);
+        throw new Error("dead socket");
+      },
+    });
+    await start(engine);
+    await engine.createPoll({ question: "Q?", options: ["a", "b"] });
+    source.pages.push({ messages: [msg(1, "!vote 1")], nextPageToken: "x", waitMs: 1000 });
+    await engine.tick();
+    await engine.tick();
+    await engine.closePoll();
+    await engine.stop();
+    expect(seen).toEqual(["live:-:0", "live:open:0", "live:open:1", "live:closed:1", "stopped:closed:1"]);
+  });
+});
+
 describe("SessionEngine failures", () => {
   it.each([
     [new ChatSourceError("ended"), "broadcast_ended"],

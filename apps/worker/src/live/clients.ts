@@ -1,6 +1,6 @@
 import type { PollInput } from "@et/core";
 import type { QuotaUsage } from "@et/youtube";
-import type { SessionStatus } from "../api-types";
+import type { OverlayWidget, SessionStatus } from "../api-types";
 import type { AppEnv } from "../env";
 import type { Result, StartInput, StopReason } from "./engine";
 import type { GoogleCredentials, QuotaClient } from "./sources";
@@ -12,6 +12,7 @@ export interface SessionClient {
   createPoll(input: PollInput): Promise<Result<SessionStatus>>;
   closePoll(): Promise<Result<SessionStatus>>;
   purge(): Promise<void>;
+  closeOverlays(widget: OverlayWidget): Promise<void>;
 }
 
 export interface QuotaUsageClient extends QuotaClient {
@@ -22,6 +23,11 @@ export interface QuotaUsageClient extends QuotaClient {
 // One LiveSession per workspace, named on the server from the workspace id (non-negotiable 4).
 export function liveSessionClient(env: AppEnv, workspaceId: string): SessionClient {
   return env.LIVE_SESSION.get(env.LIVE_SESSION.idFromName(`workspace:${workspaceId}`)) as unknown as SessionClient;
+}
+
+export function overlaySocket(env: AppEnv, workspaceId: string, widget: OverlayWidget, request: Request): Promise<Response> {
+  const stub = env.LIVE_SESSION.get(env.LIVE_SESSION.idFromName(`workspace:${workspaceId}`));
+  return stub.fetch(new Request(`https://live-session/overlay?widget=${widget}`, request));
 }
 
 export function quotaClient(env: AppEnv): QuotaUsageClient {

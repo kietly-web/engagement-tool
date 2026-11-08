@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { MeResponse, SignInOutcome, WorkspaceResponse } from "@et/worker/api-types";
 import { api, ApiError, signInUrl } from "./api";
 import { LivePanel } from "./LivePanel";
+import { OverlayLinks } from "./OverlayLinks";
 import { translator, type MessageKey } from "./i18n";
 
 const t = translator("vi");
@@ -150,6 +151,7 @@ function Workspace({ id, onError }: { id: string; onError: (message: string) => 
   return (
     <>
     <LivePanel workspaceId={id} youtubeConnected={data.youtube !== null} />
+    <OverlayLinks workspaceId={id} isOwner={isOwner} />
     <div className="card">
       <h2>
         {data.workspace.name} <span className="badge">{t(`ws.role.${data.workspace.role}`)}</span>

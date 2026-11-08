@@ -1,4 +1,4 @@
-import type { MeResponse, SessionMode, SessionResponse, WorkspaceResponse } from "@et/worker/api-types";
+import type { MeResponse, OverlayLinkView, OverlayRotateResponse, OverlayWidget, SessionMode, SessionResponse, WorkspaceResponse } from "@et/worker/api-types";
 
 export class ApiError extends Error {
   constructor(
@@ -29,6 +29,9 @@ export const api = {
   stopSession: (id: string) => call<SessionResponse>(`/api/workspaces/${encodeURIComponent(id)}/session`, { method: "DELETE" }),
   openPoll: (id: string, poll: { question: string; options: string[]; voteChange: "first" | "latest" }) =>
     call<SessionResponse>(`/api/workspaces/${encodeURIComponent(id)}/session/poll`, jsonBody("POST", poll)),
+  overlays: (id: string) => call<{ overlays: OverlayLinkView[] }>(`/api/workspaces/${encodeURIComponent(id)}/overlays`),
+  rotateOverlay: (id: string, widget: OverlayWidget) =>
+    call<OverlayRotateResponse>(`/api/workspaces/${encodeURIComponent(id)}/overlays/${widget}/rotate`, { method: "POST" }),
   closePoll: (id: string) => call<SessionResponse>(`/api/workspaces/${encodeURIComponent(id)}/session/poll/close`, { method: "POST" }),
 };
 

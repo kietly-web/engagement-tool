@@ -331,11 +331,13 @@ describe("account", () => {
 });
 
 describe("headers", () => {
-  it("API responses carry the security headers and never cache", async () => {
+  it("API responses carry exactly the strict security headers", async () => {
+    const { API_SECURITY_HEADERS } = await import("../src/security-headers");
     const h = await makeHarness();
-    const res = await h.browser().request("/api/me");
-    expect(res.headers.get("Cache-Control")).toBe("no-store");
-    expect(res.headers.get("Content-Security-Policy")).toContain("default-src 'none'");
+    for (const path of ["/api/me", "/healthz", "/api/nope"]) {
+      const res = await h.browser().request(path);
+      for (const [name, value] of Object.entries(API_SECURITY_HEADERS)) expect(res.headers.get(name), `${path} ${name}`).toBe(value);
+    }
   });
 
   it("never requests YouTube write scopes", () => {

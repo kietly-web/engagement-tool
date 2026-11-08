@@ -27,6 +27,8 @@ Figures as published at kickoff; re-check in the console when a slice adds load.
 
 ET-6 load (offline estimate, corrected in review). Demo mode ticks every 2 s: about 1,800 Durable Object requests and up to 5,400 row writes per demo-hour (session, poll and alarm on each tick). The object stays resident at about 460 GB-s per hour, so demos and live streams together share about 28 DO-hours a day. Each workspace therefore gets 4 demo starts a day (15 minutes each, `DEMO_STARTS_DAILY`), counted in `QuotaKeeper`. The polling reader ticks at YouTube's `pollingIntervalMillis` (about 5 s): about 720 LiveSession plus 720 QuotaKeeper requests per stream-hour. A 3,000-unit workspace budget allows about 50 minutes of polling a day until `streamList` lands.
 
+ET-7: each overlay page load or WebSocket connect costs one Postgres lookup. Valid sockets stay connected, and unknown tokens are cached as misses for 5 minutes per isolate. A rotated link stops reconnecting, and a dead one retries only every 10 minutes after 8 failures, so a forgotten OBS source can't keep Neon's compute awake. Client frames close the socket, so a leaked link can't burn Durable Object requests by sending.
+
 Consequence: with `streamList` the beta is bounded by Durable Object duration (~28 stream-hours/day), which is ample for 5–20 creators. If ET-6 finds streaming unusable, quota becomes the limit again (a few streams a day) and the quota extension moves up to P1. The quota ledger divides the daily budget among workspaces and stops sessions cleanly either way (R1, FR-11).
 
 ## Configuration

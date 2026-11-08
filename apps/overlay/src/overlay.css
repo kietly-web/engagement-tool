@@ -6,10 +6,67 @@ body {
 }
 
 #widget {
-  font-family: system-ui, "Noto Sans", sans-serif;
-  font-size: 48px;
-  font-weight: 700;
+  font-family: system-ui, "Noto Sans", "Be Vietnam Pro", sans-serif;
   color: #fff;
-  text-shadow: 0 2px 6px rgb(0 0 0 / 70%);
-  padding: 24px;
+  padding: 32px;
+  width: 640px;
+}
+
+.poll {
+  background: rgb(10 10 20 / 72%);
+  border-radius: 20px;
+  padding: 24px 28px;
+  box-shadow: 0 8px 30px rgb(0 0 0 / 35%);
+}
+
+.poll.closed {
+  opacity: 0.85;
+}
+
+.question {
+  font-size: 34px;
+  font-weight: 800;
+  margin-bottom: 18px;
+  overflow-wrap: anywhere;
+}
+
+.row {
+  display: grid;
+  grid-template-columns: 220px 1fr 72px;
+  align-items: center;
+  gap: 14px;
+  margin: 10px 0;
+  font-size: 26px;
+  font-weight: 600;
+}
+
+.label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.track {
+  height: 22px;
+  border-radius: 11px;
+  background: rgb(255 255 255 / 18%);
+  overflow: hidden;
+}
+
+.bar {
+  height: 100%;
+  border-radius: 11px;
+  background: linear-gradient(90deg, #ff4d8d, #ffb347);
+  transition: width 400ms ease;
+}
+
+.count {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.total {
+  margin-top: 14px;
+  font-size: 20px;
+  opacity: 0.8;
 }
