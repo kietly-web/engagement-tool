@@ -8,6 +8,7 @@
     "typecheck": "tsc -p ."
   },
   "devDependencies": {
+    "@et/worker": "workspace:*",
     "vite": "^8.3.5"
   }
 }

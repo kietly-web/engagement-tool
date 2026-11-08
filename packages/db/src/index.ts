@@ -4,11 +4,13 @@ export { applyMigrations, type Migration } from "./migrate";
 export { createPgDatabase } from "./pg";
 export {
   members,
+  overlays,
   sessions,
   workspaces,
   youtube,
   type GoogleProfile,
   type MemberProfile,
+  type OverlayWidget,
   type WorkspaceMemberView,
   type WorkspaceSummary,
   type YoutubeConnection,

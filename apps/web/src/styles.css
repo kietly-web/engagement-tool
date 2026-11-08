@@ -180,3 +180,15 @@ dd {
   text-align: right;
   font-variant-numeric: tabular-nums;
 }
+
+.link-box {
+  flex: 1 1 20rem;
+  font: inherit;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  padding: 0.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--muted);
+  background: transparent;
+  color: var(--fg);
+}

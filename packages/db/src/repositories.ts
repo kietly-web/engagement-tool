@@ -153,3 +153,26 @@ export const youtube = {
     return rows.length === 1;
   },
 };
+
+export type OverlayWidget = "poll" | "leaderboard" | "game";
+
+export const overlays = {
+  async rotate(tx: Queryable, widget: OverlayWidget, tokenHashHex: string): Promise<void> {
+    await tx.query("SELECT app.rotate_overlay_token($1, $2)", [widget, tokenHashHex]);
+  },
+
+  async list(tx: Queryable): Promise<{ widget: OverlayWidget; rotatedAt: string }[]> {
+    const { rows } = await tx.query<{ widget: OverlayWidget; rotatedAt: string }>(
+      `SELECT widget, rotated_at::text AS "rotatedAt" FROM app.overlay_token WHERE workspace_id = app.current_workspace_id() ORDER BY widget`,
+    );
+    return rows;
+  },
+
+  async lookup(tx: Queryable, tokenHashHex: string): Promise<{ workspaceId: string; widget: OverlayWidget } | null> {
+    const { rows } = await tx.query<{ workspaceId: string; widget: OverlayWidget }>(
+      'SELECT workspace_id AS "workspaceId", widget FROM app.overlay_lookup($1)',
+      [tokenHashHex],
+    );
+    return rows[0] ?? null;
+  },
+};

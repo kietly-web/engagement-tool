@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 08/11/2026 (ET-6 offline). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
+Last updated: 08/11/2026 (ET-7). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
 
 ## Where we are
 
@@ -11,21 +11,22 @@ Last updated: 08/11/2026 (ET-6 offline). Update in every slice PR. Read after `C
 | ET-3 Command engine (normalisation, `!vote`/`!join` parser, polls, synthetic chat; `05-domain-engine.md`) | Done, [PR #3](https://github.com/kietly-web/engagement-tool/pull/3) |
 | ET-4 Database foundation (tenancy migration, forced RLS, role-derived policies, `withWorkspace`, PGlite isolation suite; `02-data-model.md`; Q-T2 decided) | Done, [PR #4](https://github.com/kietly-web/engagement-tool/pull/4); not applied to Neon yet |
 | ET-5 Google sign-in (OAuth + PKCE, encrypted refresh token, sessions, disconnect, export, account deletion, Vietnamese dashboard) | Done, [PR #5](https://github.com/kietly-web/engagement-tool/pull/5); tested against a fake Google; **not verified with real Google** |
-| ET-6 offline (session engine, `LiveSession` + `QuotaKeeper` Durable Objects, demo mode, YouTube polling reader, session and poll API, dashboard live panel) | In review on branch `ET-6-live-session-offline`; the `streamList` spike is still open |
+| ET-6 offline (session engine, `LiveSession` + `QuotaKeeper` Durable Objects, demo mode, YouTube polling reader, session and poll API, dashboard live panel) | Done, [PR #6](https://github.com/kietly-web/engagement-tool/pull/6); the `streamList` spike is still open |
+| ET-7 Overlays (per-widget hashed tokens, rotation, overlay page and WebSocket from `LiveSession`, poll widget, dashboard links) | In review on branch `ET-7-overlays` |
 
 ## Next
 
 The owner asked Claude to keep building whatever doesn't need their setup. Order:
 
-1. **ET-7 Overlays** (FR-05, US-02, US-07, R5): per-widget tokens with rotation, overlay WebSocket from `LiveSession`, the poll widget in `apps/overlay`, text-only rendering, CSP. Then drop the dashboard's 2-second polling.
-2. **ET-8 Points and seasons**, **ET-9 Moderators** (invites via a definer function, audit log), **ET-10 First mini-game**, **ET-11 Launch readiness** documents.
+1. **ET-8 Points and seasons** (FR-06, FR-12, US-05, US-09, R2, R3): per-viewer counters keyed by channel ID in ≤30-day seasons, points from `!join`, votes and closed polls (`Poll.close()` voters), leaderboard widget (display names only from live-session memory), retention cron, erase-by-channel-ID.
+2. **ET-9 Moderators** (invites via a definer function, audit log), **ET-10 First mini-game**, **ET-11 Launch readiness** documents.
 3. **Still waiting on the owner's setup** (SETUP §0–1, P0 rows) for the first real run and the ET-6 `streamList` spike against a live stream. Unverified pieces are listed in SETUP §3.
 
 ## Open PRs
 
 | PR | What | Action |
 | --- | --- | --- |
-| ET-6 | Live session (offline parts) | Merge when CI is green and review findings are fixed |
+| ET-7 | Overlays | Merge when CI is green and review findings are fixed |
 
 ## Waiting on the owner
 
@@ -53,6 +54,7 @@ Everything not done lives in [SETUP.md](SETUP.md), with priorities and exact ste
 - `wrangler.jsonc` changes need `pnpm --filter @et/worker types` and committing `worker-configuration.d.ts`; `pnpm typecheck` fails until you do.
 - `wrangler types` types `vars` as literals, so compare them as strings (`String(env.SESSIONS_DISABLED) === "true"`).
 - Durable Object RPC loses custom error classes, so `LiveSession` methods return `{ ok, value | error }` results instead of throwing.
+- `securityHeaders` only fills headers a route hasn't set, so overlay pages can carry their own CSP; API routes get the strict default.
 - Workers Logs invocation logs are off on purpose: they record full URLs, and overlay URLs carry tokens. Log with `console.log` and never include `/o/*` paths.
 - Static assets (dashboard, overlay files) are served without invoking the Worker, so they don't count toward the 100,000 requests/day; only `/api/*`, `/o/*` and `/healthz` do (`run_worker_first`).
 - Static-asset security headers live in `apps/web/public/_headers`; Worker responses get them from `apps/worker/src/security-headers.ts`. Change both together.

@@ -76,6 +76,20 @@ export const vi = {
   "live.error.demo_limit": "Hôm nay bạn đã dùng hết lượt chạy thử. Vui lòng quay lại vào ngày mai.",
   "live.demoLeft": "Lượt chạy thử còn lại hôm nay",
   "live.quotaLow": "Hạn mức YouTube chung của hệ thống sắp hết hôm nay.",
+  "overlay.title": "Lớp phủ OBS",
+  "overlay.widget.poll": "Bình chọn",
+  "overlay.widget.leaderboard": "Bảng xếp hạng",
+  "overlay.widget.game": "Mini-game",
+  "overlay.none": "Chưa có link.",
+  "overlay.created": "Tạo lúc",
+  "overlay.create": "Tạo link",
+  "overlay.rotate": "Đổi link (link cũ ngừng hoạt động ngay)",
+  "overlay.rotateConfirm": "Link cũ sẽ ngừng hoạt động ngay, kể cả trong OBS. Tiếp tục?",
+  "overlay.copyNow": "Sao chép link này ngay: vì lý do bảo mật, link chỉ hiện một lần. Nếu mất, hãy đổi link mới.",
+  "overlay.copy": "Sao chép",
+  "overlay.copied": "Đã sao chép",
+  "overlay.howto": "Trong OBS: Nguồn → + → Trình duyệt (Browser), dán link, đặt kích thước 1920×1080. Đừng để lộ link trên stream; nếu lộ, hãy đổi link.",
+  "overlay.ownerOnly": "Chỉ chủ kênh mới tạo hoặc đổi được link.",
 } as const;
 
 export type MessageKey = keyof typeof vi;
