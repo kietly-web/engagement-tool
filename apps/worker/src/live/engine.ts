@@ -325,6 +325,13 @@ export class SessionEngine {
     return result;
   }
 
+  async stopIfStartedBy(memberId: string): Promise<boolean> {
+    const state = await this.loadState();
+    if (state?.status !== "live" || state.startedBy !== memberId) return false;
+    await this.stop("manual");
+    return true;
+  }
+
   async purge(): Promise<void> {
     this.sources.invalidate();
     await this.storage.deleteAlarm();

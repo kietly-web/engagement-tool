@@ -109,6 +109,9 @@ export class LiveSession extends DurableObject<AppEnv> {
   eraseViewer(channelId: string) {
     return this.engine.eraseViewer(channelId);
   }
+  stopIfStartedBy(memberId: string) {
+    return this.engine.stopIfStartedBy(memberId);
+  }
   override async alarm() {
     await this.engine.tick();
   }

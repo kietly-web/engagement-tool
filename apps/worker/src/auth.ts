@@ -1,4 +1,4 @@
-import { ContextError, members, sessions, withMember, withSystem, withWorkspace, workspaces, youtube, type Database } from "@et/db";
+import { audit, ContextError, members, sessions, withMember, withSystem, withWorkspace, workspaces, youtube, type Database } from "@et/db";
 import { fetchMyChannel } from "@et/youtube";
 import type { Context } from "hono";
 import { Hono } from "hono";
@@ -265,7 +265,10 @@ export function memberRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps)
     const revoked = await auth.revokeWorkspaceToken(c as Ctx, current.id);
     if (revoked === "none") return c.json({ error: "not_connected" }, 404);
     if (revoked === "failed") return c.json({ error: "revoke_failed" }, 502);
-    await withWorkspace(db, { memberId, workspaceId: current.id }, (tx) => youtube.disconnect(tx));
+    await withWorkspace(db, { memberId, workspaceId: current.id }, async (tx) => {
+      await youtube.disconnect(tx);
+      await audit.log(tx, "youtube_disconnected", revoked === "undecryptable" ? { revoke: "skipped_undecryptable" } : {});
+    });
     await purgeSession(c.env, current.id);
     return c.body(null, 204);
   });
@@ -291,9 +294,15 @@ export function memberRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps)
 
   app.delete("/account", ...guard, async (c) => {
     const { db, memberId } = c.var;
-    const owned = (await withMember(db, { memberId }, (tx) => workspaces.listMine(tx))).find((w) => w.role === "owner");
+    const mine = await withMember(db, { memberId }, (tx) => workspaces.listMine(tx));
+    const owned = mine.find((w) => w.role === "owner");
     if (owned && (await auth.revokeWorkspaceToken(c as Ctx, owned.id)) === "failed") return c.json({ error: "revoke_failed" }, 502);
     if (owned) await purgeSession(c.env, owned.id);
+    // A moderator's departure stays visible in each owner's log, and any session they started stops.
+    for (const ws of mine.filter((w) => w.role === "moderator")) {
+      await withWorkspace(db, { memberId, workspaceId: ws.id }, (tx) => audit.log(tx, "member_left", { reason: "account_deleted" }));
+      await deps.liveSession(c.env, ws.id).stopIfStartedBy(memberId);
+    }
     await withMember(db, { memberId }, (tx) => members.deleteMyAccount(tx));
     clearSessionCookie(c);
     return c.body(null, 204);

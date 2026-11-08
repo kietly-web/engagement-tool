@@ -120,6 +120,12 @@ describe("roles inside a workspace", () => {
       ["bob", "bob@example.test"],
       ["alice", null],
     ]);
+    await w.db.transaction((tx) =>
+      tx.query("INSERT INTO app.workspace_member (workspace_id, member_id, role) VALUES ($1, $2, 'moderator')", [w.wsA, w.dave]),
+    );
+    const modView = await asIn(w.bob, w.wsA, (tx) => workspaces.listMembers(tx));
+    expect(modView.map((m) => m.displayName).sort()).toEqual(["alice", "bob"]);
+    await w.db.transaction((tx) => tx.query("DELETE FROM app.workspace_member WHERE member_id = $1", [w.dave]));
   });
 
   it("the runtime role can't read emails or Google subjects from the table", async () => {

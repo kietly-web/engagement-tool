@@ -29,7 +29,7 @@ Creator Google refresh tokens; workspace membership and roles; viewer channel ID
 - Validation of every input with a schema at the route boundary.
 - Security headers on every response: HSTS, CSP (`frame-ancestors 'none'` for the dashboard), `X-Content-Type-Options`, `Referrer-Policy`.
 - Rate limits on sign-in and session start.
-- Audit log of membership, token rotation, session start/stop, disconnect and viewer erasure, without viewer IDs or chat text.
+- Audit log (ET-9) of invites, membership, overlay link rotation, session start/stop, YouTube disconnect, viewer erasure and seasons, without viewer IDs, emails, tokens or chat text. Actor names are snapshotted so departed members stay identifiable.
 - Errors returned to clients carry no internals; logs carry no personal data or tokens.
 
 ## Sub-processor register

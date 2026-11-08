@@ -1,4 +1,4 @@
-import { ContextError, seasons, withWorkspace, workspaces, youtube } from "@et/db";
+import { audit, ContextError, seasons, withWorkspace, workspaces, youtube } from "@et/db";
 import type { PollInput } from "@et/core";
 import { ChatSourceError } from "@et/youtube";
 import { Hono, type Context } from "hono";
@@ -53,6 +53,14 @@ export function sessionRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps
     return result.ok ? respond(c, workspaceId, result.value, status) : c.json({ error: result.error }, ERROR_STATUS[result.error]);
   }
 
+  const logSession = (c: Ctx, workspaceId: string, action: "session_started" | "session_stopped", detail: Record<string, unknown>) =>
+    withWorkspace(c.var.db, { memberId: c.var.memberId, workspaceId }, (tx) => audit.log(tx, action, detail));
+
+  async function started(c: Ctx, workspaceId: string, mode: string, result: Result<SessionStatus>) {
+    if (result.ok) await logSession(c, workspaceId, "session_started", { mode });
+    return fromResult(c, workspaceId, result, 201);
+  }
+
   const startError = (c: Ctx, error: SessionStartError, status: 409 | 429 | 502 | 503) => c.json({ error }, status);
   const live = async (c: Ctx, workspaceId: string) => (await deps.liveSession(c.env, workspaceId).status()).status === "live";
 
@@ -82,7 +90,7 @@ export function sessionRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps
     if (mode === "demo") {
       if (await live(c, m.workspaceId)) return startError(c, "already_live", 409);
       if (!(await deps.quota(c.env).reserveDemo(m.workspaceId))) return startError(c, "demo_limit", 429);
-      return fromResult(c, m.workspaceId, await client.start({ ...common, mode, broadcastId: "demo", liveChatId: "demo" }), 201);
+      return started(c, m.workspaceId, mode, await client.start({ ...common, mode, broadcastId: "demo", liveChatId: "demo" }));
     }
 
     const ciphertext = await withWorkspace(c.var.db, { memberId: c.var.memberId, workspaceId: m.workspaceId }, (tx) => youtube.refreshTokenCiphertext(tx));
@@ -102,18 +110,22 @@ export function sessionRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps
       return startError(c, "youtube_unavailable", 502);
     }
     if (!chat) return startError(c, "not_live", 409);
-    return fromResult(
+    return started(
       c,
       m.workspaceId,
+      mode,
       await client.start({ ...common, mode, broadcastId: chat.broadcastId, liveChatId: chat.liveChatId, tokenCiphertext: ciphertext }),
-      201,
     );
   });
 
   app.delete("/workspaces/:id/session", ...guard, async (c) => {
     const m = await member(c);
     if (m instanceof Response) return m;
-    return respond(c, m.workspaceId, await deps.liveSession(c.env, m.workspaceId).stop("manual"));
+    const client = deps.liveSession(c.env, m.workspaceId);
+    const wasLive = (await client.status()).status === "live";
+    const stopped = await client.stop("manual");
+    if (wasLive) await logSession(c, m.workspaceId, "session_stopped", {});
+    return respond(c, m.workspaceId, stopped);
   });
 
   app.post("/workspaces/:id/session/poll", ...guard, async (c) => {
