@@ -21,7 +21,7 @@ Viewers type commands in a creator's YouTube live chat (`!vote 2`, `!join`). The
 | [01 Architecture](01-architecture.md) | Written at kickoff |
 | 02 Data model | Written by ET-4 (first migration) |
 | [03 Security and privacy](03-security-privacy.md) | Written at kickoff |
-| 05 Domain engine (commands, polls, points, games) | Written by ET-3 |
+| [05 Domain engine](05-domain-engine.md) (commands, polls; points and games later) | Written by ET-3 |
 | [07 Infrastructure](07-infrastructure.md) | Written at kickoff |
 | [08 Delivery plan](08-delivery-plan.md) | Written at kickoff |
 

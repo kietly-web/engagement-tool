@@ -1,25 +1,26 @@
 # Project status
 
-Last updated: 08/11/2026 (ET-2). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
+Last updated: 08/11/2026 (ET-3). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
 
 ## Where we are
 
 | Area | State |
 | --- | --- |
 | ET-1 Kickoff (rules, discovery, ADR-001–007, design 00/01/03/07/08, CI guardrails) | Done, [PR #1](https://github.com/kietly-web/engagement-tool/pull/1) |
-| ET-2 Repo skeleton (workspace, six packages, Hono Worker, dashboard and overlay hello pages, `pnpm check`) | In review on branch `ET-2-repo-skeleton`; runs locally, not deployed yet |
+| ET-2 Repo skeleton (workspace, six packages, Hono Worker, dashboard and overlay hello pages, `pnpm check`) | Done, [PR #2](https://github.com/kietly-web/engagement-tool/pull/2); runs locally, not deployed yet |
+| ET-3 Command engine (normalisation, `!vote`/`!join` parser, polls, synthetic chat; `05-domain-engine.md`) | In review on branch `ET-3-command-engine` |
 
 ## Next
 
-**ET-3 Command engine** (FR-04, FR-08, US-04): in `packages/core`, NFC normalisation and Vietnamese diacritic folding, the `!vote`/`!binhchon` and `!join` parsers, poll rules (one counted vote per channel ID), and a synthetic chat generator for tests and demos. Writes `docs/design/05-domain-engine.md`. Needs the security review (command parsing). Needs no owner setup.
+**ET-4 Database foundation** (NFR-SEC, R7): `packages/db` with migrations, `workspace` and `member` tables, the `app_runtime` role, forced RLS, a `withWorkspace` transaction wrapper and a PGlite isolation harness; refine the `new-workspace-table` skill; write `docs/design/02-data-model.md`; decide Q-T2 (Hyperdrive vs Neon serverless driver). Needs the security review. Builds and tests fully on PGlite; only applying migrations to production needs the owner's Neon project (SETUP §1).
 
-Deploying ET-2's hello Worker needs the owner's Cloudflare account and Workers Builds connection (SETUP §1, first two rows); it can happen any time.
+Deploying the Worker needs the owner's Cloudflare account and Workers Builds connection (SETUP §1, first two rows); it can happen any time.
 
 ## Open PRs
 
 | PR | What | Action |
 | --- | --- | --- |
-| ET-2 | Repo skeleton | Merge when CI is green |
+| ET-3 | Command engine | Merge when CI is green and review findings are fixed |
 
 ## Waiting on the owner
 
@@ -36,7 +37,8 @@ Everything not done lives in [SETUP.md](SETUP.md), with priorities and exact ste
 
 ## Gotchas we've hit
 
-- Agents and skills added mid-session load only in a new session (`security-compliance-reviewer`, `slice`, `new-workspace-table` were added at kickoff).
+- Agents and skills added mid-session load only in a new session (`security-compliance-reviewer`, `slice`, `new-workspace-table` were added at kickoff). A session started before the kickoff files existed sees the template reviewer: brief a general-purpose agent to follow `.claude/agents/security-compliance-reviewer.md` instead.
+- `packages/core` has no DOM or Node types on purpose (no I/O): use `Date.now()` rather than `performance`, and inject a `Clock` for anything stored.
 - Actions were re-pinned to release SHAs on 08/11/2026; Dependabot keeps them current.
 - The shell is zsh: unquoted variables holding several words don't split.
 - Branch protection is off, so auto-merge would merge before CI. Wait for CI by hand until required checks are set (SETUP §1).

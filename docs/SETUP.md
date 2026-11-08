@@ -47,6 +47,7 @@ P0: production doesn't work without it. P1: a feature or workflow is degraded. P
 | --- | --- | --- | --- |
 | [x] 08/11/2026 | CI skips Node jobs while there's no `package.json` | Removed the `detect` job in ET-2 | `.github/workflows/ci.yml` |
 | [x] 08/11/2026 | Smoke test paths are placeholders until the app exists | ET-2 serves `/` and `/healthz` | `.github/workflows/smoke.yml` |
+| [ ] | `Poll.close()` returns voter channel IDs for points | ET-8 uses them server-side only; never in overlay payloads or logs (ET-3 review note) | `apps/worker` LiveSession |
 | [ ] | Cron heartbeat check not built | `/healthz` returns 503 when the retention cron heartbeat is over 36 h old (with the cron in ET-5) | `apps/worker`, runbook |
 
 ## 4. Remaining backlog

@@ -227,7 +227,11 @@ importers:
 
   packages/db: {}
 
-  packages/youtube: {}
+  packages/youtube:
+    dependencies:
+      '@et/core':
+        specifier: workspace:*
+        version: link:../core
 
 packages:
 
