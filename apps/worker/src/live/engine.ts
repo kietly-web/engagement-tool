@@ -57,9 +57,16 @@ export interface EngineOptions {
   maxFailures: number;
   maxBackoffMs: number;
   disabled(): boolean;
+  onChange(status: SessionStatus): void;
 }
 
-const DEFAULTS: EngineOptions = { demoDurationMs: 15 * 60_000, maxFailures: 10, maxBackoffMs: 60_000, disabled: () => false };
+const DEFAULTS: EngineOptions = {
+  demoDurationMs: 15 * 60_000,
+  maxFailures: 10,
+  maxBackoffMs: 60_000,
+  disabled: () => false,
+  onChange: () => undefined,
+};
 
 export class SessionEngine {
   private readonly opts: EngineOptions;
@@ -130,7 +137,7 @@ export class SessionEngine {
     await this.storage.delete("poll");
     await this.storage.put("session", state);
     await this.storage.setAlarm(this.clock.now().getTime());
-    return { ok: true, value: this.view(state, null) };
+    return this.changed({ ok: true, value: this.view(state, null) });
   }
 
   async stop(reason: StopReason = "manual"): Promise<SessionStatus> {
@@ -155,7 +162,7 @@ export class SessionEngine {
     await this.storage.put("session", stopped);
     await this.storage.deleteAlarm();
     this.sources.invalidate();
-    return this.view(stopped, poll);
+    return this.changed({ ok: true, value: this.view(stopped, poll) }).value;
   }
 
   async createPoll(input: PollInput): Promise<Result<SessionStatus>> {
@@ -172,7 +179,7 @@ export class SessionEngine {
     }
     poll.open();
     await this.storage.put("poll", poll.snapshot());
-    return { ok: true, value: this.view(state, poll) };
+    return this.changed({ ok: true, value: this.view(state, poll) });
   }
 
   async closePoll(): Promise<Result<SessionStatus>> {
@@ -180,7 +187,16 @@ export class SessionEngine {
     if (poll?.status !== "open") return { ok: false, error: "no_poll" };
     poll.close();
     await this.storage.put("poll", poll.snapshot());
-    return { ok: true, value: this.view(await this.loadState(), poll) };
+    return this.changed({ ok: true, value: this.view(await this.loadState(), poll) });
+  }
+
+  private changed<T extends { ok: true; value: SessionStatus }>(result: T): T {
+    try {
+      this.opts.onChange(result.value);
+    } catch {
+      // A failing listener (e.g. a dead socket) must never break session handling.
+    }
+    return result;
   }
 
   async purge(): Promise<void> {
@@ -226,8 +242,10 @@ export class SessionEngine {
       if (command?.kind === "vote" && poll?.status === "open") poll.vote(message.channelId, command.option);
     }
     if (poll) await this.storage.put("poll", poll.snapshot());
-    await this.storage.put("session", { ...state, pageToken: page.nextPageToken, failures: 0, messagesSeen: state.messagesSeen + page.messages.length });
+    const next = { ...state, pageToken: page.nextPageToken, failures: 0, messagesSeen: state.messagesSeen + page.messages.length };
+    await this.storage.put("session", next);
     await this.storage.setAlarm(now + page.waitMs);
+    if (poll?.status === "open" && page.messages.length > 0) this.changed({ ok: true, value: this.view(next, poll) });
   }
 
   private async handleFailure(state: SessionState, error: unknown, now: number): Promise<void> {

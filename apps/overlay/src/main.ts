@@ -1,5 +1,52 @@
-import { setText } from "./render";
+import type { OverlayMessage } from "@et/worker/api-types";
+import { backoffMs, parseMessage, parseOverlayPath, pollModel } from "./model";
+import { t } from "./i18n";
 import "./overlay.css";
 
-const widget = document.getElementById("widget");
-if (widget) setText(widget, "Overlay sẵn sàng");
+const root = document.getElementById("widget")!;
+
+function el(tag: string, className: string, text?: string): HTMLElement {
+  const node = document.createElement(tag);
+  node.className = className;
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+
+function render(message: OverlayMessage): void {
+  const model = pollModel(message);
+  root.replaceChildren();
+  if (!model) return;
+  const card = el("div", model.closed ? "poll closed" : "poll");
+  card.append(el("div", "question", model.question));
+  for (const row of model.rows) {
+    const line = el("div", "row");
+    const bar = el("div", "bar");
+    bar.style.width = `${row.percent}%`;
+    line.append(el("span", "label", row.label), el("div", "track"), el("span", "count", `${row.percent}%`));
+    line.querySelector(".track")!.append(bar);
+    card.append(line);
+  }
+  card.append(el("div", "total", t["poll.total"](model.total)));
+  root.append(card);
+}
+
+function connect(target: { token: string; widget: string }, attempt = 0): void {
+  const proto = location.protocol === "https:" ? "wss:" : "ws:";
+  const socket = new WebSocket(`${proto}//${location.host}/o/${target.token}/${target.widget}/ws`);
+  let opened = false;
+  socket.addEventListener("open", () => {
+    opened = true;
+  });
+  socket.addEventListener("message", (event) => {
+    const message = parseMessage(event.data);
+    if (message) render(message);
+  });
+  socket.addEventListener("close", (event) => {
+    if (event.code === 4001) root.replaceChildren();
+    const next = opened ? 0 : attempt + 1;
+    window.setTimeout(() => connect(target, next), backoffMs(next));
+  });
+}
+
+const target = parseOverlayPath(location.pathname);
+if (target) connect(target);

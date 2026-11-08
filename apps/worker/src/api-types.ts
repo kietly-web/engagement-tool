@@ -66,3 +66,23 @@ export interface SessionResponse {
 }
 
 export type SessionStartError = "not_connected" | "not_live" | "reconnect_required" | "quota_exhausted" | "youtube_unavailable" | "already_live" | "disabled" | "demo_limit";
+
+export type OverlayWidget = "poll" | "leaderboard" | "game";
+
+export interface OverlayPollMessage {
+  type: "poll";
+  live: boolean;
+  poll: { question: string; options: string[]; counts: number[]; total: number; status: "open" | "closed" } | null;
+}
+
+export type OverlayMessage = OverlayPollMessage;
+
+export interface OverlayLinkView {
+  widget: OverlayWidget;
+  rotatedAt: string | null;
+}
+
+export interface OverlayRotateResponse {
+  widget: OverlayWidget;
+  url: string;
+}
