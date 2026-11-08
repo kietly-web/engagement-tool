@@ -1,0 +1,25 @@
+name: PR description
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+
+permissions: {}
+
+jobs:
+  what-changed:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require a filled "What changed" section
+        env:
+          # Passed via env, never interpolated into the script, so PR text can't inject shell
+          BODY: ${{ github.event.pull_request.body }}
+        run: |
+          section=$(printf '%s\n' "$BODY" \
+            | awk '/^## What changed/{f=1;next} /^## /{f=0} f' \
+            | sed 's/<!--.*-->//g' \
+            | tr -d '[:space:]')
+          if [ -z "$section" ]; then
+            echo "::error::Fill in the '## What changed' section of the PR description (see .github/pull_request_template.md)."
+            exit 1
+          fi

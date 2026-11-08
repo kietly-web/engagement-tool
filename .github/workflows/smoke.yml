@@ -1,0 +1,38 @@
+# Workers Builds deploys outside Actions, so this runs on a schedule and by hand rather than after each deploy.
+name: Smoke test production
+
+on:
+  schedule:
+    - cron: '17 */6 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    if: vars.PRODUCTION_URL != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      BASE_URL: ${{ vars.PRODUCTION_URL }}
+    steps:
+      - name: Key pages return 200
+        run: |
+          for path in / /healthz; do
+            for attempt in 1 2 3; do
+              code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE_URL$path") && [ "$code" = 200 ] && break
+              sleep 10
+            done
+            echo "$path -> $code"
+            [ "$code" = 200 ] || exit 1
+          done
+      - name: Security headers present
+        run: |
+          headers=$(curl -sSI "$BASE_URL/" | tr 'A-Z' 'a-z')
+          missing=0
+          for h in strict-transport-security content-security-policy x-content-type-options referrer-policy; do
+            echo "$headers" | grep -q "^$h:" || { echo "missing: $h"; missing=1; }
+          done
+          echo "$headers" | grep -qE '^x-frame-options:|^content-security-policy:.*frame-ancestors' || { echo "missing: frame-ancestors or x-frame-options"; missing=1; }
+          exit $missing
