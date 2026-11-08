@@ -4,6 +4,7 @@ import { authRoutes, memberRoutes } from "./auth";
 import { defaultDeps, type AppDeps, type AppEnv } from "./env";
 import { sessionRoutes } from "./live/routes";
 import { overlayManageRoutes, overlayPublicRoutes } from "./overlay";
+import { memberManageRoutes } from "./members";
 import { seasonRoutes } from "./seasons";
 import { securityHeaders } from "./security-headers";
 
@@ -38,6 +39,7 @@ export function createApp(overrides: Partial<AppDeps> = {}) {
   app.route("/api", sessionRoutes(auth, deps));
   app.route("/api", overlayManageRoutes(auth, deps));
   app.route("/api", seasonRoutes(auth, deps));
+  app.route("/api", memberManageRoutes(auth));
 
   app.all("/api/*", (c) => c.json({ error: "not_found" }, 404));
   return app;

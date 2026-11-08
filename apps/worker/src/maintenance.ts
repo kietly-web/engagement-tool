@@ -5,7 +5,11 @@ import type { AppDeps, AppEnv } from "./env";
 export async function runDailyMaintenance(env: AppEnv, deps: Pick<AppDeps, "database">): Promise<number | null> {
   const db = deps.database(env);
   if (!db) return null;
-  const deleted = await withSystem(db, (tx) => maintenance.run(tx));
+  const deleted = await withSystem(db, async (tx) => {
+    const rows = await maintenance.run(tx);
+    await maintenance.auditRetention(tx);
+    return rows;
+  });
   console.log(JSON.stringify({ event: "daily_maintenance", viewerRowsDeleted: deleted }));
   return deleted;
 }

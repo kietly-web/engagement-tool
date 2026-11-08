@@ -38,6 +38,8 @@ The app never passes a role. Policies compute it with `app.role_in(workspace)` f
 | `app.points_batch` (ET-8) | `batch_id` (PK), `season_id`, `workspace_id`, `applied_at` | Marks each applied flush so a retried batch is applied once; no personal data; deleted with ended seasons |
 | `app.viewer_points` (ET-8) | `season_id`, `workspace_id`, `channel_id` (checked format), `points`, `joins`, `votes` (all ≥ 0), `updated_at` | PK (season, channel). Members read; inserts and updates only into a running season, by the member who started the live session; owner deletes (erasure). Rows of ended seasons are deleted by `daily_maintenance()` |
 | `app.maintenance_heartbeat` (ET-8) | `ran_at` | Single row written by the retention job (every 6 h) |
+| `app.invite` (ET-9) | `id`, `workspace_id`, `email` (lower-case), `token_hash` (SHA-256, unique), `created_by`, `created_at`, `expires_at` (≤ 7 days), `accepted_at` | Owner lists and revokes pending invites (no hash); `create_invite()` is owner-only with at most 20 pending; `accept_invite()` requires the caller's verified Google email to match and is single-use |
+| `app.audit_event` (ET-9) | `id`, `workspace_id`, `actor_member_id`, `action` (fixed list), `detail` (≤ 500 bytes), `created_at` | Written through `app.audit()` by members of the workspace (in the same transaction as the action); read by the owner; deleted after 12 months |
 | `app.youtube_connection` (ET-5) | `workspace_id` (PK), `channel_id` (unique), `channel_title`, `refresh_token_enc` (AES-GCM, workspace ID as AAD), `scopes`, `connected_at`, `refreshed_at` | Members read metadata; the ciphertext only through `app.youtube_refresh_token()`; writes only through `app.save_youtube_connection()` (owner); the owner deletes on disconnect |
 
 ## Policies (`app_runtime`)
@@ -48,7 +50,7 @@ The app never passes a role. Policies compute it with `app.role_in(workspace)` f
 | `workspace` | Workspaces you belong to | Only via `app.create_workspace` | `name`, owner of the current workspace | None yet |
 | `workspace_member` | Your own memberships; all of the current workspace if you belong to it | None: moderators join by accepting an invite through a definer function (ET-9) | None | A moderator row in the current workspace, by its owner or by the moderator leaving |
 
-Nobody can add a membership by plain SQL, so an owner can't attach someone without their consent, and nobody can create a second owner. Policies call `role_in` as `(SELECT app.role_in(app.current_workspace_id()))` so it runs once per query, not once per row.
+Nobody can add a membership by plain SQL, so an owner can't attach someone without their consent, and nobody can create a second owner. Moderators join only through `accept_invite()` (ET-9). There's no email provider ($0): the owner sends the invite link themselves. Policies call `role_in` as `(SELECT app.role_in(app.current_workspace_id()))` so it runs once per query, not once per row.
 
 ## Functions
 

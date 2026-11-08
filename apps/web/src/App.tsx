@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { MeResponse, SignInOutcome, WorkspaceResponse } from "@et/worker/api-types";
 import { api, ApiError, signInUrl } from "./api";
 import { LivePanel } from "./LivePanel";
+import { MembersPanel } from "./MembersPanel";
 import { OverlayLinks } from "./OverlayLinks";
 import { SeasonPanel } from "./SeasonPanel";
 import { translator, type MessageKey } from "./i18n";
@@ -12,6 +13,32 @@ const OUTCOMES: SignInOutcome[] = ["denied", "state", "google", "youtube_denied"
 
 type View = { kind: "loading" } | { kind: "signedOut" } | { kind: "notConfigured" } | { kind: "error" } | { kind: "signedIn"; me: MeResponse };
 
+const INVITE_KEY = "et.pendingInvite";
+const INVITE_OUTCOMES = new Set(["accepted", "already_member", "email_mismatch", "invalid"]);
+
+// The invite token survives the Google sign-in round trip in sessionStorage, then leaves the URL straight away.
+function captureInvite(): string | null {
+  const match = /^\/invite\/([A-Za-z0-9_-]{43})$/.exec(window.location.pathname);
+  try {
+    if (match) {
+      window.sessionStorage.setItem(INVITE_KEY, match[1]!);
+      window.history.replaceState(null, "", "/");
+    }
+    return window.sessionStorage.getItem(INVITE_KEY);
+  } catch {
+    if (match) window.history.replaceState(null, "", "/");
+    return match ? match[1]! : null;
+  }
+}
+
+function clearInvite(): void {
+  try {
+    window.sessionStorage.removeItem(INVITE_KEY);
+  } catch {
+    // Storage may be blocked; nothing to clear.
+  }
+}
+
 function readOutcome(): SignInOutcome | null {
   const value = new URLSearchParams(window.location.search).get("signin");
   return OUTCOMES.find((o) => o === value) ?? null;
@@ -20,6 +47,8 @@ function readOutcome(): SignInOutcome | null {
 export function App() {
   const [view, setView] = useState<View>({ kind: "loading" });
   const [outcome] = useState(readOutcome);
+  const [inviteToken, setInviteToken] = useState(captureInvite);
+  const [inviteResult, setInviteResult] = useState<string | null>(null);
 
   const load = useCallback(() => {
     api
@@ -37,6 +66,17 @@ export function App() {
     load();
   }, [load, outcome]);
 
+  useEffect(() => {
+    if (view.kind !== "signedIn" || !inviteToken) return;
+    clearInvite();
+    setInviteToken(null);
+    api
+      .acceptInvite(inviteToken)
+      .then((r) => setInviteResult(r.outcome))
+      .catch((e: unknown) => setInviteResult(e instanceof ApiError && e.code ? e.code : "invalid"))
+      .finally(load);
+  }, [view.kind, inviteToken, load]);
+
   return (
     <main className="page">
       <h1>{t("app.title")}</h1>
@@ -45,6 +85,12 @@ export function App() {
           {t(`signin.outcome.${outcome}` as MessageKey)}
         </p>
       )}
+      {inviteResult && INVITE_OUTCOMES.has(inviteResult) && (
+        <p className="notice" role="status">
+          {t(`invite.${inviteResult}` as MessageKey)}
+        </p>
+      )}
+      {inviteToken && view.kind === "signedOut" && <p className="notice">{t("invite.pending")}</p>}
       {view.kind === "loading" && <p>{t("state.loading")}</p>}
       {view.kind === "notConfigured" && <p>{t("state.notConfigured")}</p>}
       {view.kind === "error" && <p className="error">{t("state.error")}</p>}
@@ -101,7 +147,7 @@ function SignedIn({ me, onChange }: { me: MeResponse; onChange: () => void }) {
         </p>
       )}
       {first ? (
-        <Workspace id={first.id} onError={setMessage} />
+        <Workspace id={first.id} selfId={me.member.id} onError={setMessage} onChange={onChange} />
       ) : (
         <>
           <p>{t("me.noWorkspace")}</p>
@@ -127,7 +173,7 @@ function SignedIn({ me, onChange }: { me: MeResponse; onChange: () => void }) {
   );
 }
 
-function Workspace({ id, onError }: { id: string; onError: (message: string) => void }) {
+function Workspace({ id, selfId, onError, onChange }: { id: string; selfId: string; onError: (message: string) => void; onChange: () => void }) {
   const [data, setData] = useState<WorkspaceResponse | null>(null);
 
   const load = useCallback(() => {
@@ -153,6 +199,7 @@ function Workspace({ id, onError }: { id: string; onError: (message: string) => 
     <>
     <LivePanel workspaceId={id} youtubeConnected={data.youtube !== null} />
     <SeasonPanel workspaceId={id} isOwner={isOwner} />
+    <MembersPanel workspace={data} selfId={selfId} onLeft={onChange} />
     <OverlayLinks workspaceId={id} isOwner={isOwner} />
     <div className="card">
       <h2>
@@ -168,15 +215,6 @@ function Workspace({ id, onError }: { id: string; onError: (message: string) => 
       ) : (
         <p>{t("ws.notConnected")}</p>
       )}
-      <h3>{t("ws.members")}</h3>
-      <ul>
-        {data.members.map((m) => (
-          <li key={m.memberId}>
-            {m.displayName} · {t(`ws.role.${m.role}`)}
-            {m.email && <span className="muted"> · {m.email}</span>}
-          </li>
-        ))}
-      </ul>
       {isOwner && (
         <p className="actions">
           {data.youtube ? (

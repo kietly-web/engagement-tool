@@ -1,4 +1,4 @@
-import { ContextError, members, sessions, withMember, withSystem, withWorkspace, workspaces, youtube, type Database } from "@et/db";
+import { audit, ContextError, members, sessions, withMember, withSystem, withWorkspace, workspaces, youtube, type Database } from "@et/db";
 import { fetchMyChannel } from "@et/youtube";
 import type { Context } from "hono";
 import { Hono } from "hono";
@@ -265,7 +265,10 @@ export function memberRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps)
     const revoked = await auth.revokeWorkspaceToken(c as Ctx, current.id);
     if (revoked === "none") return c.json({ error: "not_connected" }, 404);
     if (revoked === "failed") return c.json({ error: "revoke_failed" }, 502);
-    await withWorkspace(db, { memberId, workspaceId: current.id }, (tx) => youtube.disconnect(tx));
+    await withWorkspace(db, { memberId, workspaceId: current.id }, async (tx) => {
+      await youtube.disconnect(tx);
+      await audit.log(tx, "youtube_disconnected", revoked === "undecryptable" ? { revoke: "skipped_undecryptable" } : {});
+    });
     await purgeSession(c.env, current.id);
     return c.body(null, 204);
   });

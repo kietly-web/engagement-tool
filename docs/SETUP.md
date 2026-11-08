@@ -61,13 +61,13 @@ P0: production doesn't work without it. P1: a feature or workflow is degraded. P
 | [ ] | Overlay WebSocket path only boot-checked (`WebSocketPair`, hibernation) — Node tests stub the DO | First real run: add a poll overlay to OBS during a demo session | `apps/worker/src/live/durable.ts` |
 | [ ] | Demo starts capped at 4 per workspace per day (`DEMO_STARTS_DAILY`) to protect shared Durable Object time | Raise once real usage is known | `apps/worker/wrangler.jsonc` |
 | [ ] | No edge rate limit on `/o/*` (scanners, stale OBS sources) | Cloudflare dashboard → Security → WAF → Rate limiting rules (free plan allows one): path starts with `/o/`, 30 requests per 10 s per IP, block 10 s. The Worker already caches misses for 5 minutes per isolate | Owner, after the domain is set up |
-| [ ] | Overlay link rotation isn't in an audit log | Add with the ET-9 audit log | `apps/worker/src/overlay.ts` |
+| [x] 08/11/2026 | Overlay link rotation isn't in an audit log | ET-9 logs `overlay_rotated` | `apps/worker/src/overlay.ts` |
 | [ ] | No rate limit on sign-in and session lookups | Add Workers Rate Limiting binding (free plan) or a per-IP Durable Object counter before open sign-up | `apps/worker` |
-| [ ] | Audit log not built (membership, disconnect, account deletion, token rotation) | ET-9 with moderators | `packages/db`, `apps/worker` |
+| [x] 08/11/2026 | Audit log not built | ET-9: invites, membership, overlay rotation, disconnect, viewer erasure, seasons. Account deletion deletes the workspace and its log with it | `packages/db`, `apps/worker` |
 | [ ] | Preview deployments can't sign in (Google needs exact redirect URIs) | Dev-only sign-in stub compiled out of production, if previews need it | `apps/worker` |
 | [ ] | `channels.list` (1 unit per creator sign-in) isn't counted by the quota ledger | Route sign-in's channel lookup through `QuotaKeeper` | `apps/worker/src/auth.ts` |
 | [ ] | Dashboard tested by unit and route tests only; not yet clicked through against real Google | First run after owner setup | `apps/web` |
-| [ ] | Invites need a definer function | ET-9 adds `accept_invite(token)`; `app_runtime` has no `INSERT` on `workspace_member` until then | `packages/db` |
+| [x] 08/11/2026 | Invites need a definer function | ET-9 `accept_invite()` checks the verified email; still no `INSERT` on `workspace_member` for `app_runtime` | `packages/db` |
 | [ ] | Tests can't prove `app_worker` is unable to `SET ROLE app_definer` (PGlite ignores login users) | Postgres 16+ rules forbid it; add a real-Postgres CI job if a paid-free option appears, or check once by hand on Neon | CI |
 | [ ] | Cron heartbeat isn't monitored | The cron writes `app.maintenance_heartbeat` (ET-8); `/healthz` should read `app.maintenance_last_run()` and return 503 when it's over 36 h old, so the smoke test alerts | `apps/worker`, runbook |
 | [ ] | Channel metadata (`channel_title`) isn't refreshed or deleted after 30 days (NN3) | Daily cron: refresh via `channels.list` with the stored token, or delete the connection | `apps/worker/src/maintenance.ts` |

@@ -54,6 +54,16 @@ export const api = {
   leaderboard: (id: string) => call<{ entries: LeaderboardRow[] }>(`/api/workspaces/${encodeURIComponent(id)}/leaderboard`),
   eraseViewer: (id: string, channelId: string) =>
     call<{ removedRows: number }>(`/api/workspaces/${encodeURIComponent(id)}/viewers/${encodeURIComponent(channelId)}`, { method: "DELETE" }),
+  invite: (id: string, email: string) => call<{ url: string }>(`/api/workspaces/${encodeURIComponent(id)}/invites`, jsonBody("POST", { email })),
+  invites: (id: string) =>
+    call<{ invites: { id: string; email: string; expiresAt: string }[] }>(`/api/workspaces/${encodeURIComponent(id)}/invites`),
+  revokeInvite: (id: string, inviteId: string) =>
+    call<void>(`/api/workspaces/${encodeURIComponent(id)}/invites/${encodeURIComponent(inviteId)}`, { method: "DELETE" }),
+  removeMember: (id: string, memberId: string) =>
+    call<void>(`/api/workspaces/${encodeURIComponent(id)}/members/${encodeURIComponent(memberId)}`, { method: "DELETE" }),
+  audit: (id: string) =>
+    call<{ events: { action: string; actorName: string | null; createdAt: string }[] }>(`/api/workspaces/${encodeURIComponent(id)}/audit`),
+  acceptInvite: (token: string) => call<{ workspaceId: string; outcome: string }>("/api/invites/accept", jsonBody("POST", { token })),
   closePoll: (id: string) => call<SessionResponse>(`/api/workspaces/${encodeURIComponent(id)}/session/poll/close`, { method: "POST" }),
 };
 

@@ -1,4 +1,4 @@
-import { overlays, withSystem, withWorkspace, workspaces, ContextError } from "@et/db";
+import { audit, overlays, withSystem, withWorkspace, workspaces, ContextError } from "@et/db";
 import { Hono, type Context } from "hono";
 import type { OverlayLinkView, OverlayRotateResponse, OverlayWidget } from "./api-types";
 import type { authRoutes, Vars } from "./auth";
@@ -108,7 +108,11 @@ export function overlayManageRoutes(auth: ReturnType<typeof authRoutes>, deps: A
     const widget = c.req.param("widget");
     if (!isBuilt(widget)) return c.json({ error: "unknown_widget" }, 400);
     const token = randomToken();
-    await withWorkspace(c.var.db, { memberId: c.var.memberId, workspaceId: ws.id }, async (tx) => overlays.rotate(tx, widget, await hashToken(token)));
+    const hash = await hashToken(token);
+    await withWorkspace(c.var.db, { memberId: c.var.memberId, workspaceId: ws.id }, async (tx) => {
+      await overlays.rotate(tx, widget, hash);
+      await audit.log(tx, "overlay_rotated", { widget });
+    });
     try {
       await deps.liveSession(c.env, ws.id).closeOverlays(widget);
     } catch {
