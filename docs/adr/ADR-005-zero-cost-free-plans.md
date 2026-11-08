@@ -8,7 +8,7 @@ The owner wants no financial pressure until there is traction (NFR-COST). A surp
 
 ## Decision
 
-- Only free plans that stop or error at their limits, with no payment method on file that could auto-upgrade: Cloudflare Workers free, Supabase free, Google Cloud project with no billing account, GitHub free (public repo).
+- Only free plans that stop or error at their limits, with no payment method on file that could auto-upgrade: Cloudflare Workers free, Neon free, Google Cloud project with no billing account, GitHub free (public repo).
 - Each slice that adds load states its estimate against `docs/design/07-infrastructure.md`.
 - Adding any paid plan or service needs a new ADR first.
 

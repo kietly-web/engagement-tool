@@ -6,10 +6,10 @@ What to do when production needs care. Keep it short and true; every "not yet" h
 
 | Store | Backup | Retention | Last restore test |
 | --- | --- | --- | --- |
-| Supabase Postgres (Singapore, free) | Supabase daily backups on free are limited; plus a weekly `pg_dump` by the owner to an encrypted local file (no personal data leaves the owner's machine) | Keep 4 weekly dumps; delete older | not yet |
+| Neon Postgres (Singapore, free) | Neon point-in-time restore (6-hour window on free); plus a weekly `pg_dump` by the owner to an encrypted local file (no personal data leaves the owner's machine) | 6 h PITR; keep 4 weekly dumps, delete older | not yet |
 | Durable Object storage | None; it holds only live session state that is flushed to Postgres | Session lifetime | n/a |
 
-Restore steps: create a new Supabase project (or a local Postgres), `pg_restore` the dump there first, verify row counts and RLS, then repoint `DATABASE_URL` with `wrangler secret put`. Never restore over production directly.
+Restore steps: for a mistake in the last 6 hours, restore to a new Neon branch at a timestamp (Console → Branches → Restore), check it, then promote. Otherwise create a new branch or local Postgres, `pg_restore` the dump there first, verify row counts and RLS, then repoint `DATABASE_URL` with `wrangler secret put`. Never restore over production directly.
 
 Restoring brings back viewer rows from ended seasons and disconnected workspaces: run the retention cron by hand straight after (ADR-006).
 
@@ -32,7 +32,7 @@ Logs and error reports carry no personal data, chat text or overlay tokens.
 
 ## Common fixes
 
-- **Supabase paused:** Supabase dashboard → project → Restore. Then check the daily cron is running.
+- **Neon compute suspended (monthly CU-hours or transfer used up):** sessions keep counting in Durable Objects but can't flush. Check Console → Usage; reduce flush frequency or wait for the monthly reset. Data is kept.
 - **Creator's sessions won't start, "reconnect Google":** Testing-mode refresh token expired after 7 days (R4); creator reconnects from settings.
 - **Overlay URL leaked:** creator rotates it in the dashboard; old sockets close at once.
 
@@ -49,4 +49,4 @@ Logs and error reports carry no personal data, chat text or overlay tokens.
 | VN PDPL (Law 91/2025/QH15) and Decree 356/2025/ND-CP | Ministry of Public Security (A05) and affected creators; viewers via creators where identifiable | 72 hours from awareness, to be confirmed by counsel |
 | Google API / YouTube API Terms | Google, if Google user data is involved | Promptly, per Google's terms |
 
-Contacts: owner (kietly-web); counsel to be named before launch (SETUP §7); Cloudflare and Supabase support through their dashboards.
+Contacts: owner (kietly-web); counsel to be named before launch (SETUP §7); Cloudflare and Neon support through their dashboards.

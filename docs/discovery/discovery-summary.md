@@ -23,7 +23,7 @@ A free engagement tool for Vietnamese YouTubers and VTubers: viewers type comman
 - No AI at launch; an AI slice later needs its own ADR.
 - No payments and nothing of monetary value; points are for fun only (R8).
 - $0 running cost on free plans that fail closed (ADR-005).
-- Cloudflare Workers + Durable Objects, Supabase Postgres in Singapore, TypeScript (ADR-001, ADR-002).
+- Cloudflare Workers + Durable Objects, Neon Postgres in Singapore, TypeScript (ADR-001, ADR-002).
 - Google sign-in for creators and moderators (ADR-003). Viewers never sign in.
 - UI Vietnamese first, English later; docs and code in English.
 
@@ -87,12 +87,12 @@ L = likelihood, I = impact (H/M/L).
 
 | ID | Risk | L | I | Mitigation |
 | --- | --- | --- | --- | --- |
-| R1 | One long stream, or several at once, burns the default 10,000-unit daily YouTube quota and every session stops | H | H | Quota accounting in `packages/youtube`; respect `pollingIntervalMillis`; per-workspace daily budget; fail closed with a clear dashboard message; apply for a quota extension before opening sign-up (Q-T1) |
+| R1 | One long stream, or several at once, burns the default 10,000-unit daily YouTube quota and every session stops | H | H | Quota accounting in `packages/youtube`; read chat with `streamList` (5 units per connection) instead of polling; per-workspace daily budget; fail closed with a clear dashboard message; apply for a quota extension before opening sign-up (Q-T1) |
 | R2 | Per-viewer points count as derived data under YouTube API policy, or are kept too long, and API access is revoked | M | H | 30-day seasons; refresh-or-delete jobs; store only channel ID and counters; no cross-channel aggregation; Q-L3 to confirm |
 | R3 | Viewer channel IDs are personal data of children under VN PDPL; processing without a lawful basis or parental consent | M | H | Minimum data (non-negotiable 2); no viewer accounts or profiling; erase-by-channel-ID tool; counsel on Q-L1 before open sign-up |
 | R4 | Google OAuth: a sensitive scope needs app verification; in Testing mode refresh tokens expire after 7 days and only 100 test users are allowed | H | M | Request only `youtube.readonly`; beta creators as test users; re-consent flow handled cleanly; verification submitted before open sign-up |
 | R5 | Chat text or a leaked overlay URL is used to show abuse on a creator's stream (HTML injection, offensive names, URL reuse) | M | H | Text-only rendering; length and character limits; per-widget rotatable tokens; overlays read-only; creator can hide names |
-| R6 | Free-tier limits or inactivity pauses (Supabase pauses idle free projects; Workers/DO daily caps) take the service down mid-stream | M | M | Fail closed and show the reason; keep live state in the Durable Object so a DB blip doesn't drop votes; uptime check; keep-alive via the daily cron |
+| R6 | Free-tier limits (Durable Object duration, Neon monthly compute, Workers daily requests) take the service down mid-stream | M | M | Fail closed and show the reason; keep live state in the Durable Object so a DB blip doesn't drop votes; uptime check; usage estimates per slice |
 | R7 | One workspace reads or changes another's data, or a moderator exceeds their role | L | H | Forced RLS with a non-bypass app role; server-derived Durable Object IDs; isolation tests for every workspace table; reviewer on access-control slices |
 | R8 | Points or games are treated as gambling or a prize promotion under VN rules | L | H | Non-negotiable 6; no prizes, purchases or transfers; game copy says points have no value; no "giveaway" features |
 
@@ -114,8 +114,8 @@ L = likelihood, I = impact (H/M/L).
 - Q-L3 May points seasons run longer than 30 days if channel IDs are refreshed, under YouTube Developer Policies III.E.4? (YouTube policy / counsel)
 - Q-L4 Does any Vietnamese data-localisation requirement apply to a free service of this size? (counsel)
 - Q-D1 How do viewers reach us or the creator to ask for erasure, and what deadline do we commit to? (owner)
-- Q-T1 What does reading live chat really cost in quota per stream-hour (`liveChatMessages.list` with the server's polling interval, or a streaming alternative if available)? Measured in ET-6.
-- Q-T2 Supabase from Workers: Hyperdrive or a direct TCP connection to the Supavisor pooler, within free limits? Decided in ET-4.
+- Q-T1 Does `liveChatMessages.streamList` work with `youtube.readonly` over HTTP from a Durable Object, how often does it reconnect, and what does a stream-hour cost? Spiked first in ET-6.
+- Q-T2 Neon from Workers: Hyperdrive with a standard driver, or Neon's serverless driver over WebSockets, given RLS needs interactive transactions? Decided in ET-4.
 - Q-T3 How many concurrent sessions fit the Durable Objects free plan? Estimated in ET-6.
 - Q-P1 Viewers can't get replies in chat (read-only). Should `!points` flash the viewer's score on an overlay ticker? (owner)
 - Q-P2 Product name and domain. (owner)

@@ -16,7 +16,7 @@ One slice = one branch and PR (`ET-n-short-slug`). **Review** = run `security-co
 
 | Slice | Delivers | IDs | Review |
 | --- | --- | --- | --- |
-| ET-6 | `LiveSession` DO and `ChatSource`: find broadcast, poll chat on alarms, quota ledger, start/stop from the dashboard, quota display; measures Q-T1 and Q-T3 | FR-03, FR-11, NFR-QUOTA, NFR-REL, R1 | Yes (chat ingestion, external API) |
+| ET-6 | `LiveSession` DO and `ChatSource`: spike proving `streamList` with `youtube.readonly` first, then find broadcast, stream chat (polling fallback), watchdog alarm, quota ledger, start/stop from the dashboard, quota display; measures Q-T1 and Q-T3 | FR-03, FR-11, NFR-QUOTA, NFR-REL, R1 | Yes (chat ingestion, external API) |
 | ET-7 | Overlays and polls end to end: per-widget tokens and rotation, overlay WebSocket, poll widget, dashboard poll controls, CSP and headers | FR-04, FR-05, US-02, US-07, R5 | Yes (overlays, tokens) |
 
 M1 exit: a beta creator runs a poll on a real stream with an OBS overlay.

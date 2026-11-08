@@ -22,5 +22,5 @@ Creators must grant YouTube read access anyway (FR-01). Moderators need accounts
 
 ## Alternatives considered
 
-- Supabase Auth, Clerk, Auth0: extra sub-processor; vendor free tiers can change; tokens for YouTube still need our own handling.
+- Better Auth (self-hosted or Neon-managed), Clerk, Auth0: an extra sub-processor or a framework with its own tables for a single Google provider; vendor free tiers can change; tokens for YouTube still need our own handling.
 - Email magic links: needs an email provider and doesn't grant YouTube access.

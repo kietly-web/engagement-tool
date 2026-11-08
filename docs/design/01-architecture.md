@@ -12,11 +12,11 @@
 │  cron     retention, refresh, keep-alive                               │
 │                                                                        │
 │  LiveSession Durable Object (one per workspace live session)          │
-│    alarm loop: fetch chat page → core.apply() → persist → broadcast    │
+│    chat stream → core.apply() → persist → broadcast; alarm watchdog    │
 └───────────────┬───────────────────────────────┬────────────────────────┘
                 │ packages/db (RLS context)     │ WebSocket (read-only)
                 ▼                               ▼
-      Supabase Postgres (Singapore)      OBS browser source (apps/overlay)
+        Neon Postgres (Singapore)        OBS browser source (apps/overlay)
                 ▲
                 │ HTTPS + session cookie
        Dashboard SPA (apps/web) – creators and moderators
@@ -41,7 +41,7 @@
 
 **Start session (US-03).** Dashboard → `POST /api/sessions` → Worker checks membership and role through `packages/db`, finds the active broadcast via `ChatSource`, derives the DO ID from `workspaceId:broadcastId`, and calls `start()` on the DO. The client never supplies a DO ID.
 
-**Chat loop.** DO alarm → `ChatSource.page(liveChatId, pageToken)` → quota ledger debits units → each message normalised and parsed by `core` → state change applied in DO storage → overlay diff broadcast → points flushed to Postgres every N seconds and at stop → next alarm at `pollingIntervalMillis`. Message text is dropped after parsing.
+**Chat loop.** DO opens `ChatSource.stream(liveChatId, pageToken)` (`streamList`; quota ledger debits 5 units per connection) → each message normalised and parsed by `core` → state change applied in DO storage → overlay diff broadcast → points flushed to Postgres about every 10 s and at stop. On disconnect it reconnects from the last page token with backoff; a one-minute alarm restarts a stalled stream. Polling fallback: `list` on alarms at `pollingIntervalMillis`. Message text is dropped after parsing.
 
 **Overlay (US-02).** OBS loads `/o/<token>/poll` → Worker hashes the token, looks up workspace and widget, serves the page → page opens a WebSocket that the Worker forwards to the workspace's active DO → DO sends a snapshot, then diffs.
 

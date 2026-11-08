@@ -19,8 +19,8 @@ P0: production doesn't work without it. P1: a feature or workflow is degraded. P
 | --- | --- | --- | --- | --- | --- | --- |
 | [ ] | P0 | Cloudflare account, **no payment method** | dash.cloudflare.com → Sign up | Free plan only; then run `npx wrangler login` so Claude can deploy previews | ET-2 deploy | Owner |
 | [ ] | P0 | Connect repo to Workers Builds | Cloudflare → Workers & Pages → Create → Import a repository → `kietly-web/engagement-tool` | Production branch `main`; enable preview builds for other branches | ET-2 | Owner |
-| [ ] | P0 | Supabase organisation (Free) and project in **Singapore** | supabase.com → New project → Region Southeast Asia (Singapore) | Save the DB password in a password manager; Settings → API → disable the Data API | ET-4 | Owner |
-| [ ] | P0 | `DATABASE_URL` (Secret), runtime role `app_runtime` | `wrangler secret put DATABASE_URL` | Connection string for `app_runtime` (created by ET-4's migration), transaction pooler, never the `postgres` owner | ET-4 | Owner |
+| [ ] | P0 | Neon account (Free, no card) and project in **Singapore** | console.neon.tech → New project → Region AWS Asia Pacific (Singapore) | Postgres 17; keep the owner connection string in a password manager, never in the repo | ET-4 | Owner |
+| [ ] | P0 | `DATABASE_URL` (Secret), runtime role `app_runtime` | `wrangler secret put DATABASE_URL` | Connection string for `app_runtime` (created by ET-4's migration), never the owner role; or a Hyperdrive binding if ET-4 picks it (Q-T2) | ET-4 | Owner |
 | [ ] | P0 | Google Cloud project, **no billing account** | console.cloud.google.com → New project | Then APIs & Services → Library → enable "YouTube Data API v3" | ET-5 | Owner |
 | [ ] | P0 | OAuth consent screen | Google Auth Platform → Branding / Audience / Data access | External; Testing; add beta creators and mods as test users; scopes `openid`, `email`, `profile`, `youtube.readonly` | ET-5 | Owner |
 | [ ] | P0 | OAuth web client | Google Auth Platform → Clients → Create → Web application | Redirect URI `https://<worker>.workers.dev/api/auth/google/callback`; client ID goes in `wrangler.jsonc` vars as `GOOGLE_CLIENT_ID` | ET-5 | Owner |
@@ -28,7 +28,7 @@ P0: production doesn't work without it. P1: a feature or workflow is degraded. P
 | [ ] | P0 | `TOKEN_ENCRYPTION_KEY` (Secret) | `wrangler secret put TOKEN_ENCRYPTION_KEY` | `openssl rand -base64 32` | ET-5 | Owner |
 | [ ] | P0 | `SESSION_SECRET` (Secret) | `wrangler secret put SESSION_SECRET` | `openssl rand -base64 32` | ET-5 | Owner |
 | [ ] | P1 | `PRODUCTION_URL` (repo variable, not secret) | GitHub → Settings → Secrets and variables → Actions → Variables | `https://<worker>.workers.dev` | Smoke test | Owner |
-| [ ] | P2 | Accept Cloudflare and Supabase DPAs | Each dashboard's legal/DPA page | Record the date in `docs/design/03-security-privacy.md` | Launch | Owner |
+| [ ] | P2 | Accept Cloudflare and Neon DPAs | Each dashboard's legal/DPA page | Record the date in `docs/design/03-security-privacy.md` | Launch | Owner |
 
 ## 2. Environment variable reference
 
@@ -62,8 +62,8 @@ Slices ET-2 to ET-11 in [design/08-delivery-plan.md](design/08-delivery-plan.md)
 | [ ] | Q-L3 Seasons longer than 30 days | Counsel / YouTube policy | Until answered, seasons ≤ 30 days |
 | [ ] | Q-L4 Data localisation | Counsel | Storage is movable (ADR-002) |
 | [ ] | Q-D1 Viewer request channel and deadline | Owner | Needed by ET-11 |
-| [ ] | Q-T1 Quota per stream-hour | ET-6 | Measure |
-| [ ] | Q-T2 Hyperdrive vs direct TCP | ET-4 | Decide |
+| [ ] | Q-T1 Does `streamList` work with `youtube.readonly` from a Durable Object, and what does a stream-hour cost? | ET-6 | Spike first |
+| [ ] | Q-T2 Hyperdrive vs Neon serverless driver | ET-4 | Decide |
 | [ ] | Q-T3 Concurrent sessions on DO free plan | ET-6 | Estimate |
 | [ ] | Q-P1 Show `!points` on an overlay ticker? | Owner | Product |
 | [ ] | Q-P2 Product name and domain | Owner | Domain needs an ADR (cost) |

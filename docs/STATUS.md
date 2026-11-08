@@ -34,9 +34,9 @@ Everything not done lives in [SETUP.md](SETUP.md), with priorities and exact ste
 
 - GitHub: `kietly-web/engagement-tool`, **public** repository (docs are public; never commit real data or secrets). `main` not protected yet.
 - Hosting (planned, ADR-001): Cloudflare Workers free plan, `*.workers.dev`. Account not created yet.
-- Database (planned, ADR-002): Supabase free, Singapore. Project not created yet.
+- Database (planned, ADR-002): Neon free, AWS Singapore. Project not created yet. A Neon MCP connector is configured in Claude but not yet authorised.
 - Google Cloud project with YouTube Data API v3: not created yet; must never get a billing account (ADR-005).
-- CLIs signed in for Claude: `gh` yes; `wrangler` no; `supabase` no.
+- CLIs signed in for Claude: `gh` yes; `wrangler` no; `neonctl` no.
 
 ## Gotchas we've hit
 
@@ -46,8 +46,9 @@ Everything not done lives in [SETUP.md](SETUP.md), with priorities and exact ste
 - Branch protection is off, so auto-merge would merge before CI. Wait for CI by hand until required checks are set (SETUP §1).
 - pnpm blocks very recent releases and unapproved build scripts; pick versions at least a week old and approve build scripts explicitly.
 - Google Testing-mode apps: refresh tokens for sensitive scopes expire after 7 days; beta creators will need to reconnect weekly until verification (R4).
-- Supabase free projects pause after about a week idle; the daily cron touches the database (ADR-002).
-- Supabase's transaction pooler forbids session-level `SET`; use `set_config(..., true)` inside the transaction.
+- Neon free compute sleeps after 5 minutes idle and takes a few hundred ms to wake; the Durable Object buffers writes, so never block chat handling on a database call.
+- Pooled connections forbid session-level `SET`; set the RLS context with `set_config(..., true)` inside the transaction.
+- Stack reviewed 08/11/2026 against current free tiers: Supabase replaced by Neon (no inactivity pause), YouTube chat read with `streamList` instead of polling (ADR-002, ADR-004).
 - Test against a real Postgres engine (PGlite); never mock the database. Read every generated migration and reorder by hand if needed.
 - Never hold a database transaction open across a network call (YouTube, Google).
 - Normalise Unicode (NFC) before matching; test Vietnamese with and without diacritics, full-width digits (`２`) and look-alike characters.

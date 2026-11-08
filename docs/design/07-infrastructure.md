@@ -5,7 +5,7 @@
 | Env | Where | Data | Google sign-in | YouTube |
 | --- | --- | --- | --- | --- |
 | Local | `pnpm dev` (`wrangler dev` + Vite), PGlite or a local Postgres | Synthetic only | Dev stub | `FakeChatSource` |
-| Preview | Workers Builds preview URL per branch | Synthetic only, separate Supabase project or none | Dev stub | `FakeChatSource` |
+| Preview | Workers Builds preview URL per branch | Synthetic only, a Neon branch or none | Dev stub | `FakeChatSource` |
 | Production | `*.workers.dev` (custom domain later, ADR needed) | Real | Google OAuth client | Real, read-only |
 
 Production secrets exist only in the production Worker's secret store. Preview and local never hold them (non-negotiable 8).
@@ -17,14 +17,15 @@ Figures as published at kickoff; re-check in the console when a slice adds load.
 | Service | Limit | Our beta use (5–20 creators) |
 | --- | --- | --- |
 | Workers free | 100,000 requests/day; 10 ms CPU per invocation | Dashboard + overlay loads: low thousands/day |
-| Durable Objects free (SQLite-backed) | 100,000 requests/day; 13,000 GB-s duration/day; 5 GB storage | One poll every ~5 s ≈ 720 requests per stream-hour; awake ~450 GB-s per stream-hour → ~25 stream-hours/day |
+| Durable Objects free (SQLite-backed) | 100,000 requests/day (incoming WebSocket messages count 20:1); 13,000 GB-s duration/day; 100,000 rows written/day; 5 GB storage | A streaming session keeps its DO awake: 128 MB × 3,600 s ≈ 460 GB-s per stream-hour → **about 28 stream-hours/day, the tightest limit with streaming**. Batch row writes (flush every ~10 s, not per message) |
 | Workers Builds | 3,000 build minutes/month | ~2 min per build |
-| Cron Triggers | A few per account on free | 1 daily job (retention, refresh, keep-alive) |
-| Supabase free | 500 MB database, 5 GB egress/month, pauses after ~7 days idle | Tiny rows; daily cron keeps it awake |
-| YouTube Data API | 10,000 units/day per Google Cloud project | **The binding limit.** Assumption to measure in ET-6 (Q-T1): ~5 units per `liveChatMessages.list` call at a ~5 s interval ≈ 3,600 units per stream-hour → under 3 stream-hours/day for all creators combined |
+| Cron Triggers | 5 per account | 1 daily job (retention, refresh, heartbeat) |
+| Neon free | 1 GB storage, 100 CU-hours/month (~400 h at 0.25 CU), 5 GB transfer, scale to zero after 5 min, never paused, 6 h point-in-time restore | Tiny rows; compute active only during streams and dashboard use |
+| Hyperdrive (if chosen in ET-4) | 100,000 queries/day | ~5 queries per batched transaction |
+| YouTube Data API | 10,000 units/day per Google Cloud project; `streamList` and `list` both 5 units per call | `streamList`: 5 units per connection, so tens of units per stream-hour (measured in ET-6, Q-T1). Polling fallback: ~3,600 units per stream-hour, under 3 stream-hours/day for everyone combined |
 | GitHub Actions | Free for public repositories | CI per push |
 
-Consequence: until a quota extension is granted, the beta supports only a few streams a day. The quota ledger divides the daily budget among workspaces and stops sessions cleanly (R1, FR-11).
+Consequence: with `streamList` the beta is bounded by Durable Object duration (~28 stream-hours/day), which is ample for 5–20 creators. If ET-6 finds streaming unusable, quota becomes the limit again (a few streams a day) and the quota extension moves up to P1. The quota ledger divides the daily budget among workspaces and stops sessions cleanly either way (R1, FR-11).
 
 ## Configuration
 
@@ -39,7 +40,7 @@ Worker `vars` (in `wrangler.jsonc`) hold only non-secret values. Secrets are set
 
 ## Cron
 
-Daily at 03:00 Asia/Ho_Chi_Minh (20:00 UTC): delete ended-season viewer rows and stale YouTube data (ADR-006), process pending disconnect deletions (FR-09), touch the database to avoid free-plan pausing, write a heartbeat row the smoke test checks.
+Daily at 03:00 Asia/Ho_Chi_Minh (20:00 UTC): delete ended-season viewer rows and stale YouTube data (ADR-006), process pending disconnect deletions (FR-09), write a heartbeat row the smoke test checks.
 
 ## Observability
 

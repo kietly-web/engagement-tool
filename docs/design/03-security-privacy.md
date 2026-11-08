@@ -20,7 +20,7 @@ Creator Google refresh tokens; workspace membership and roles; viewer channel ID
 | T8 | Quota exhaustion by spam or many sessions | Per-workspace budget; one session per workspace; core parses cheaply and ignores non-commands | Quota ledger tests |
 | T9 | Secret reaches the browser | Secrets only from Worker `env`; `VITE_*` is public; CI name check | `scripts/check-public-env.sh` |
 | T10 | Over-collection of children's data | Allowlisted viewer fields; no text in storage or logs | Reviewer; tests assert stored shape |
-| T11 | Retention not enforced (cron down, project paused) | Daily cron with alert on failure; deletion is idempotent | Runbook; cron test |
+| T11 | Retention not enforced (cron down, database compute suspended at its monthly limit) | Daily cron with alert on failure; deletion is idempotent | Runbook; cron test |
 | T12 | Supply chain (malicious package or Action) | Lockfile, Dependabot, pinned Action SHAs, `pnpm audit`, minimum release age | CI |
 
 ## Controls checklist (ASVS L2 highlights)
@@ -37,7 +37,7 @@ Creator Google refresh tokens; workspace membership and roles; viewer channel ID
 | Service | Purpose | Data | Region | Plan | Terms / DPA |
 | --- | --- | --- | --- | --- | --- |
 | Cloudflare | Hosting, Durable Objects, request handling | All requests in transit; DO state including display names during a session | Global edge | Workers free | Cloudflare DPA (self-serve), to accept before launch |
-| Supabase | Postgres | Member accounts, encrypted tokens, viewer channel IDs + counters | Singapore | Free | Supabase DPA, to accept before launch |
+| Neon | Postgres | Member accounts, encrypted tokens, viewer channel IDs + counters | Singapore (AWS) | Free | Neon DPA, to accept before launch |
 | Google | Sign-in and YouTube Data API | Creator/mod identity; reads chat | Google | No billing | Google API Terms, YouTube API Services Terms |
 | GitHub | Code and CI | No personal data (synthetic tests only) | US | Free | — |
 

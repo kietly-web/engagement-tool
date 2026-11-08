@@ -10,7 +10,7 @@ A live session must poll YouTube chat every few seconds for hours, keep votes an
 
 - One TypeScript pnpm monorepo: `packages/core`, `packages/youtube`, `packages/db`, `apps/worker`, `apps/web`, `apps/overlay` (rules in CLAUDE.md).
 - `apps/worker` is a Hono app on Cloudflare Workers (free plan). It serves the API, Google sign-in, the dashboard and overlay static assets, and cron jobs.
-- A `LiveSession` Durable Object (SQLite-backed, the kind the free plan allows) per workspace live session. Its ID is `idFromName(workspaceId + ":" + broadcastId)`, computed on the server only. It polls chat with alarms, applies `packages/core` rules, persists running state in its own storage and fans out to overlays with hibernatable WebSockets.
+- A `LiveSession` Durable Object (SQLite-backed, the kind the free plan allows) per workspace live session. Its ID is `idFromName(workspaceId + ":" + broadcastId)`, computed on the server only. It holds the chat stream open (ADR-004), applies `packages/core` rules, persists running state in its own storage and fans out to overlays with hibernatable WebSockets.
 - Deploys through Cloudflare Workers Builds (Git integration), so no Cloudflare API token is stored in GitHub. Preview URLs per branch.
 
 ## Consequences
@@ -22,6 +22,8 @@ A live session must poll YouTube chat every few seconds for hours, keep votes an
 
 ## Alternatives considered
 
-- Node server on a free VM (Fly, Render, Oracle): free tiers sleep, change terms or need a card; long-lived pollers need always-on hosts.
+- Node server on a free host (Render, Fly, Railway, Oracle): free tiers sleep after idle, are trial credits, or need a card; a stream reader needs an always-on process.
+- Convex or Firebase: realtime built in, but no Postgres row-level security; Firebase needs the card-backed Blaze plan for outbound calls to YouTube.
+- Deno Deploy: free and fast, but no durable per-stream actor to hold a chat connection and overlay sockets together.
 - Vercel or Netlify functions: no long-lived connections or durable per-stream state; would need a separate realtime service.
 - OBS plugin or desktop app: see ADR-007.
