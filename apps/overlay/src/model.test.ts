@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { backoffMs, parseMessage, parseOverlayPath, pollModel } from "./model";
+import { backoffMs, parseMessage, parseOverlayPath, pollModel, shouldReconnect } from "./model";
 
 const TOKEN = "A".repeat(43);
 
@@ -55,8 +55,13 @@ describe("parseMessage", () => {
   });
 });
 
-describe("backoffMs", () => {
-  it("grows and caps at 30 s", () => {
-    expect([0, 1, 4, 10].map(backoffMs)).toEqual([1000, 2000, 16000, 30000]);
+describe("reconnect policy", () => {
+  it("grows, caps at 30 s, then drops to every 10 minutes after repeated failures", () => {
+    expect([0, 1, 4, 7, 8, 50].map(backoffMs)).toEqual([1000, 2000, 16000, 30000, 600000, 600000]);
+  });
+
+  it("never reconnects a rotated link", () => {
+    expect(shouldReconnect(4001)).toBe(false);
+    expect(shouldReconnect(1006)).toBe(true);
   });
 });

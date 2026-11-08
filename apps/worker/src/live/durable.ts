@@ -73,8 +73,9 @@ export class LiveSession extends DurableObject<AppEnv> {
     for (const socket of this.ctx.getWebSockets(widget)) socket.close(4001, "rotated");
   }
 
-  override webSocketMessage() {
-    // Overlays are read-only; anything a client sends is ignored.
+  // Overlays never send anything; closing on the first frame stops a leaked link from burning DO requests.
+  override webSocketMessage(socket: WebSocket) {
+    socket.close(1008, "read-only");
   }
 
   override webSocketClose(socket: WebSocket, code: number) {

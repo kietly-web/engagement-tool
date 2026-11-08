@@ -60,6 +60,8 @@ P0: production doesn't work without it. P1: a feature or workflow is degraded. P
 | [ ] | Dashboard polls `/session` every 2 s while live (one Worker request plus a DO call each) | Needs a session-authenticated dashboard WebSocket (overlay sockets are token-only and read-only); revisit if Worker requests get tight | `apps/web` |
 | [ ] | Overlay WebSocket path only boot-checked (`WebSocketPair`, hibernation) — Node tests stub the DO | First real run: add a poll overlay to OBS during a demo session | `apps/worker/src/live/durable.ts` |
 | [ ] | Demo starts capped at 4 per workspace per day (`DEMO_STARTS_DAILY`) to protect shared Durable Object time | Raise once real usage is known | `apps/worker/wrangler.jsonc` |
+| [ ] | No edge rate limit on `/o/*` (scanners, stale OBS sources) | Cloudflare dashboard → Security → WAF → Rate limiting rules (free plan allows one): path starts with `/o/`, 30 requests per 10 s per IP, block 10 s. The Worker already caches misses for 5 minutes per isolate | Owner, after the domain is set up |
+| [ ] | Overlay link rotation isn't in an audit log | Add with the ET-9 audit log | `apps/worker/src/overlay.ts` |
 | [ ] | No rate limit on sign-in and session lookups | Add Workers Rate Limiting binding (free plan) or a per-IP Durable Object counter before open sign-up | `apps/worker` |
 | [ ] | Audit log not built (membership, disconnect, account deletion, token rotation) | ET-9 with moderators | `packages/db`, `apps/worker` |
 | [ ] | Preview deployments can't sign in (Google needs exact redirect URIs) | Dev-only sign-in stub compiled out of production, if previews need it | `apps/worker` |

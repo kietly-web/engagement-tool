@@ -15,7 +15,31 @@ export const OVERLAY_PAGE_HEADERS: Record<string, string> = {
   "Referrer-Policy": "no-referrer",
   "Cache-Control": "no-store",
   "X-Robots-Tag": "noindex, nofollow",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
 };
+
+// Per-isolate memory of hashes that didn't resolve, so stale OBS sources and scanners don't keep Neon awake.
+// Only misses are cached: a hit must always be re-checked so rotation takes effect at once.
+const MISS_TTL_MS = 5 * 60_000;
+const MISS_MAX = 2_000;
+const misses = new Map<string, number>();
+
+function recentlyMissed(hash: string, now: number): boolean {
+  const until = misses.get(hash);
+  if (until === undefined) return false;
+  if (until > now) return true;
+  misses.delete(hash);
+  return false;
+}
+
+function rememberMiss(hash: string, now: number): void {
+  if (misses.size >= MISS_MAX) misses.delete(misses.keys().next().value!);
+  misses.set(hash, now + MISS_TTL_MS);
+}
+
+export function clearOverlayMissCache(): void {
+  misses.clear();
+}
 
 export async function hashToken(token: string): Promise<string> {
   return toHex(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token))));
@@ -31,7 +55,11 @@ export function overlayPublicRoutes(deps: AppDeps) {
     if (!TOKEN.test(token) || !isBuilt(widget)) return null;
     const db = deps.database(c.env);
     if (!db) return null;
-    const found = await withSystem(db, async (tx) => overlays.lookup(tx, await hashToken(token)));
+    const hash = await hashToken(token);
+    const now = deps.now().getTime();
+    if (recentlyMissed(hash, now)) return null;
+    const found = await withSystem(db, (tx) => overlays.lookup(tx, hash));
+    if (!found) rememberMiss(hash, now);
     return found && found.widget === widget ? found : null;
   }
 
@@ -81,7 +109,11 @@ export function overlayManageRoutes(auth: ReturnType<typeof authRoutes>, deps: A
     if (!isBuilt(widget)) return c.json({ error: "unknown_widget" }, 400);
     const token = randomToken();
     await withWorkspace(c.var.db, { memberId: c.var.memberId, workspaceId: ws.id }, async (tx) => overlays.rotate(tx, widget, await hashToken(token)));
-    await deps.liveSession(c.env, ws.id).closeOverlays(widget);
+    try {
+      await deps.liveSession(c.env, ws.id).closeOverlays(widget);
+    } catch {
+      console.error(JSON.stringify({ event: "overlay_close_failed" }));
+    }
     return c.json<OverlayRotateResponse>({ widget, url: `${new URL(c.req.url).origin}/o/${token}/${widget}` });
   });
 

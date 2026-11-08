@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { MeResponse, OverlayRotateResponse } from "../src/api-types";
 import { overlayView } from "../src/live/overlay-view";
-import { OVERLAY_PAGE_HEADERS } from "../src/overlay";
+import { clearOverlayMissCache, OVERLAY_PAGE_HEADERS } from "../src/overlay";
 import { makeHarness, ORIGIN, type Harness } from "./harness";
 
 async function owner(h: Harness) {
@@ -59,7 +59,7 @@ describe("overlay links", () => {
     const h = await makeHarness();
     const { ws, path } = await link(h);
     expect((await h.browser().request(`${path}/ws`)).status).toBe(426);
-    expect((await h.browser().request(`${path}/ws`, { headers: { Upgrade: "websocket" } })).status).toBe(200);
+    expect((await h.browser().request(`${path}/ws`, { headers: { Upgrade: "websocket" } })).status).toBe(302);
     expect(h.sockets).toEqual([{ workspaceId: ws, widget: "poll" }]);
     expect((await h.browser().request(`/o/${"C".repeat(43)}/poll/ws`, { headers: { Upgrade: "websocket" } })).status).toBe(404);
     expect(h.sockets).toHaveLength(1);
@@ -84,6 +84,31 @@ describe("overlay links", () => {
     await outsider.signIn();
     expect((await outsider.post(`/api/workspaces/${ws}/overlays/poll/rotate`)).status).toBe(404);
     expect((await outsider.request(`/api/workspaces/${ws}/overlays`)).status).toBe(404);
+  });
+
+  it("remembers unknown links briefly so stale OBS sources don't hit the database", async () => {
+    clearOverlayMissCache();
+    const h = await makeHarness();
+    let lookups = 0;
+    const original = h.db.transaction.bind(h.db);
+    h.db.transaction = (fn) => {
+      lookups++;
+      return original(fn);
+    };
+    const stale = `/o/${"D".repeat(43)}/poll`;
+    for (let i = 0; i < 5; i++) expect((await h.browser().request(stale)).status).toBe(404);
+    expect(lookups).toBe(1);
+    h.clock.now = new Date(h.clock.now.getTime() + 6 * 60_000);
+    await h.browser().request(stale);
+    expect(lookups).toBe(2);
+  });
+
+  it("still serves a freshly created link right after a miss on a different token", async () => {
+    clearOverlayMissCache();
+    const h = await makeHarness();
+    await h.browser().request(`/o/${"E".repeat(43)}/poll`);
+    const { path } = await link(h);
+    expect((await h.browser().request(path)).status).toBe(200);
   });
 
   it("rejects widgets that aren't built yet and cross-origin rotation", async () => {

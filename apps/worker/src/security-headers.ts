@@ -10,8 +10,12 @@ export const API_SECURITY_HEADERS: Record<string, string> = {
 
 export const securityHeaders: MiddlewareHandler = async (c, next) => {
   await next();
-  // Routes that need a different policy (overlay pages) set their own; everything else gets the strict API set.
+  const path = c.req.path;
+  // A WebSocket upgrade comes back from the Durable Object with immutable headers; touching them throws.
+  if (c.res.status === 101 || (path.startsWith("/o/") && path.endsWith("/ws"))) return;
+  const overlayPage = path.startsWith("/o/");
   for (const [name, value] of Object.entries(API_SECURITY_HEADERS)) {
-    if (!c.res.headers.has(name)) c.res.headers.set(name, value);
+    // Overlay pages set their own CSP; every other response gets exactly the strict set, whatever a handler sent.
+    if (!overlayPage || !c.res.headers.has(name)) c.res.headers.set(name, value);
   }
 };

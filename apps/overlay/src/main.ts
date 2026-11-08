@@ -1,5 +1,5 @@
 import type { OverlayMessage } from "@et/worker/api-types";
-import { backoffMs, parseMessage, parseOverlayPath, pollModel } from "./model";
+import { backoffMs, parseMessage, parseOverlayPath, pollModel, shouldReconnect } from "./model";
 import { t } from "./i18n";
 import "./overlay.css";
 
@@ -42,7 +42,10 @@ function connect(target: { token: string; widget: string }, attempt = 0): void {
     if (message) render(message);
   });
   socket.addEventListener("close", (event) => {
-    if (event.code === 4001) root.replaceChildren();
+    if (!shouldReconnect(event.code)) {
+      root.replaceChildren();
+      return;
+    }
     const next = opened ? 0 : attempt + 1;
     window.setTimeout(() => connect(target, next), backoffMs(next));
   });

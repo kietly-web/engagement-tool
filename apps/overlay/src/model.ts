@@ -47,6 +47,15 @@ export function parseMessage(data: unknown): OverlayMessage | null {
   }
 }
 
+export const ROTATED_CLOSE_CODE = 4001;
+const GIVE_UP_AFTER = 8;
+
+// After repeated failures (dead or rotated link left in OBS) retry only every 10 minutes.
 export function backoffMs(attempt: number): number {
+  if (attempt >= GIVE_UP_AFTER) return 10 * 60_000;
   return Math.min(30_000, 1_000 * 2 ** Math.min(attempt, 5));
+}
+
+export function shouldReconnect(closeCode: number): boolean {
+  return closeCode !== ROTATED_CLOSE_CODE;
 }

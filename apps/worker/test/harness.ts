@@ -157,7 +157,8 @@ export async function makeHarness(
     },
     overlaySocket: async (_env, workspaceId, widget) => {
       sockets.push({ workspaceId, widget });
-      return new Response("socket", { status: 200 });
+      // Response.redirect has immutable headers, like the 101 a Durable Object returns for an upgrade.
+      return Response.redirect("https://live-session/upgraded", 302);
     },
   });
   const env = {
