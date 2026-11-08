@@ -1,9 +1,4 @@
-export interface ChatMessage {
-  channelId: string;
-  displayName: string;
-  text: string;
-  publishedAt: string;
-}
+import type { ChatMessage } from "@et/core";
 
 export interface ChatPage {
   messages: ChatMessage[];
