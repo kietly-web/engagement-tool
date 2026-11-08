@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 08/11/2026 (ET-8). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
+Last updated: 08/11/2026 (ET-9). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
 
 ## Where we are
 
@@ -13,21 +13,22 @@ Last updated: 08/11/2026 (ET-8). Update in every slice PR. Read after `CLAUDE.md
 | ET-5 Google sign-in (OAuth + PKCE, encrypted refresh token, sessions, disconnect, export, account deletion, Vietnamese dashboard) | Done, [PR #5](https://github.com/kietly-web/engagement-tool/pull/5); tested against a fake Google; **not verified with real Google** |
 | ET-6 offline (session engine, `LiveSession` + `QuotaKeeper` Durable Objects, demo mode, YouTube polling reader, session and poll API, dashboard live panel) | Done, [PR #6](https://github.com/kietly-web/engagement-tool/pull/6); the `streamList` spike is still open |
 | ET-7 Overlays (per-widget hashed tokens, rotation, overlay page and WebSocket from `LiveSession`, poll widget, dashboard links) | Done, [PR #7](https://github.com/kietly-web/engagement-tool/pull/7) |
-| ET-8 Points and seasons (tally, 10 s flushes, ≤30-day seasons, leaderboard widget and dashboard, viewer erasure, daily retention cron) | In review on branch `ET-8-points-seasons` |
+| ET-8 Points and seasons (tally, idempotent 10 s flushes, ≤29-day seasons, leaderboard widget and dashboard, viewer erasure, retention every 6 h) | Done, [PR #8](https://github.com/kietly-web/engagement-tool/pull/8) |
+| ET-9 Moderators (email-bound single-use invites, remove/leave, audit log for sensitive actions, members panel, invite accept flow) | In review on branch `ET-9-moderators` |
 
 ## Next
 
 The owner asked Claude to keep building whatever doesn't need their setup. Order:
 
-1. **ET-9 Moderators** (FR-02, US-06, R7): invite by verified email through an `accept_invite` definer function, roles, audit log (membership, overlay rotation, disconnect, erasure).
-2. **ET-10 First mini-game**, **ET-11 Launch readiness** documents.
+1. **ET-10 First mini-game** (FR-07, R8): points only, no prizes.
+2. **ET-11 Launch readiness** documents (privacy notice and terms drafts in Vietnamese, rights flows, verification and quota-extension prep).
 3. **Still waiting on the owner's setup** (SETUP §0–1, P0 rows) for the first real run and the ET-6 `streamList` spike against a live stream. Unverified pieces are listed in SETUP §3.
 
 ## Open PRs
 
 | PR | What | Action |
 | --- | --- | --- |
-| ET-8 | Points and seasons | Merge when CI is green and review findings are fixed |
+| ET-9 | Moderators | Merge when CI is green and review findings are fixed |
 
 ## Waiting on the owner
 

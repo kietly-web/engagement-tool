@@ -288,8 +288,98 @@ export const maintenance = {
     return rows[0]!.n;
   },
 
+  async auditRetention(tx: Queryable): Promise<void> {
+    await tx.query("SELECT app.audit_retention()");
+  },
+
   async lastRun(tx: Queryable): Promise<string | null> {
     const { rows } = await tx.query<{ t: string | null }>("SELECT app.maintenance_last_run()::text AS t");
     return rows[0]?.t ?? null;
+  },
+};
+
+export type AuditAction =
+  | "invite_created"
+  | "invite_revoked"
+  | "invite_accepted"
+  | "member_removed"
+  | "member_left"
+  | "overlay_rotated"
+  | "youtube_disconnected"
+  | "viewer_erased"
+  | "season_started"
+  | "season_ended"
+  | "session_started"
+  | "session_stopped";
+
+export interface InviteView {
+  id: string;
+  email: string;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface AuditEntry {
+  action: AuditAction;
+  actorName: string | null;
+  detail: Record<string, unknown>;
+  createdAt: string;
+}
+
+export const invites = {
+  async create(tx: Queryable, email: string, tokenHashHex: string): Promise<string> {
+    const { rows } = await tx.query<{ id: string }>("SELECT app.create_invite($1, $2) AS id", [email, tokenHashHex]);
+    return rows[0]!.id;
+  },
+
+  async pending(tx: Queryable): Promise<InviteView[]> {
+    const { rows } = await tx.query<InviteView>(
+      `SELECT id, email, created_at::text AS "createdAt", expires_at::text AS "expiresAt" FROM app.invite
+        WHERE workspace_id = app.current_workspace_id() AND accepted_at IS NULL AND expires_at > now()
+        ORDER BY created_at DESC`,
+    );
+    return rows;
+  },
+
+  async revoke(tx: Queryable, inviteId: string): Promise<boolean> {
+    const { rows } = await tx.query("DELETE FROM app.invite WHERE id = $1 AND workspace_id = app.current_workspace_id() RETURNING id", [inviteId]);
+    return rows.length === 1;
+  },
+
+  async preview(tx: Queryable, tokenHashHex: string): Promise<string | null> {
+    const { rows } = await tx.query<{ workspace_name: string }>("SELECT workspace_name FROM app.invite_preview($1)", [tokenHashHex]);
+    return rows[0]?.workspace_name ?? null;
+  },
+
+  async accept(tx: Queryable, tokenHashHex: string): Promise<{ workspaceId: string | null; outcome: "accepted" | "already_member" | "email_mismatch" | "invalid" }> {
+    const { rows } = await tx.query<{ workspaceId: string | null; outcome: "accepted" | "already_member" | "email_mismatch" | "invalid" }>(
+      'SELECT workspace_id AS "workspaceId", outcome FROM app.accept_invite($1)',
+      [tokenHashHex],
+    );
+    return rows[0] ?? { workspaceId: null, outcome: "invalid" };
+  },
+};
+
+export const membership = {
+  async remove(tx: Queryable, memberId: string): Promise<boolean> {
+    const { rows } = await tx.query<{ ok: boolean }>("SELECT app.remove_member($1) AS ok", [memberId]);
+    return rows[0]?.ok === true;
+  },
+};
+
+export const audit = {
+  async log(tx: Queryable, action: AuditAction, detail: Record<string, unknown> = {}): Promise<void> {
+    await tx.query("SELECT app.audit($1, $2::jsonb)", [action, JSON.stringify(detail)]);
+  },
+
+  async recent(tx: Queryable, limit = 50): Promise<AuditEntry[]> {
+    const { rows } = await tx.query<AuditEntry>(
+      `SELECT e.action, e.actor_name AS "actorName", e.detail, e.created_at::text AS "createdAt"
+         FROM app.audit_event e
+        WHERE e.workspace_id = app.current_workspace_id()
+        ORDER BY e.created_at DESC, e.id DESC LIMIT $1`,
+      [limit],
+    );
+    return rows;
   },
 };

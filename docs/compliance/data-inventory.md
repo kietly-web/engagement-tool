@@ -18,7 +18,8 @@ Last updated: 08/11/2026 (ET-8: viewer points and seasons).
 | Chat message text | Viewer | YouTube live chat | Parse commands (FR-04, FR-06, FR-07) | **Open (Q-L1)** | Not stored; in memory for one parse | Discarded immediately | Nobody | Cloudflare (in transit), Google | Possibly children's data |
 | Session token (stored as HMAC) | Creator, moderator | Our server | Keep signed in | Contract | Postgres, Singapore | Unusable after 7 days idle or 30 days absolute; rows purged on every sign-in (daily cron from ET-8), on logout, on a new sign-in in the same browser, and on account deletion | Worker only | Neon | No |
 | IP address, user agent | Creator, moderator, overlay host | Requests | Security, rate limiting | Legitimate interest (to confirm) | Cloudflare edge and Workers Logs | Workers Logs retention (days); not copied elsewhere | Operator | Cloudflare | No |
-| Audit log entries | Creator, moderator | Our server | Accountability for membership, tokens, sessions, deletion | Legal obligation / legitimate interest | Postgres, Singapore | 12 months, then deleted | Workspace owner, operator | Neon | No |
+| Invited moderator's email | Prospective moderator | Typed by the workspace owner | Let only that Google account accept the invite (FR-02) | Legitimate interest (to confirm) | Postgres `app.invite`, Singapore | Unaccepted: deleted a day after expiry (invites last 7 days); accepted: 30 days after acceptance | Workspace owner, operator | Neon | No |
+| Audit log entries (action, actor id and display-name snapshot, time, small detail such as invite id, mode or row counts; never viewer ids, emails, tokens or chat) | Creator, moderator | Our server | Accountability for membership, overlay links, YouTube disconnect, viewer erasure, seasons | Legitimate interest | Postgres `app.audit_event`, Singapore | 12 months, then deleted by the retention job | Workspace owner, operator | Neon | No |
 
 ## Never stored
 

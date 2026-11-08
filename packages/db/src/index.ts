@@ -3,7 +3,10 @@ export type { Database, Queryable } from "./database";
 export { applyMigrations, type Migration } from "./migrate";
 export { createPgDatabase } from "./pg";
 export {
+  audit,
+  invites,
   maintenance,
+  membership,
   members,
   overlays,
   points,
@@ -11,7 +14,10 @@ export {
   sessions,
   workspaces,
   youtube,
+  type AuditAction,
+  type AuditEntry,
   type GoogleProfile,
+  type InviteView,
   type MemberProfile,
   type OverlayWidget,
   type Season,
