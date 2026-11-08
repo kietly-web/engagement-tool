@@ -15,12 +15,23 @@ export interface WorkspaceSummary {
 
 export interface WorkspaceMemberView {
   memberId: string;
-  email: string;
+  email: string | null;
   displayName: string;
   role: MemberRole;
 }
 
+export interface MemberProfile {
+  id: string;
+  email: string;
+  displayName: string;
+}
+
 export const members = {
+  async me(tx: Queryable): Promise<MemberProfile | null> {
+    const { rows } = await tx.query<MemberProfile>('SELECT id, email, display_name AS "displayName" FROM app.me()');
+    return rows[0] ?? null;
+  },
+
   async upsertFromGoogle(tx: Queryable, profile: GoogleProfile): Promise<string> {
     const { rows } = await tx.query<{ id: string }>("SELECT app.upsert_member($1, $2, $3) AS id", [
       profile.googleSub,
@@ -64,11 +75,9 @@ export const workspaces = {
 
   async listMembers(tx: Queryable): Promise<WorkspaceMemberView[]> {
     const { rows } = await tx.query<WorkspaceMemberView>(
-      `SELECT m.id AS "memberId", m.email, m.display_name AS "displayName", wm.role
-         FROM app.workspace_member wm
-         JOIN app.member m ON m.id = wm.member_id
-        WHERE wm.workspace_id = app.current_workspace_id()
-        ORDER BY wm.role, m.display_name`,
+      `SELECT member_id AS "memberId", email, display_name AS "displayName", role
+         FROM app.workspace_members()
+        ORDER BY role, display_name`,
     );
     return rows;
   },

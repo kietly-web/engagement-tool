@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { ContextError, withMember, withSystem, withWorkspace, workspaces } from "../src/index";
+import { ContextError, members, withMember, withSystem, withWorkspace, workspaces } from "../src/index";
 import { buildWorld, type World } from "./fixtures";
 
 let w: World;
@@ -22,6 +22,17 @@ describe("schema guarantees", () => {
     );
     expect(rows.length).toBeGreaterThanOrEqual(3);
     for (const row of rows) expect(row, row.relname).toMatchObject({ relrowsecurity: true, relforcerowsecurity: true });
+  });
+
+  it("the migrating owner does not inherit the definer's all-rows policies", async () => {
+    const { rows } = await w.db.transaction((tx) =>
+      tx.query<{ inherits: boolean; can_set: boolean }>(
+        `SELECT bool_or(m.inherit_option) AS inherits, bool_or(m.set_option) AS can_set
+           FROM pg_auth_members m
+          WHERE m.roleid = 'app_definer'::regrole AND m.member = 'et_test_migrator'::regrole`,
+      ),
+    );
+    expect(rows).toEqual([{ inherits: false, can_set: true }]);
   });
 
   it("runtime roles cannot bypass RLS and own nothing", async () => {
@@ -71,7 +82,7 @@ describe("cross-workspace isolation", () => {
     const rows = await asIn(w.alice, w.wsA, async (tx) => ({
       ws: (await tx.query("SELECT * FROM app.workspace WHERE id = $1", [w.wsB])).rows,
       wm: (await tx.query("SELECT * FROM app.workspace_member WHERE workspace_id = $1", [w.wsB])).rows,
-      carol: (await tx.query("SELECT * FROM app.member WHERE id = $1", [w.carol])).rows,
+      carol: (await tx.query("SELECT id, display_name FROM app.member WHERE id = $1", [w.carol])).rows,
     }));
     expect(rows).toEqual({ ws: [], wm: [], carol: [] });
   });
@@ -86,21 +97,41 @@ describe("cross-workspace isolation", () => {
     expect(b?.name).toBe("Kênh B");
   });
 
-  it("cannot add members to another workspace", async () => {
-    await expect(
-      asIn(w.alice, w.wsA, (tx) =>
-        tx.query("INSERT INTO app.workspace_member (workspace_id, member_id, role) VALUES ($1, $2, 'moderator')", [w.wsB, w.dave]),
-      ),
-    ).rejects.toThrow(/row-level security/);
+  it("cannot add members to any workspace directly, own or another", async () => {
+    for (const ws of [w.wsA, w.wsB]) {
+      await expect(
+        asIn(w.alice, w.wsA, (tx) =>
+          tx.query("INSERT INTO app.workspace_member (workspace_id, member_id, role) VALUES ($1, $2, 'moderator')", [ws, w.dave]),
+        ),
+      ).rejects.toThrow(/permission denied/);
+    }
   });
 });
 
 describe("roles inside a workspace", () => {
-  it("owner sees members with emails; moderator sees the same list", async () => {
+  it("owner sees every member's email; a moderator sees only their own", async () => {
     const forOwner = await asIn(w.alice, w.wsA, (tx) => workspaces.listMembers(tx));
     const forMod = await asIn(w.bob, w.wsA, (tx) => workspaces.listMembers(tx));
-    expect(forOwner.map((m) => [m.displayName, m.role])).toEqual([["bob", "moderator"], ["alice", "owner"]]);
-    expect(forMod).toEqual(forOwner);
+    expect(forOwner.map((m) => [m.displayName, m.role, m.email])).toEqual([
+      ["bob", "moderator", "bob@example.test"],
+      ["alice", "owner", "alice@example.test"],
+    ]);
+    expect(forMod.map((m) => [m.displayName, m.email])).toEqual([
+      ["bob", "bob@example.test"],
+      ["alice", null],
+    ]);
+  });
+
+  it("the runtime role can't read emails or Google subjects from the table", async () => {
+    for (const column of ["email", "google_sub"]) {
+      await expect(asIn(w.alice, w.wsA, (tx) => tx.query(`SELECT ${column} FROM app.member`))).rejects.toThrow(/permission denied/);
+    }
+    const me = await withMember(w.db, { memberId: w.dave }, (tx) => members.me(tx));
+    expect(me).toEqual({ id: w.dave, email: "dave@example.test", displayName: "dave" });
+  });
+
+  it("an outsider learns nothing from the member list functions", async () => {
+    expect(await asIn(w.dave, w.wsA, (tx) => workspaces.listMembers(tx))).toEqual([]);
   });
 
   it("only the owner renames the workspace", async () => {
@@ -109,24 +140,25 @@ describe("roles inside a workspace", () => {
     await asIn(w.alice, w.wsA, (tx) => workspaces.rename(tx, "Kênh A"));
   });
 
-  it("a moderator cannot invite, promote or remove others", async () => {
-    await expect(
-      asIn(w.bob, w.wsA, (tx) =>
-        tx.query("INSERT INTO app.workspace_member (workspace_id, member_id, role) VALUES ($1, $2, 'moderator')", [w.wsA, w.dave]),
-      ),
-    ).rejects.toThrow(/row-level security/);
+  it("a moderator cannot remove the owner", async () => {
     const removedOwner = await asIn(w.bob, w.wsA, async (tx) =>
       (await tx.query("DELETE FROM app.workspace_member WHERE member_id = $1 RETURNING member_id", [w.alice])).rows.length,
     );
     expect(removedOwner).toBe(0);
   });
 
-  it("an owner cannot grant ownership through a plain insert", async () => {
-    await expect(
-      asIn(w.alice, w.wsA, (tx) =>
-        tx.query("INSERT INTO app.workspace_member (workspace_id, member_id, role) VALUES ($1, $2, 'owner')", [w.wsA, w.dave]),
-      ),
-    ).rejects.toThrow(/row-level security/);
+  it("a moderator can leave, and an owner can remove a moderator, only in the current workspace", async () => {
+    const elsewhere = await asIn(w.carol, w.wsB, async (tx) =>
+      (await tx.query("DELETE FROM app.workspace_member WHERE member_id = $1 RETURNING member_id", [w.bob])).rows.length,
+    );
+    expect(elsewhere).toBe(0);
+    const left = await asIn(w.bob, w.wsA, async (tx) =>
+      (await tx.query("DELETE FROM app.workspace_member WHERE member_id = $1 RETURNING member_id", [w.bob])).rows.length,
+    );
+    expect(left).toBe(1);
+    await w.db.transaction((tx) =>
+      tx.query("INSERT INTO app.workspace_member (workspace_id, member_id, role) VALUES ($1, $2, 'moderator')", [w.wsA, w.bob]),
+    );
   });
 
   it("the runtime role cannot insert workspaces or members directly", async () => {

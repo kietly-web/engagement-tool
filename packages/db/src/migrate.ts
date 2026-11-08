@@ -1,5 +1,8 @@
 import type { Database } from "./database";
 
+// Arbitrary constant; serialises concurrent migration runs.
+const MIGRATION_LOCK = 4_242_001;
+
 export interface Migration {
   name: string;
   sql: string;
@@ -34,7 +37,7 @@ export async function applyMigrations(db: Database, migrations: Migration[]): Pr
     }
     try {
       await db.execAsOwner(
-        `BEGIN;\n${migration.sql}\n;INSERT INTO public.schema_migrations (name, checksum) VALUES (${quote(migration.name)}, ${quote(checksum)});\nCOMMIT;`,
+        `BEGIN;\nSELECT pg_advisory_xact_lock(${MIGRATION_LOCK});\n${migration.sql}\n;INSERT INTO public.schema_migrations (name, checksum) VALUES (${quote(migration.name)}, ${quote(checksum)});\nCOMMIT;`,
       );
     } catch (error) {
       await db.execAsOwner("ROLLBACK").catch(() => {});

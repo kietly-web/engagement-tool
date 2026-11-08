@@ -2,4 +2,4 @@ export { ContextError, withMember, withSystem, withWorkspace, type MemberContext
 export type { Database, Queryable } from "./database";
 export { applyMigrations, type Migration } from "./migrate";
 export { createPgDatabase } from "./pg";
-export { members, workspaces, type GoogleProfile, type WorkspaceMemberView, type WorkspaceSummary } from "./repositories";
+export { members, workspaces, type GoogleProfile, type MemberProfile, type WorkspaceMemberView, type WorkspaceSummary } from "./repositories";

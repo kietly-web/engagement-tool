@@ -6,8 +6,8 @@ Postgres (Neon, Singapore). Everything lives in schema `app`; migrations are pla
 
 | Role | Login | Purpose |
 | --- | --- | --- |
-| Owner (`neondb_owner` in Neon, `postgres` in tests) | Yes | Runs migrations and owns the tables. Never used by the Worker |
-| `app_runtime` | No | Every app transaction runs as this role (`SET LOCAL ROLE app_runtime`). No `BYPASSRLS`, owns nothing, column-level grants only |
+| Owner (`neondb_owner` in Neon; a CREATEROLE non-superuser in tests, to match) | Yes | Runs migrations and owns the tables. Never used by the Worker. Holds `app_definer` with `INHERIT FALSE`, so it doesn't fall under `definer_all` |
+| `app_runtime` | No | Every app transaction runs as this role (`SET LOCAL ROLE app_runtime`). No `BYPASSRLS`, owns nothing, column-level grants only; can't read `email` or `google_sub` |
 | `app_worker` | Yes | The Worker's login, created by the owner with SQL (SETUP §1) as a member of `app_runtime` |
 | `app_definer` | No | Owns the `SECURITY DEFINER` functions; sees all rows only through explicit `definer_all` policies |
 
@@ -37,11 +37,11 @@ The app never passes a role. Policies compute it with `app.role_in(workspace)` f
 
 | Table | Select | Insert | Update | Delete |
 | --- | --- | --- | --- | --- |
-| `member` | Yourself; people in the current workspace if you belong to it | Only via `app.upsert_member` | Your own `display_name` | None yet (ET-5 account deletion) |
+| `member` (`id`, `display_name` only) | Yourself; people in the current workspace if you belong to it | Only via `app.upsert_member` | Your own `display_name` | None yet (ET-5 account deletion) |
 | `workspace` | Workspaces you belong to | Only via `app.create_workspace` | `name`, owner of the current workspace | None yet |
-| `workspace_member` | Your own memberships; all of the current workspace if you belong to it | Owner of the current workspace adds a moderator | None | A moderator row in the current workspace, by its owner or by the moderator leaving |
+| `workspace_member` | Your own memberships; all of the current workspace if you belong to it | None: moderators join by accepting an invite through a definer function (ET-9) | None | A moderator row in the current workspace, by its owner or by the moderator leaving |
 
-Owners can't create another owner through SQL; ownership transfer would be its own function.
+Nobody can add a membership by plain SQL, so an owner can't attach someone without their consent, and nobody can create a second owner. Policies call `role_in` as `(SELECT app.role_in(app.current_workspace_id()))` so it runs once per query, not once per row.
 
 ## Functions
 
@@ -51,12 +51,16 @@ Owners can't create another owner through SQL; ownership transfer would be its o
 | `app.role_in(workspace)` | Definer | Avoids policy recursion on `workspace_member` |
 | `app.upsert_member(sub, email, name)` | Definer | Called by the Worker only after it verifies a Google ID token (ET-5) |
 | `app.create_workspace(name)` | Definer | Needs a member context; makes the caller its owner |
+| `app.me()` | Definer | Your own id, email and display name |
+| `app.workspace_members()` | Definer | Members of the current workspace; `email` only for the owner, or for your own row |
 
-All use `SET search_path = pg_catalog` and fully qualified names. `EXECUTE` is revoked from `PUBLIC`.
+All use `SET search_path = pg_catalog` and fully qualified names. `EXECUTE` is revoked from `PUBLIC`. `upsert_member` overwrites email and name for a Google subject, so only call it after verifying the ID token.
+
+The migration refuses to run if `app_runtime` or `app_definer` already exists with `BYPASSRLS`, `SUPERUSER` or `LOGIN`. The migrator takes an advisory lock and applies each file in one transaction, so a migration can't use `CREATE INDEX CONCURRENTLY` or its own `BEGIN`/`COMMIT`.
 
 ## Testing
 
-`packages/db/test` builds a synthetic world on PGlite (alice owns A with bob as moderator, carol owns B, dave belongs nowhere). It checks that every `app` table has RLS enabled and forced, that runtime roles can't bypass it, and that reads, writes and inserts can't cross workspaces or roles. The suite was mutation-checked: weakening the select policies fails it. Add a table with the `new-workspace-table` skill.
+`packages/db/test` applies the migrations as a non-superuser CREATEROLE role, the way Neon's owner works; running as superuser hid a privilege bug once. It then builds a synthetic world on PGlite (alice owns A with bob as moderator, carol owns B, dave belongs nowhere). It checks that every `app` table has RLS enabled and forced, that runtime roles can't bypass it, and that reads, writes and inserts can't cross workspaces or roles. The suite was mutation-checked: weakening the select policies fails it. Add a table with the `new-workspace-table` skill.
 
 ## Retention
 
