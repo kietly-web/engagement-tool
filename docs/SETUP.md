@@ -2,7 +2,7 @@
 
 Everything **not done yet**. Pick an item, do it, tick it with the date in the same PR. Add a row whenever you leave something unfinished. Never write secret values here.
 
-Last updated: 08/11/2026.
+Last updated: 10/11/2026.
 
 ## 0. Security fixes on existing configuration
 
@@ -57,7 +57,8 @@ P0: production doesn't work without it. P1: a feature or workflow is degraded. P
 | [ ] | Token encryption key rotation not built | Ciphertexts carry a version byte; add `TOKEN_ENCRYPTION_KEY_V2` handling and a re-encrypt job when a rotation is needed | `apps/worker/src/crypto.ts` |
 | [ ] | Chat is read by polling `liveChatMessages.list` (about 3,600 units per stream-hour), so a workspace gets about 50 live minutes a day | ET-6 spike: implement and verify `streamList` (ADR-004) against a real stream; then raise the per-workspace budget | `packages/youtube`, `apps/worker/src/live` |
 | [ ] | `LiveSession`/`QuotaKeeper` adapters only boot-checked with `wrangler dev`; the engine and routes are tested in Node with in-memory storage | First real run after owner setup: start a demo session, then a YouTube session | `apps/worker/src/live/durable.ts` |
-| [ ] | Dashboard polls `/session` every 2 s while live (one Worker request plus a DO call each) | Needs a session-authenticated dashboard WebSocket (overlay sockets are token-only and read-only); revisit if Worker requests get tight | `apps/web` |
+| [ ] | Dashboard polls `/session` every 2 s while live (one Worker request plus a DO call each): about 1,800 requests an hour per open dashboard, so the 100,000 requests/day limit covers about 55 dashboard-hours for everyone | ET-21: pause when the tab is hidden and slow the interval, or a session-authenticated dashboard WebSocket (overlay sockets are token-only and read-only) | `apps/web` |
+| [ ] | Points flush every 10 s keeps Neon's compute awake for the whole stream; 100 CU-hours a month is about 400 hours, roughly 13 stream-hours a day on average, tighter than the Durable Object limit | ET-21: flush about every 10 minutes and at stop, live leaderboard from session memory | `apps/worker/src/live/engine.ts` |
 | [ ] | Overlay WebSocket path only boot-checked (`WebSocketPair`, hibernation) — Node tests stub the DO | First real run: add a poll overlay to OBS during a demo session | `apps/worker/src/live/durable.ts` |
 | [ ] | Demo starts capped at 4 per workspace per day (`DEMO_STARTS_DAILY`) to protect shared Durable Object time | Raise once real usage is known | `apps/worker/wrangler.jsonc` |
 | [ ] | No edge rate limit on `/o/*` (scanners, stale OBS sources) | Cloudflare dashboard → Security → WAF → Rate limiting rules (free plan allows one): path starts with `/o/`, 30 requests per 10 s per IP, block 10 s. The Worker already caches misses for 5 minutes per isolate | Owner, after the domain is set up |
@@ -76,7 +77,7 @@ P0: production doesn't work without it. P1: a feature or workflow is degraded. P
 
 ## 4. Remaining backlog
 
-Slices ET-2 to ET-11 in [design/08-delivery-plan.md](design/08-delivery-plan.md).
+Next slices in order: ET-13, ET-14, ET-17, ET-21, ET-15, ET-22; then ET-19, ET-10, ET-16, ET-18, ET-11. Details in [design/08-delivery-plan.md](design/08-delivery-plan.md).
 
 ## 5. Open questions
 
@@ -91,7 +92,7 @@ Slices ET-2 to ET-11 in [design/08-delivery-plan.md](design/08-delivery-plan.md)
 | [x] 08/11/2026 | Q-T2 Hyperdrive vs Neon serverless driver | ET-4 | Hyperdrive + `pg`, caching disabled (ADR-002) |
 | [ ] | Q-T3 Concurrent sessions on DO free plan | ET-6 | Estimate |
 | [ ] | Q-P1 Show `!points` on an overlay ticker? | Owner | Product |
-| [ ] | Q-P2 Product name and domain | Owner | Domain needs an ADR (cost) |
+| [ ] | Q-P2 Product name and domain | Owner | Strictly $0 confirmed 10/11/2026, so no domain. Google app verification is likely to need one, which may block public sign-up (ET-11); the invited beta is unaffected. A domain needs an ADR (cost) |
 | [x] 10/11/2026 | Q-P3 What "donation items" means | Owner | YouTube Super Chats first, VN donation services later, never handling money (ADR-008) |
 | [ ] | Q-T4 Which VN donation services have usable webhooks/APIs and which creators use | Claude + owner | Blocks FR-16 (ET-19) |
 
