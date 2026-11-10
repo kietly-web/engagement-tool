@@ -48,6 +48,8 @@ Every 6 hours (`0 */6 * * *` in `wrangler.jsonc`), `app.daily_maintenance()` del
 
 ET-8 load (corrected in review): a points flush is one Hyperdrive transaction of about 8 queries (role, settings, batch marker, upsert, top 10, commit), at most every 10 s per live session. That's about 2,900 queries per stream-hour, so the 100,000-query daily limit allows about 34 stream-hours, more than the Durable Objects' 28.
 
+Correction (ET-20): a flush every 10 s also keeps Neon's compute awake for the whole stream. 100 CU-hours a month is about 400 hours at 0.25 CU, roughly 13 stream-hours a day on average (overlapping streams share the same awake time). Until ET-21 lengthens the flush interval, Neon compute is the tightest limit, not Durable Object duration.
+
 ## Observability
 
 Workers Logs (free tier) with request paths for `/o/*` redacted, no request bodies, no chat text. Errors carry route, workspace ID and error code only. Uptime and header checks through the smoke workflow; failed runs email the owner via GitHub notifications.
