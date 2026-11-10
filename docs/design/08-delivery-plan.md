@@ -2,7 +2,42 @@
 
 One slice = one branch and PR (`ET-n-short-slug`). **Review** = run `security-compliance-reviewer` before merge.
 
-## M0 Foundations
+## Phases (reprioritised 10/11/2026 by the owner)
+
+- **Phase 1, demo:** prove the core loop on a real stream. Viewers type commands in YouTube chat, and creator-customised items appear in the OBS browser source. Done when a beta creator sees their own chat commands drive their own styled overlay live.
+- **Phase 2, interactive features:** mini-games, more widgets and richer animations, in the spirit of Twitch and TikTok LIVE interactivity but on YouTube. Donation/Super Chat items are **not scheduled** until the owner decides Q-P3 (scope change; see discovery).
+- **Phase 3, beta launch readiness** before anyone outside the test-user list signs in.
+
+Already built and merged (kept, not reworked): ET-1 to ET-9. Most of phase 1 exists; the phase 1 slices below fill the gaps.
+
+## Phase 1 Demo
+
+| Slice | Delivers | IDs | Review | Needs owner setup |
+| --- | --- | --- | --- | --- |
+| ET-13 | Overlay customisation: per-widget theme (colours, font size, corner/position, background opacity, show/hide parts) set from the dashboard with live preview; stored per workspace; applied by the overlay page. Presets only, no custom CSS, HTML or uploaded files (non-negotiable 5, ADR-005) | FR-13, R5 | Yes (overlays) | No |
+| ET-14 | Custom chat commands to overlay items: the creator defines up to 20 commands (e.g. `!hi`, `!tim`) that show an item on a new "alerts" widget: creator-written text plus a built-in sticker/emoji and animation from a fixed set; per-viewer and global cooldowns; viewer name only from session memory | FR-14, R5 | Yes (command parsing, overlays) | No |
+| ET-15 | First real run: deploy, Google sign-in end to end, `streamList` spike against a live test stream (ET-6 remainder), OBS check of every widget, fix what breaks | FR-01, FR-03, Q-T1, Q-T3 | If code changes | **Yes** (SETUP §0–1) |
+
+Phase 1 exit: on the owner's own test stream, chat commands trigger the poll, leaderboard and custom alert items in their styled OBS overlay.
+
+## Phase 2 Interactive features
+
+| Slice | Delivers | IDs | Review |
+| --- | --- | --- | --- |
+| ET-10 | First mini-game: number guessing (`!doan 42`), points only. Work in progress parked on branch `ET-10-guess-game` (not reviewed) | FR-07, R8 | Yes |
+| ET-16 | More mini-games and richer overlay animations (scheduled one by one) | FR-07 | Yes |
+| ET-17 | **Proposed, needs Q-P3:** show YouTube Super Chats, Super Stickers and new memberships as overlay animations (read-only, from the same chat stream) | FR-15 (proposed) | Yes |
+| ET-18 | English UI | NFR-I18N | No |
+
+## Phase 3 Beta launch readiness
+
+| Slice | Delivers | IDs | Review |
+| --- | --- | --- | --- |
+| ET-11 | Privacy notice and terms (VN, drafts for counsel), contact for viewer requests, rights flows verified, alerts, smoke test on production, Google OAuth verification and YouTube quota-extension submissions prepared | NFR-PRIV, Q-L1–Q-L4, Q-D1, R4 | Yes |
+
+## Built so far (history)
+
+### M0 Foundations
 
 | Slice | Delivers | IDs | Review |
 | --- | --- | --- | --- |
@@ -12,7 +47,7 @@ One slice = one branch and PR (`ET-n-short-slug`). **Review** = run `security-co
 | ET-4 | Database foundation: migrations, `workspace` + `member` tables, `app_runtime` role, forced RLS, `withWorkspace`, PGlite isolation harness, `new-workspace-table` skill refined; writes `02-data-model.md`; decides Q-T2 | NFR-SEC, R7 | Yes |
 | ET-5 | Google sign-in and workspace: OAuth with PKCE, encrypted refresh token, session cookie, disconnect = revoke + scheduled deletion, account export/delete | FR-01, FR-09, US-01, US-08 | Yes |
 
-## M1 First live poll on a real stream
+### M1 First live poll on a real stream
 
 | Slice | Delivers | IDs | Review |
 | --- | --- | --- | --- |
@@ -21,18 +56,18 @@ One slice = one branch and PR (`ET-n-short-slug`). **Review** = run `security-co
 
 M1 exit: a beta creator runs a poll on a real stream with an OBS overlay.
 
-## M2 Loyalty and moderators
+### M2 Loyalty and moderators
 
 | Slice | Delivers | IDs | Review |
 | --- | --- | --- | --- |
 | ET-8 | Points and seasons: per-viewer counters, ≤30-day seasons, leaderboard widget, retention cron, erase viewer by channel ID | FR-06, FR-12, US-05, US-09, R2, R3 | Yes (data retention) |
 | ET-9 | Moderators: invite by verified email, roles, RLS policies per role, audit log | FR-02, US-06, R7 | Yes (access control) |
-| ET-10 | First mini-game (points only, no prizes) | FR-07, R8 | Yes (command parsing) |
+| ET-10 | First mini-game (moved to phase 2) | FR-07, R8 | Yes (command parsing) |
 
-## M3 Beta launch readiness
+### M3 Beta launch readiness (moved to phase 3 above)
 
 | Slice | Delivers | IDs | Review |
 | --- | --- | --- | --- |
 | ET-11 | Privacy notice and terms (VN, drafts for counsel), contact for viewer requests, rights flows verified, alerts, smoke test on production, Google OAuth verification and YouTube quota-extension submissions prepared | NFR-PRIV, Q-L1–Q-L4, Q-D1, R4 | Yes |
 
-English UI, more games and other platforms come after M3 and get IDs when scheduled.
+Other platforms (Twitch etc.) come after phase 3 and get IDs when scheduled.

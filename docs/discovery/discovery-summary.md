@@ -43,6 +43,9 @@ A free engagement tool for Vietnamese YouTubers and VTubers: viewers type comman
 | FR-10 | Dashboard and overlays in Vietnamese; all copy in message catalogs so English can follow | Must |
 | FR-11 | The dashboard shows the day's YouTube quota use and why a session stopped | Should |
 | FR-12 | A creator can erase one viewer's counters by channel ID (for viewer rights requests) | Must |
+| FR-13 | A creator customises each overlay's look from the dashboard (colours, size, position, opacity, which parts show) from fixed presets; no custom code or uploads | Must (phase 1) |
+| FR-14 | A creator defines chat commands that show a creator-written text item with a built-in sticker and animation on an alerts overlay, with cooldowns | Must (phase 1) |
+| FR-15 | **Proposed, pending Q-P3:** show YouTube Super Chats, Super Stickers and memberships as overlay animations, read-only | Proposed |
 
 ## Non-functional requirements
 
@@ -119,3 +122,4 @@ L = likelihood, I = impact (H/M/L).
 - Q-T3 How many concurrent sessions fit the Durable Objects free plan? Estimated in ET-6.
 - Q-P1 Viewers can't get replies in chat (read-only). Should `!points` flash the viewer's score on an overlay ticker? (owner)
 - Q-P2 Product name and domain. (owner)
+- Q-P3 "Donation items": does this mean (a) displaying YouTube's own Super Chats, Super Stickers and memberships read-only, or (b) viewers paying the creator through this tool (e.g. MoMo or bank QR)? Either changes the fixed decision "No payments and nothing of monetary value"; (b) adds payment handling, fees and VN payment-intermediary rules. (owner)

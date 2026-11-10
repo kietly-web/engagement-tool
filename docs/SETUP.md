@@ -92,6 +92,7 @@ Slices ET-2 to ET-11 in [design/08-delivery-plan.md](design/08-delivery-plan.md)
 | [ ] | Q-T3 Concurrent sessions on DO free plan | ET-6 | Estimate |
 | [ ] | Q-P1 Show `!points` on an overlay ticker? | Owner | Product |
 | [ ] | Q-P2 Product name and domain | Owner | Domain needs an ADR (cost) |
+| [ ] | Q-P3 What "donation items" means: show YouTube Super Chats read-only, or take payments through the tool | Owner | Scope change either way; blocks ET-17 |
 
 ## 6. Future enhancements
 
