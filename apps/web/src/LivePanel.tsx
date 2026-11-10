@@ -6,7 +6,7 @@ import { translator, type MessageKey } from "./i18n";
 const t = translator("vi");
 const REFRESH_MS = 2_000;
 
-function errorText(prefix: "live.error" | "poll.error", e: unknown): string {
+function errorText(prefix: "live.error" | "poll.error" | "game.error", e: unknown): string {
   const code = e instanceof ApiError ? e.code : null;
   const key = `${prefix}.${code}` as MessageKey;
   return code && key in KNOWN ? t(key) : t("state.error");
@@ -24,6 +24,9 @@ const KNOWN: Record<string, true> = Object.fromEntries(
     "poll.error.invalid_poll",
     "poll.error.poll_open",
     "poll.error.not_live",
+    "game.error.invalid_game",
+    "game.error.game_open",
+    "game.error.not_live",
   ].map((k) => [k, true]),
 );
 
@@ -43,7 +46,7 @@ export function LivePanel({ workspaceId, youtubeConnected }: { workspaceId: stri
     return () => window.clearInterval(timer);
   }, [data?.session.status, refresh]);
 
-  async function run(action: () => Promise<SessionResponse>, prefix: "live.error" | "poll.error") {
+  async function run(action: () => Promise<SessionResponse>, prefix: "live.error" | "poll.error" | "game.error") {
     setBusy(true);
     setError(null);
     try {
@@ -113,6 +116,14 @@ export function LivePanel({ workspaceId, youtubeConnected }: { workspaceId: stri
           busy={busy}
           onOpen={(poll) => run(() => api.openPoll(workspaceId, poll), "poll.error")}
           onClose={() => run(() => api.closePoll(workspaceId), "poll.error")}
+        />
+      )}
+      {live && (
+        <GameSection
+          data={data!}
+          busy={busy}
+          onStart={(min, max) => run(() => api.startGame(workspaceId, min, max), "game.error")}
+          onClose={() => run(() => api.closeGame(workspaceId), "game.error")}
         />
       )}
       {!live && session?.poll && <PollResults poll={session.poll} />}
@@ -208,5 +219,63 @@ function PollResults({ poll }: { poll: NonNullable<SessionResponse["session"]["p
         {t("poll.total")}: {poll.total}
       </p>
     </div>
+  );
+}
+
+function GameSection({
+  data,
+  busy,
+  onStart,
+  onClose,
+}: {
+  data: SessionResponse;
+  busy: boolean;
+  onStart: (min: number, max: number) => void;
+  onClose: () => void;
+}) {
+  const [min, setMin] = useState(1);
+  const [max, setMax] = useState(100);
+  const game = data.session.game;
+
+  return (
+    <section>
+      <h3>{t("game.title")}</h3>
+      {game && (
+        <p>
+          {t("game.guesses")}: {game.guesses}
+          {game.status === "open" && game.lastGuess && ` · ${t("game.last")}: ${game.lastGuess.value} (${t(game.lastGuess.hint === "higher" ? "game.higher" : "game.lower")})`}
+          {game.status === "won" && ` · ${t("game.won")}: ${game.winnerName ?? t("game.someone")} · ${t("game.answer")}: ${game.secret}`}
+          {game.status === "closed" && ` · ${t("game.answer")}: ${game.secret}`}
+        </p>
+      )}
+      {game?.status === "open" ? (
+        <p className="actions">
+          <button type="button" className="button" disabled={busy} onClick={onClose}>
+            {t("game.close")}
+          </button>
+        </p>
+      ) : (
+        <form
+          className="poll-form"
+          onSubmit={(e) => {
+            e.preventDefault();
+            onStart(min, max);
+          }}
+        >
+          <label>
+            {t("game.min")}
+            <input type="number" min={1} value={min} onChange={(e) => setMin(Number(e.target.value))} />
+          </label>
+          <label>
+            {t("game.max")}
+            <input type="number" min={10} max={1000000} value={max} onChange={(e) => setMax(Number(e.target.value))} />
+          </label>
+          <p className="muted">{t("game.help")}</p>
+          <button type="submit" className="button primary" disabled={busy}>
+            {t("game.start")}
+          </button>
+        </form>
+      )}
+    </section>
   );
 }

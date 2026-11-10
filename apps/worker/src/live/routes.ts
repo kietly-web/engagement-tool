@@ -11,7 +11,16 @@ import { LiveSourceProvider } from "./sources";
 
 type Ctx = Context<{ Bindings: AppEnv; Variables: Vars }>;
 
-const ERROR_STATUS = { already_live: 409, not_live: 409, poll_open: 409, no_poll: 404, invalid_poll: 400 } as const;
+const ERROR_STATUS = {
+  already_live: 409,
+  not_live: 409,
+  poll_open: 409,
+  no_poll: 404,
+  invalid_poll: 400,
+  game_open: 409,
+  no_game: 404,
+  invalid_game: 400,
+} as const;
 
 function parsePollInput(body: unknown): PollInput | null {
   if (typeof body !== "object" || body === null) return null;
@@ -134,6 +143,20 @@ export function sessionRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps
     const input = parsePollInput(await c.req.json().catch(() => null));
     if (!input) return c.json({ error: "invalid_poll" }, 400);
     return fromResult(c, m.workspaceId, await deps.liveSession(c.env, m.workspaceId).createPoll(input), 201);
+  });
+
+  app.post("/workspaces/:id/session/game", ...guard, async (c) => {
+    const m = await member(c);
+    if (m instanceof Response) return m;
+    const body = (await c.req.json().catch(() => null)) as { min?: unknown; max?: unknown } | null;
+    if (typeof body?.min !== "number" || typeof body?.max !== "number") return c.json({ error: "invalid_game" }, 400);
+    return fromResult(c, m.workspaceId, await deps.liveSession(c.env, m.workspaceId).createGame({ min: body.min, max: body.max }), 201);
+  });
+
+  app.post("/workspaces/:id/session/game/close", ...guard, async (c) => {
+    const m = await member(c);
+    if (m instanceof Response) return m;
+    return fromResult(c, m.workspaceId, await deps.liveSession(c.env, m.workspaceId).closeGame());
   });
 
   app.post("/workspaces/:id/session/poll/close", ...guard, async (c) => {

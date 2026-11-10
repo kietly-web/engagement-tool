@@ -48,6 +48,16 @@ export interface LeaderboardEntry {
   points: number;
 }
 
+export interface GameView {
+  min: number;
+  max: number;
+  status: "open" | "won" | "closed";
+  guesses: number;
+  lastGuess: { value: number; hint: "higher" | "lower" } | null;
+  secret: number | null;
+  winnerName: string | null;
+}
+
 export interface SessionStatus {
   status: "idle" | "live" | "stopped";
   mode?: SessionMode;
@@ -58,6 +68,7 @@ export interface SessionStatus {
   poll: PollView | null;
   season?: string | null;
   leaderboard?: LeaderboardEntry[];
+  game?: GameView | null;
 }
 
 export interface QuotaView {
@@ -90,7 +101,13 @@ export interface OverlayLeaderboardMessage {
   entries: LeaderboardEntry[];
 }
 
-export type OverlayMessage = OverlayPollMessage | OverlayLeaderboardMessage;
+export interface OverlayGameMessage {
+  type: "game";
+  live: boolean;
+  game: GameView | null;
+}
+
+export type OverlayMessage = OverlayPollMessage | OverlayLeaderboardMessage | OverlayGameMessage;
 
 export interface OverlayLinkView {
   widget: OverlayWidget;

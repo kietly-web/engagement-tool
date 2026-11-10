@@ -15,6 +15,8 @@ export interface SessionClient {
   closeOverlays(widget: OverlayWidget): Promise<void>;
   eraseViewer(channelId: string): Promise<void>;
   stopIfStartedBy(memberId: string): Promise<boolean>;
+  createGame(input: { min: number; max: number }): Promise<Result<SessionStatus>>;
+  closeGame(): Promise<Result<SessionStatus>>;
 }
 
 export interface QuotaUsageClient extends QuotaClient {

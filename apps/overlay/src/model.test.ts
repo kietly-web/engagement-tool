@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { backoffMs, leaderboardModel, parseMessage, parseOverlayPath, pollModel, shouldReconnect } from "./model";
+import { backoffMs, gameModel, leaderboardModel, parseMessage, parseOverlayPath, pollModel, shouldReconnect } from "./model";
 
 const TOKEN = "A".repeat(43);
 
@@ -69,6 +69,20 @@ describe("leaderboardModel", () => {
   it("caps at ten rows", () => {
     const entries = Array.from({ length: 30 }, (_, i) => ({ rank: i + 1, name: null, points: 30 - i }));
     expect(leaderboardModel({ type: "leaderboard", live: true, title: null, entries })?.rows).toHaveLength(10);
+  });
+});
+
+describe("gameModel", () => {
+  const base = { min: 1, max: 100, guesses: 3, lastGuess: { value: 50, hint: "higher" as const }, winnerName: null };
+  it("never shows the secret while open, even if a message carries one", () => {
+    expect(gameModel({ type: "game", live: true, game: { ...base, status: "open", secret: 42 } })?.secret).toBeNull();
+  });
+  it("shows the winner as safe text once won", () => {
+    expect(gameModel({ type: "game", live: true, game: { ...base, status: "won", secret: 42, winnerName: "<i>An</i>\u202E", lastGuess: null } })).toMatchObject({
+      status: "won",
+      secret: 42,
+      winnerName: "<i>An</i>",
+    });
   });
 });
 

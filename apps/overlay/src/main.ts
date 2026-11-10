@@ -1,5 +1,5 @@
 import type { OverlayMessage } from "@et/worker/api-types";
-import { backoffMs, leaderboardModel, parseMessage, parseOverlayPath, pollModel, shouldReconnect } from "./model";
+import { backoffMs, gameModel, leaderboardModel, parseMessage, parseOverlayPath, pollModel, shouldReconnect } from "./model";
 import { t } from "./i18n";
 import "./overlay.css";
 
@@ -26,8 +26,26 @@ function renderLeaderboard(message: OverlayMessage): void {
   root.append(card);
 }
 
+function renderGame(message: OverlayMessage): void {
+  const model = gameModel(message);
+  root.replaceChildren();
+  if (!model) return;
+  const card = el("div", "poll game");
+  card.append(el("div", "question", t["game.title"](model.range[0], model.range[1])));
+  if (model.status === "won" && model.secret !== null) {
+    card.append(el("div", "game-result", t["game.won"](model.winnerName ?? t["game.someone"], model.secret)));
+  } else if (model.status === "closed" && model.secret !== null) {
+    card.append(el("div", "game-result", t["game.closed"](model.secret)));
+  } else {
+    card.append(el("div", "game-hint", model.lastGuess ? t[model.lastGuess.hint === "higher" ? "game.higher" : "game.lower"](model.lastGuess.value) : t["game.howto"]));
+  }
+  card.append(el("div", "total", t["game.guesses"](model.guesses)));
+  root.append(card);
+}
+
 function render(message: OverlayMessage): void {
   if (message.type === "leaderboard") return renderLeaderboard(message);
+  if (message.type === "game") return renderGame(message);
   const model = pollModel(message);
   root.replaceChildren();
   if (!model) return;

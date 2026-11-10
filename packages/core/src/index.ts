@@ -12,6 +12,7 @@ export {
   type VoteChangePolicy,
   type VoteOutcome,
 } from "./poll";
+export { GameError, GAME_LIMITS, GuessGame, type GameStatus, type GuessGameSnapshot, type GuessOutcome } from "./game";
 export { cleanSeasonName, PointsError, PointsTally, POINTS, SEASON_LIMITS, seasonWindow, type PointsBatch, type PointsDelta, type PointsTallySnapshot } from "./points";
 export { syntheticChannelId, syntheticChat, type SyntheticChatOptions, type SyntheticMessage } from "./synthetic-chat";
 export { commandKey, foldVietnamese, toNfc } from "./text";

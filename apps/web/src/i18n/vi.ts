@@ -147,6 +147,22 @@ export const vi = {
   "invite.join": "Tham gia",
   "invite.decline": "Từ chối",
   "ws.switch": "Kênh đang xem",
+  "game.title": "Mini-game: Đoán số",
+  "game.min": "Từ",
+  "game.max": "Đến",
+  "game.start": "Bắt đầu đoán số",
+  "game.close": "Kết thúc lượt chơi",
+  "game.help": "Khán giả gõ !doan 42 (hoặc !đoán 42). Mỗi người tối đa 10 lần; ai đoán đúng trước được 20 điểm. Không có giải thưởng.",
+  "game.guesses": "Lượt đoán",
+  "game.last": "Lượt gần nhất",
+  "game.higher": "cao hơn",
+  "game.lower": "thấp hơn",
+  "game.won": "Người thắng",
+  "game.answer": "Đáp án",
+  "game.someone": "một khán giả",
+  "game.error.invalid_game": "Khoảng số cần từ 1 đến 1.000.000 và có ít nhất 10 số.",
+  "game.error.game_open": "Đang có một lượt chơi. Hãy kết thúc nó trước.",
+  "game.error.not_live": "Cần bắt đầu phiên live trước.",
 } as const;
 
 export type MessageKey = keyof typeof vi;

@@ -4,7 +4,7 @@ import { safeText } from "./render";
 const TOKEN = /^[A-Za-z0-9_-]{43}$/;
 
 export function parseOverlayPath(pathname: string): { token: string; widget: OverlayWidget } | null {
-  const match = /^\/o\/([^/]+)\/(poll|leaderboard)\/?$/.exec(pathname);
+  const match = /^\/o\/([^/]+)\/(poll|leaderboard|game)\/?$/.exec(pathname);
   if (!match || !TOKEN.test(match[1]!)) return null;
   return { token: match[1]!, widget: match[2] as OverlayWidget };
 }
@@ -55,11 +55,34 @@ export function leaderboardModel(message: OverlayMessage): { title: string | nul
   };
 }
 
+export interface GameModel {
+  range: [number, number];
+  status: "open" | "won" | "closed";
+  guesses: number;
+  lastGuess: { value: number; hint: "higher" | "lower" } | null;
+  secret: number | null;
+  winnerName: string | null;
+}
+
+export function gameModel(message: OverlayMessage): GameModel | null {
+  if (message.type !== "game" || !message.game) return null;
+  const g = message.game;
+  const n = (v: unknown) => Math.max(0, Math.trunc(Number(v) || 0));
+  return {
+    range: [n(g.min), n(g.max)],
+    status: g.status === "won" || g.status === "closed" ? g.status : "open",
+    guesses: n(g.guesses),
+    lastGuess: g.lastGuess && (g.lastGuess.hint === "higher" || g.lastGuess.hint === "lower") ? { value: n(g.lastGuess.value), hint: g.lastGuess.hint } : null,
+    secret: g.status === "open" || g.secret === null ? null : n(g.secret),
+    winnerName: typeof g.winnerName === "string" && g.winnerName ? safeText(g.winnerName, 24) : null,
+  };
+}
+
 export function parseMessage(data: unknown): OverlayMessage | null {
   if (typeof data !== "string" || data.length > 16_384) return null;
   try {
     const value = JSON.parse(data) as OverlayMessage;
-    return value && (value.type === "poll" || value.type === "leaderboard") ? value : null;
+    return value && (value.type === "poll" || value.type === "leaderboard" || value.type === "game") ? value : null;
   } catch {
     return null;
   }

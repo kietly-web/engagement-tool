@@ -10,6 +10,9 @@ export function overlayView(widget: OverlayWidget, status: SessionStatus): Overl
       entries: (status.leaderboard ?? []).slice(0, 10).map((e) => ({ rank: e.rank, name: e.name, points: e.points })),
     };
   }
+  if (widget === "game") {
+    return { type: "game", live: status.status === "live", game: status.game ?? null };
+  }
   if (widget !== "poll") return null;
   const poll = status.poll;
   return {

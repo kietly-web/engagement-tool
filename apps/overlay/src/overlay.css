@@ -85,3 +85,14 @@ body {
   color: #ffb347;
   font-variant-numeric: tabular-nums;
 }
+
+.game-hint,
+.game-result {
+  font-size: 30px;
+  font-weight: 700;
+  margin: 8px 0;
+}
+
+.game-result {
+  color: #ffb347;
+}

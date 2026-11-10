@@ -12,7 +12,7 @@ import { quotaLimits } from "./limits";
 import { LiveSourceProvider } from "./sources";
 
 const systemClock = { now: () => new Date() };
-const WIDGETS: readonly OverlayWidget[] = ["poll", "leaderboard"];
+const WIDGETS: readonly OverlayWidget[] = ["poll", "leaderboard", "game"];
 const MAX_SOCKETS_PER_WIDGET = 20;
 const isWidget = (value: string | null): value is OverlayWidget => WIDGETS.includes(value as OverlayWidget);
 
@@ -108,6 +108,12 @@ export class LiveSession extends DurableObject<AppEnv> {
   }
   eraseViewer(channelId: string) {
     return this.engine.eraseViewer(channelId);
+  }
+  createGame(input: { min: number; max: number }) {
+    return this.engine.createGame(input);
+  }
+  closeGame() {
+    return this.engine.closeGame();
   }
   stopIfStartedBy(memberId: string) {
     return this.engine.stopIfStartedBy(memberId);

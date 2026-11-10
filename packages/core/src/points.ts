@@ -3,6 +3,7 @@ import { isChannelId } from "./viewer";
 export const POINTS = {
   join: 10,
   countedVote: 5,
+  gameWin: 20,
 } as const;
 
 export const SEASON_LIMITS = {
@@ -87,6 +88,12 @@ export class PointsTally {
   countedVote(channelId: string): boolean {
     if (!isChannelId(channelId) || this.erased.has(channelId)) return false;
     this.add(channelId, { points: POINTS.countedVote, votes: 1 });
+    return true;
+  }
+
+  gameWin(channelId: string): boolean {
+    if (!isChannelId(channelId) || this.erased.has(channelId)) return false;
+    this.add(channelId, { points: POINTS.gameWin });
     return true;
   }
 

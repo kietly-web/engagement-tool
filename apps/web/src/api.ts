@@ -65,6 +65,9 @@ export const api = {
     call<{ events: { action: string; actorName: string | null; createdAt: string }[] }>(`/api/workspaces/${encodeURIComponent(id)}/audit`),
   previewInvite: (token: string) => call<{ workspaceName: string }>("/api/invites/preview", jsonBody("POST", { token })),
   acceptInvite: (token: string) => call<{ workspaceId: string; outcome: string }>("/api/invites/accept", jsonBody("POST", { token })),
+  startGame: (id: string, min: number, max: number) =>
+    call<SessionResponse>(`/api/workspaces/${encodeURIComponent(id)}/session/game`, jsonBody("POST", { min, max })),
+  closeGame: (id: string) => call<SessionResponse>(`/api/workspaces/${encodeURIComponent(id)}/session/game/close`, { method: "POST" }),
   closePoll: (id: string) => call<SessionResponse>(`/api/workspaces/${encodeURIComponent(id)}/session/poll/close`, { method: "POST" }),
 };
 

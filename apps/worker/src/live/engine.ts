@@ -1,6 +1,19 @@
-import { parseCommand, Poll, PollError, POINTS, PointsTally, type Clock, type PointsTallySnapshot, type PollInput, type PollSnapshot } from "@et/core";
+import {
+  GameError,
+  GuessGame,
+  parseCommand,
+  Poll,
+  PollError,
+  POINTS,
+  PointsTally,
+  type Clock,
+  type GuessGameSnapshot,
+  type PointsTallySnapshot,
+  type PollInput,
+  type PollSnapshot,
+} from "@et/core";
 import { ChatSourceError, type ChatSource } from "@et/youtube";
-import type { LeaderboardEntry, PollView, SessionMode, SessionStatus, StopReason } from "../api-types";
+import type { GameView, LeaderboardEntry, PollView, SessionMode, SessionStatus, StopReason } from "../api-types";
 import type { PointsStore } from "./points-store";
 
 export type { PollView, SessionMode, SessionStatus, StopReason };
@@ -19,7 +32,7 @@ export interface SessionStorage {
   deleteAll(): Promise<void>;
 }
 
-export type SessionErrorCode = "already_live" | "not_live" | "poll_open" | "no_poll" | "invalid_poll";
+export type SessionErrorCode = "already_live" | "not_live" | "poll_open" | "no_poll" | "invalid_poll" | "game_open" | "no_game" | "invalid_game";
 
 export interface SessionState {
   workspaceId: string;
@@ -74,6 +87,7 @@ export interface EngineOptions {
   onChange(status: SessionStatus): void;
   points(state: SessionState): PointsStore | null;
   flushEveryMs: number;
+  random(): number;
 }
 
 const DEFAULTS: EngineOptions = {
@@ -84,6 +98,7 @@ const DEFAULTS: EngineOptions = {
   onChange: () => undefined,
   points: () => null,
   flushEveryMs: 10_000,
+  random: () => crypto.getRandomValues(new Uint32Array(1))[0]! / 2 ** 32,
 };
 
 export class SessionEngine {
@@ -94,6 +109,7 @@ export class SessionEngine {
   private leaderboard: { channelId: string; points: number }[] = [];
   private lastFlush = 0;
   private tally: PointsTally | null = null;
+  private currentGame: GuessGame | null = null;
   private flushing: Promise<unknown> | null = null;
   private flushFailures = 0;
   private nextFlushAt = 0;
@@ -109,6 +125,23 @@ export class SessionEngine {
 
   private loadState() {
     return this.storage.get<SessionState>("session");
+  }
+
+  private async loadGame(): Promise<GuessGame | null> {
+    const snapshot = await this.storage.get<GuessGameSnapshot>("game");
+    if (!snapshot) return null;
+    try {
+      return GuessGame.restore(snapshot);
+    } catch {
+      await this.storage.delete("game");
+      return null;
+    }
+  }
+
+  private gameView(game: GuessGame | null): GameView | null {
+    if (!game) return null;
+    const winner = game.winner();
+    return { ...game.publicView(), winnerName: winner ? (this.names.get(winner) ?? null) : null };
   }
 
   private async loadPoll(): Promise<Poll | null> {
@@ -208,7 +241,7 @@ export class SessionEngine {
     this.leaderboard = this.leaderboard.filter((e) => e.channelId !== channelId);
   }
 
-  private view(state: SessionState | undefined, poll: Poll | null): SessionStatus {
+  private view(state: SessionState | undefined, poll: Poll | null, game: GuessGame | null = this.currentGame): SessionStatus {
     const pollView: PollView | null = poll && {
       question: poll.question,
       options: [...poll.options],
@@ -227,11 +260,38 @@ export class SessionEngine {
       poll: pollView,
       season: state.seasonName ?? null,
       leaderboard: this.leaderboardView(),
+      game: this.gameView(game),
     };
   }
 
   async status(): Promise<SessionStatus> {
+    this.currentGame = await this.loadGame();
     return this.view(await this.loadState(), await this.loadPoll());
+  }
+
+  async createGame(input: { min: number; max: number }): Promise<Result<SessionStatus>> {
+    const state = await this.loadState();
+    if (state?.status !== "live") return { ok: false, error: "not_live" };
+    if ((await this.loadGame())?.status === "open") return { ok: false, error: "game_open" };
+    let game: GuessGame;
+    try {
+      game = GuessGame.create(input.min, input.max, this.opts.random);
+    } catch (error) {
+      if (error instanceof GameError) return { ok: false, error: "invalid_game" };
+      throw error;
+    }
+    await this.storage.put("game", game.snapshot());
+    this.currentGame = game;
+    return this.changed({ ok: true, value: this.view(state, await this.loadPoll(), game) });
+  }
+
+  async closeGame(): Promise<Result<SessionStatus>> {
+    const game = await this.loadGame();
+    if (game?.status !== "open") return { ok: false, error: "no_game" };
+    game.close();
+    await this.storage.put("game", game.snapshot());
+    this.currentGame = game;
+    return this.changed({ ok: true, value: this.view(await this.loadState(), await this.loadPoll(), game) });
   }
 
   async start(input: StartInput): Promise<Result<SessionStatus>> {
@@ -254,8 +314,10 @@ export class SessionEngine {
     };
     this.sources.invalidate();
     this.resetMemory();
+    this.currentGame = null;
     await this.storage.delete("poll");
     await this.storage.delete("points");
+    await this.storage.delete("game");
     await this.storage.put("session", state);
     await this.storage.setAlarm(this.clock.now().getTime());
     return this.changed({ ok: true, value: this.view(state, null) });
@@ -269,6 +331,12 @@ export class SessionEngine {
       poll.close();
       await this.storage.put("poll", poll.snapshot());
     }
+    const game = await this.loadGame();
+    if (game?.status === "open") {
+      game.close();
+      await this.storage.put("game", game.snapshot());
+    }
+    this.currentGame = game;
     await this.flushPoints(state, true);
     await this.storage.delete("points");
     this.tally = null;
@@ -305,6 +373,7 @@ export class SessionEngine {
     }
     poll.open();
     await this.storage.put("poll", poll.snapshot());
+    this.currentGame = await this.loadGame();
     return this.changed({ ok: true, value: this.view(state, poll) });
   }
 
@@ -313,6 +382,7 @@ export class SessionEngine {
     if (poll?.status !== "open") return { ok: false, error: "no_poll" };
     poll.close();
     await this.storage.put("poll", poll.snapshot());
+    this.currentGame = await this.loadGame();
     return this.changed({ ok: true, value: this.view(await this.loadState(), poll) });
   }
 
@@ -374,7 +444,10 @@ export class SessionEngine {
 
     const poll = await this.loadPoll();
     const tally = await this.loadTally();
+    const game = await this.loadGame();
+    this.currentGame = game;
     let scored = false;
+    let gameChanged = false;
     for (const message of page.messages) {
       this.rememberName(message.channelId, message.displayName);
       const command = parseCommand(message.text);
@@ -383,6 +456,10 @@ export class SessionEngine {
         if (tally.countedVote(message.channelId)) earned = POINTS.countedVote;
       } else if (command?.kind === "join" && tally.join(message.channelId)) {
         earned = POINTS.join;
+      } else if (command?.kind === "guess" && game?.status === "open") {
+        const outcome = game.guess(message.channelId, command.value);
+        if (outcome === "correct" || outcome === "higher" || outcome === "lower") gameChanged = true;
+        if (outcome === "correct" && tally.gameWin(message.channelId)) earned = POINTS.gameWin;
       }
       if (earned > 0) {
         scored = true;
@@ -390,6 +467,7 @@ export class SessionEngine {
       }
     }
     if (poll) await this.storage.put("poll", poll.snapshot());
+    if (game && gameChanged) await this.storage.put("game", game.snapshot());
     if (scored) await this.saveTally(state);
     const flush = await this.flushPoints(state, false);
     const flushed = flush.flushed;
@@ -397,7 +475,9 @@ export class SessionEngine {
     const next = { ...state, pageToken: page.nextPageToken, failures: 0, messagesSeen: state.messagesSeen + page.messages.length };
     await this.storage.put("session", next);
     await this.storage.setAlarm(now + page.waitMs);
-    if ((poll?.status === "open" && page.messages.length > 0) || scored || flushed) this.changed({ ok: true, value: this.view(next, poll) });
+    if ((poll?.status === "open" && page.messages.length > 0) || scored || flushed || gameChanged) {
+      this.changed({ ok: true, value: this.view(next, poll, game) });
+    }
   }
 
   private async handleFailure(state: SessionState, error: unknown, now: number): Promise<void> {

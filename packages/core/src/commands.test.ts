@@ -45,6 +45,24 @@ describe("parseCommand: joins", () => {
   });
 });
 
+describe("parseCommand: guesses", () => {
+  it.each([
+    ["!doan 42", 42],
+    ["!đoán 42", 42],
+    ["!ĐOÁN 7", 7],
+    ["!guess 100", 100],
+    ["!doan42", 42],
+    ["!doan 0", 0],
+    ["！ｄｏａｎ\u3000５", 5],
+  ])("%j → guess %i", (text, value) => {
+    expect(parseCommand(text)).toEqual({ kind: "guess", value });
+  });
+
+  it.each(["!doan", "!doan -1", "!doan 12345678", "!doan 4.2", "!doanx 4", "!doan bốn"])("%j → null", (text) => {
+    expect(parseCommand(text)).toBeNull();
+  });
+});
+
 describe("parseCommand: ignored input", () => {
   it.each([
     "",
