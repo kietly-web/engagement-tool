@@ -24,7 +24,7 @@ Backlog reprioritised by the owner on 10/11/2026 (see `docs/design/08-delivery-p
 2. **ET-14 Custom chat commands to overlay alerts** (FR-14): no owner setup needed.
 3. **ET-15 First real run**: needs the owner's setup (SETUP §0–1) and a test live stream.
 
-ET-10 (number-guessing game) is parked on branch `ET-10-guess-game` as unreviewed work in progress for phase 2. ET-17 (Super Chat/donation display) waits on owner decision Q-P3.
+ET-10 (number-guessing game) is parked on branch `ET-10-guess-game` as unreviewed work in progress for phase 2. Phase 2 also gets ET-17 donation alerts (YouTube Super Chats first) under ADR-008: the tool never handles money and donations earn no points. Vietnamese donation services follow later (ET-19) after the Q-T4 research.
 
 ## Open PRs
 

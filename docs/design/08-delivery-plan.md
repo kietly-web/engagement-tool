@@ -5,7 +5,7 @@ One slice = one branch and PR (`ET-n-short-slug`). **Review** = run `security-co
 ## Phases (reprioritised 10/11/2026 by the owner)
 
 - **Phase 1, demo:** prove the core loop on a real stream. Viewers type commands in YouTube chat, and creator-customised items appear in the OBS browser source. Done when a beta creator sees their own chat commands drive their own styled overlay live.
-- **Phase 2, interactive features:** mini-games, more widgets and richer animations, in the spirit of Twitch and TikTok LIVE interactivity but on YouTube. Donation/Super Chat items are **not scheduled** until the owner decides Q-P3 (scope change; see discovery).
+- **Phase 2, interactive features:** mini-games, more widgets and richer animations, in the spirit of Twitch and TikTok LIVE interactivity but on YouTube, plus donation alerts starting with YouTube Super Chats (ADR-008; an accepted scope change). The tool never handles money.
 - **Phase 3, beta launch readiness** before anyone outside the test-user list signs in.
 
 Already built and merged (kept, not reworked): ET-1 to ET-9. Most of phase 1 exists; the phase 1 slices below fill the gaps.
@@ -26,7 +26,8 @@ Phase 1 exit: on the owner's own test stream, chat commands trigger the poll, le
 | --- | --- | --- | --- |
 | ET-10 | First mini-game: number guessing (`!doan 42`), points only. Work in progress parked on branch `ET-10-guess-game` (not reviewed) | FR-07, R8 | Yes |
 | ET-16 | More mini-games and richer overlay animations (scheduled one by one) | FR-07 | Yes |
-| ET-17 | **Proposed, needs Q-P3:** show YouTube Super Chats, Super Stickers and new memberships as overlay animations (read-only, from the same chat stream) | FR-15 (proposed) | Yes |
+| ET-17 | Donation alerts: YouTube Super Chats, Super Stickers and memberships as overlay animations, read-only, no points, nothing stored (ADR-008) | FR-15, R3, R8 | Yes |
+| ET-19 | Vietnamese donation services on the alerts widget, one service per slice, each with its own ADR (after Q-T4 research) | FR-16 | Yes |
 | ET-18 | English UI | NFR-I18N | No |
 
 ## Phase 3 Beta launch readiness
