@@ -45,7 +45,7 @@ A free engagement tool for Vietnamese YouTubers and VTubers: viewers type comman
 | FR-12 | A creator can erase one viewer's counters by channel ID (for viewer rights requests) | Must |
 | FR-13 | A creator customises each overlay's look from the dashboard (colours, size, position, opacity, which parts show) from fixed presets; no custom code or uploads | Must (phase 1) |
 | FR-14 | A creator defines chat commands that show a creator-written text item with a built-in sticker and animation on an alerts overlay, with cooldowns | Must (phase 1) |
-| FR-15 | Show YouTube Super Chats, Super Stickers and new or gifted memberships as overlay animations, read-only, earning no points (ADR-008) | Must (phase 2) |
+| FR-15 | Show YouTube Super Chats, Super Stickers and new or gifted memberships as overlay animations, read-only, earning no points (ADR-008) | Must (phase 1) |
 | FR-16 | Show donation events from Vietnamese donation services (bank-QR platforms) on the same widget; one ADR per service | Later |
 
 ## Non-functional requirements

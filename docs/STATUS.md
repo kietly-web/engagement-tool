@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 10/11/2026 (ET-12 backlog reprioritisation). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
+Last updated: 10/11/2026 (ET-20 delivery plan revision). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
 
 ## Where we are
 
@@ -18,19 +18,22 @@ Last updated: 10/11/2026 (ET-12 backlog reprioritisation). Update in every slice
 
 ## Next
 
-Backlog reprioritised by the owner on 10/11/2026 (see `docs/design/08-delivery-plan.md`): **phase 1 demo** first. Viewers' chat commands drive customisable OBS overlay items, proven on a real stream. Then **phase 2** (mini-games, richer animations), then **phase 3** launch readiness.
+Plan revised by the owner on 10/11/2026 (ET-20, see `docs/design/08-delivery-plan.md`). The main draw is **alerts and customisable overlays** with donation alerts; mini-games come later. Build the feature skeleton first on demo data, then the owner tests on a real stream and invites a few creators they know. Small beta, strictly $0.
 
-1. **ET-13 Overlay customisation** (FR-13): no owner setup needed.
-2. **ET-14 Custom chat commands to overlay alerts** (FR-14): no owner setup needed.
-3. **ET-15 First real run**: needs the owner's setup (SETUP §0–1) and a test live stream.
+1. **ET-13 Overlay customisation** (FR-13): one shared per-widget config.
+2. **ET-14 Custom chat commands to overlay alerts** (FR-14): generic alert event, command hint.
+3. **ET-17 Super Chat and membership alerts** (FR-15, ADR-008): on synthetic events.
+4. **ET-21 Free-limit fixes**: dashboard polling and points flush interval.
+5. **ET-15 First real run**: needs the owner's setup (SETUP §0–1) and a test live stream. Expect rework here: nothing has run against real Google, YouTube, Cloudflare or Neon, and the `streamList` reader is unproven (Q-T1).
+6. **ET-22 Invited beta gate**: before the first invited creator streams.
 
-ET-10 (number-guessing game) is parked on branch `ET-10-guess-game` as unreviewed work in progress for phase 2. Phase 2 also gets ET-17 donation alerts (YouTube Super Chats first) under ADR-008: the tool never handles money and donations earn no points. Vietnamese donation services follow later (ET-19) after the Q-T4 research.
+Slices 1 to 4 need no owner setup. Later: ET-19 Vietnamese donation services (after Q-T4 research), ET-10/ET-16 mini-games (ET-10 is parked on branch `ET-10-guess-game`, unreviewed), ET-18 English, ET-11 public launch.
 
 ## Open PRs
 
 | PR | What | Action |
 | --- | --- | --- |
-| ET-12 | Backlog reprioritisation (docs only) | Merge when CI is green |
+| ET-20 | Delivery plan revision (docs only) | Merge when CI is green |
 
 ## Waiting on the owner
 
