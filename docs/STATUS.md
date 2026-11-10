@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 08/11/2026 (ET-9). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
+Last updated: 10/11/2026 (ET-12 backlog reprioritisation). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
 
 ## Where we are
 
@@ -14,21 +14,23 @@ Last updated: 08/11/2026 (ET-9). Update in every slice PR. Read after `CLAUDE.md
 | ET-6 offline (session engine, `LiveSession` + `QuotaKeeper` Durable Objects, demo mode, YouTube polling reader, session and poll API, dashboard live panel) | Done, [PR #6](https://github.com/kietly-web/engagement-tool/pull/6); the `streamList` spike is still open |
 | ET-7 Overlays (per-widget hashed tokens, rotation, overlay page and WebSocket from `LiveSession`, poll widget, dashboard links) | Done, [PR #7](https://github.com/kietly-web/engagement-tool/pull/7) |
 | ET-8 Points and seasons (tally, idempotent 10 s flushes, ≤29-day seasons, leaderboard widget and dashboard, viewer erasure, retention every 6 h) | Done, [PR #8](https://github.com/kietly-web/engagement-tool/pull/8) |
-| ET-9 Moderators (email-bound single-use invites, remove/leave, audit log for sensitive actions, members panel, invite accept flow) | In review on branch `ET-9-moderators` |
+| ET-9 Moderators (email-bound single-use invites, remove/leave, audit log for sensitive actions, members panel, invite accept flow) | Done, [PR #9](https://github.com/kietly-web/engagement-tool/pull/9) |
 
 ## Next
 
-The owner asked Claude to keep building whatever doesn't need their setup. Order:
+Backlog reprioritised by the owner on 10/11/2026 (see `docs/design/08-delivery-plan.md`): **phase 1 demo** first. Viewers' chat commands drive customisable OBS overlay items, proven on a real stream. Then **phase 2** (mini-games, richer animations), then **phase 3** launch readiness.
 
-1. **ET-10 First mini-game** (FR-07, R8): points only, no prizes.
-2. **ET-11 Launch readiness** documents (privacy notice and terms drafts in Vietnamese, rights flows, verification and quota-extension prep).
-3. **Still waiting on the owner's setup** (SETUP §0–1, P0 rows) for the first real run and the ET-6 `streamList` spike against a live stream. Unverified pieces are listed in SETUP §3.
+1. **ET-13 Overlay customisation** (FR-13): no owner setup needed.
+2. **ET-14 Custom chat commands to overlay alerts** (FR-14): no owner setup needed.
+3. **ET-15 First real run**: needs the owner's setup (SETUP §0–1) and a test live stream.
+
+ET-10 (number-guessing game) is parked on branch `ET-10-guess-game` as unreviewed work in progress for phase 2. Phase 2 also gets ET-17 donation alerts (YouTube Super Chats first) under ADR-008: the tool never handles money and donations earn no points. Vietnamese donation services follow later (ET-19) after the Q-T4 research.
 
 ## Open PRs
 
 | PR | What | Action |
 | --- | --- | --- |
-| ET-9 | Moderators | Merge when CI is green and review findings are fixed |
+| ET-12 | Backlog reprioritisation (docs only) | Merge when CI is green |
 
 ## Waiting on the owner
 
