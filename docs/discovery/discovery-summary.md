@@ -21,7 +21,7 @@ A free engagement tool for Vietnamese YouTubers and VTubers: viewers type comman
 - Read-only on YouTube (`youtube.readonly`); the tool never posts, deletes or moderates (ADR-004).
 - Results show only on OBS browser-source overlays and the dashboard (ADR-007).
 - No AI at launch; an AI slice later needs its own ADR.
-- No payments and nothing of monetary value; points are for fun only (R8).
+- The tool never handles money; points are for fun only and can't be bought (R8). Donation events (YouTube Super Chats first, Vietnamese donation services later) may be displayed read-only (ADR-008, changed by the owner on 10/11/2026).
 - $0 running cost on free plans that fail closed (ADR-005).
 - Cloudflare Workers + Durable Objects, Neon Postgres in Singapore, TypeScript (ADR-001, ADR-002).
 - Google sign-in for creators and moderators (ADR-003). Viewers never sign in.
@@ -43,6 +43,10 @@ A free engagement tool for Vietnamese YouTubers and VTubers: viewers type comman
 | FR-10 | Dashboard and overlays in Vietnamese; all copy in message catalogs so English can follow | Must |
 | FR-11 | The dashboard shows the day's YouTube quota use and why a session stopped | Should |
 | FR-12 | A creator can erase one viewer's counters by channel ID (for viewer rights requests) | Must |
+| FR-13 | A creator customises each overlay's look from the dashboard (colours, size, position, opacity, which parts show) from fixed presets; no custom code or uploads | Must (phase 1) |
+| FR-14 | A creator defines chat commands that show a creator-written text item with a built-in sticker and animation on an alerts overlay, with cooldowns | Must (phase 1) |
+| FR-15 | Show YouTube Super Chats, Super Stickers and new or gifted memberships as overlay animations, read-only, earning no points (ADR-008) | Must (phase 2) |
+| FR-16 | Show donation events from Vietnamese donation services (bank-QR platforms) on the same widget; one ADR per service | Later |
 
 ## Non-functional requirements
 
@@ -119,3 +123,5 @@ L = likelihood, I = impact (H/M/L).
 - Q-T3 How many concurrent sessions fit the Durable Objects free plan? Estimated in ET-6.
 - Q-P1 Viewers can't get replies in chat (read-only). Should `!points` flash the viewer's score on an overlay ticker? (owner)
 - Q-P2 Product name and domain. (owner)
+- Q-P3 ~~What do "donation items" mean?~~ Answered 10/11/2026: show YouTube Super Chats first, later other VN donation services; the tool never handles money (ADR-008).
+- Q-T4 Which Vietnamese donation services (Tipme, ZyPage, Zentnow/SePay, TipMe/VietQR, WeScan, others) expose a webhook or API we may legally use, and which do the target creators actually use? Research before FR-16. (Claude + owner)
