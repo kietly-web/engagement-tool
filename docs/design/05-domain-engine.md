@@ -65,6 +65,11 @@ The poll's channel-ID → option map links a viewer to a choice, so it lives onl
 - In the session engine, a message that isn't a built-in command is matched against the triggers. An alert fires only if both cooldowns allow it: per viewer (5–600 s, default 30) and between any two alerts (1–60 s, default 3). Alerts earn no points.
 - An alert event is generic (`source`: `command`, `test`, later `super_chat`, `membership`), carries the creator's text, the viewer's session-memory display name (removed for widgets that hide names) and the sticker and animation keys. It is pushed straight to alerts sockets and never stored. The overlay plays at most 10 queued alerts, about 4.5 s each, then shows a "commands you can type" hint if enabled (Q-P1).
 
+## Points flush timing (ET-21)
+
+- Points flush about every 10 minutes, in the last minute before the season ends (the database refuses writes after it), when the owner ends the season early (the route asks the live session to write first), and at stop. If the stop flush fails, the points stay in Durable Object storage and are retried every minute up to 5 times, then dropped with a `points_dropped_after_stop` log.
+- The live leaderboard is the season standings (read once per session, retried at most once a minute) plus unflushed points, with erased viewers left out.
+
 ## Donation alerts (ET-17, ADR-008)
 
 - The YouTube reader maps `superChatEvent`, `superStickerEvent`, `newSponsorEvent` and `membershipGiftingEvent` to chat messages with empty text and a `donation` field (kind, YouTube's amount string, comment). They never reach the command parser, so a paid message can't vote, join or earn points.

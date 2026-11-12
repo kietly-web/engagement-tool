@@ -4,7 +4,8 @@ import { api, ApiError } from "./api";
 import { translator, type MessageKey } from "./i18n";
 
 const t = translator("vi");
-const REFRESH_MS = 2_000;
+// Each refresh costs a Worker request and a Durable Object call; the free plan allows 100,000 of each a day.
+const REFRESH_MS = 5_000;
 
 function errorText(prefix: "live.error" | "poll.error", e: unknown): string {
   const code = e instanceof ApiError ? e.code : null;
@@ -39,8 +40,18 @@ export function LivePanel({ workspaceId, youtubeConnected }: { workspaceId: stri
   useEffect(refresh, [refresh]);
   useEffect(() => {
     if (data?.session.status !== "live") return;
-    const timer = window.setInterval(refresh, REFRESH_MS);
-    return () => window.clearInterval(timer);
+    const tick = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    const timer = window.setInterval(tick, REFRESH_MS);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [data?.session.status, refresh]);
 
   async function run(action: () => Promise<SessionResponse>, prefix: "live.error" | "poll.error") {

@@ -71,6 +71,8 @@ export function seasonRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps)
     const ws = await current(c);
     if (!ws) return c.json({ error: "not_found" }, 404);
     if (ws.role !== "owner") return c.json({ error: "forbidden" }, 403);
+    // Write the live session's pending points first; once ended, the season refuses them.
+    await deps.liveSession(c.env, ws.id).flushNow().catch(() => console.error(JSON.stringify({ event: "season_end_flush_failed" })));
     const ended = await withWorkspace(c.var.db, ctx(c, ws.id), async (tx) => {
       const ok = await seasons.endActive(tx);
       if (ok) await audit.log(tx, "season_ended", {});
