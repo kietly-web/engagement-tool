@@ -11,6 +11,7 @@ export {
   overlays,
   points,
   seasons,
+  widgetConfigs,
   sessions,
   workspaces,
   youtube,

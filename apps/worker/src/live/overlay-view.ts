@@ -1,6 +1,6 @@
 import type { OverlayMessage, OverlayWidget, SessionStatus } from "../api-types";
 
-// Exactly what an overlay draws: question, options and counts. Never viewer ids or names (non-negotiable 5).
+// Exactly what an overlay draws: never viewer ids; display names only where the widget shows them (non-negotiable 5).
 export function overlayView(widget: OverlayWidget, status: SessionStatus): OverlayMessage | null {
   if (widget === "leaderboard") {
     return {
@@ -20,4 +20,10 @@ export function overlayView(widget: OverlayWidget, status: SessionStatus): Overl
         ? { question: poll.question, options: [...poll.options], counts: [...poll.counts], total: poll.total, status: poll.status }
         : null,
   };
+}
+
+// Hidden names are removed before sending, not just hidden by the page, so the link holder never receives them.
+export function forSocket(message: OverlayMessage | null, showNames: boolean): OverlayMessage | null {
+  if (!message || showNames || message.type !== "leaderboard") return message;
+  return { ...message, entries: message.entries.map((e) => ({ ...e, name: null })) };
 }

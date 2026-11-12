@@ -1,9 +1,13 @@
 import type { OverlayMessage } from "@et/worker/api-types";
 import { backoffMs, leaderboardModel, parseMessage, parseOverlayPath, pollModel, shouldReconnect } from "./model";
+import { applyTheme, decodePreview, DEFAULT_THEME, themeFrom } from "./theme";
 import { t } from "./i18n";
 import "./overlay.css";
 
 const root = document.getElementById("widget")!;
+let showNames = DEFAULT_THEME.showNames;
+let lastContent: OverlayMessage | null = null;
+applyTheme(document.body, DEFAULT_THEME);
 
 function el(tag: string, className: string, text?: string): HTMLElement {
   const node = document.createElement(tag);
@@ -20,13 +24,21 @@ function renderLeaderboard(message: OverlayMessage): void {
   card.append(el("div", "question", model.title ?? t["leaderboard.title"]));
   for (const row of model.rows) {
     const line = el("div", "lb-row");
-    line.append(el("span", "lb-rank", `#${row.rank}`), el("span", "label", row.name ?? t["leaderboard.anonymous"]), el("span", "count", t["leaderboard.points"](row.points)));
+    line.append(el("span", "lb-rank", `#${row.rank}`), el("span", "label", (showNames && row.name) || t["leaderboard.anonymous"]), el("span", "count", t["leaderboard.points"](row.points)));
     card.append(line);
   }
   root.append(card);
 }
 
 function render(message: OverlayMessage): void {
+  if (message.type === "config") {
+    const theme = themeFrom(message.config);
+    showNames = theme.showNames;
+    applyTheme(document.body, theme);
+    if (lastContent) render(lastContent);
+    return;
+  }
+  lastContent = message;
   if (message.type === "leaderboard") return renderLeaderboard(message);
   const model = pollModel(message);
   root.replaceChildren();
@@ -66,5 +78,23 @@ function connect(target: { token: string; widget: string }, attempt = 0): void {
   });
 }
 
+function preview(widget: string): void {
+  const showConfig = () => render({ type: "config", config: { theme: themeFrom(decodePreview(location.hash)) } });
+  if (widget === "leaderboard") {
+    render({
+      type: "leaderboard",
+      live: true,
+      title: t["preview.season"],
+      entries: t["preview.names"].map((name, i) => ({ rank: i + 1, name, points: 120 - i * 25 })),
+    });
+  } else {
+    render({ type: "poll", live: true, poll: { question: t["preview.question"], options: [...t["preview.options"]], counts: [48, 31, 21], total: 100, status: "open" } });
+  }
+  showConfig();
+  window.addEventListener("hashchange", showConfig);
+}
+
 const target = parseOverlayPath(location.pathname);
+const previewWidget = new URLSearchParams(location.search).get("preview");
 if (target) connect(target);
+else if (previewWidget === "poll" || previewWidget === "leaderboard") preview(previewWidget);

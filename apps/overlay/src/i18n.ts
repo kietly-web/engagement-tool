@@ -3,12 +3,20 @@ const vi = {
   "leaderboard.title": "Bảng xếp hạng",
   "leaderboard.anonymous": "Khán giả",
   "leaderboard.points": (n: number) => `${n} điểm`,
+  "preview.question": "Tối nay chơi game nào tiếp?",
+  "preview.options": ["Minecraft", "Valorant", "Liên Quân Mobile"],
+  "preview.season": "Mùa 1",
+  "preview.names": ["Linh", "Bảo", "Khán giả 7", "Minh Anh"],
 };
 const en: typeof vi = {
   "poll.total": (n: number) => `${n} votes`,
   "leaderboard.title": "Leaderboard",
   "leaderboard.anonymous": "Viewer",
   "leaderboard.points": (n: number) => `${n} pts`,
+  "preview.question": "Which game should we play next?",
+  "preview.options": ["Minecraft", "Valorant", "Arena of Valor"],
+  "preview.season": "Season 1",
+  "preview.names": ["Linh", "Bao", "Viewer 7", "Minh Anh"],
 };
 
 export const messages = { vi, en } as const;

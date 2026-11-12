@@ -215,3 +215,31 @@ dd {
   padding: 0.25rem 0.6rem;
   font-size: 0.85rem;
 }
+
+.style-grid {
+  display: grid;
+  grid-template-columns: minmax(14rem, 1fr) 2fr;
+  gap: 1rem;
+  align-items: start;
+}
+
+@media (max-width: 760px) {
+  .style-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.preview {
+  margin: 0;
+}
+
+.preview iframe {
+  width: 1920px;
+  height: 1080px;
+  transform: scale(0.24);
+  transform-origin: top left;
+  border: 0;
+  margin-bottom: calc(1080px * -0.76);
+  margin-right: calc(1920px * -0.76);
+  background: repeating-conic-gradient(#8884 0% 25%, transparent 0% 50%) 0 0 / 40px 40px;
+}

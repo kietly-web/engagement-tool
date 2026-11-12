@@ -5,6 +5,7 @@ import { LivePanel } from "./LivePanel";
 import { MembersPanel } from "./MembersPanel";
 import { OverlayLinks } from "./OverlayLinks";
 import { SeasonPanel } from "./SeasonPanel";
+import { StylePanel } from "./StylePanel";
 import { translator, type MessageKey } from "./i18n";
 
 const t = translator("vi");
@@ -247,6 +248,7 @@ function Workspace({ id, selfId, onError, onChange }: { id: string; selfId: stri
     <SeasonPanel workspaceId={id} isOwner={isOwner} />
     <MembersPanel workspace={data} selfId={selfId} onLeft={onChange} />
     <OverlayLinks workspaceId={id} isOwner={isOwner} />
+    {isOwner && <StylePanel workspaceId={id} />}
     <div className="card">
       <h2>
         {data.workspace.name} <span className="badge">{t(`ws.role.${data.workspace.role}`)}</span>
