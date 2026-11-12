@@ -15,6 +15,7 @@ export interface SessionClient {
   closeOverlays(widget: OverlayWidget): Promise<void>;
   eraseViewer(channelId: string): Promise<void>;
   stopIfStartedBy(memberId: string): Promise<boolean>;
+  configChanged(widget: OverlayWidget, config: object): Promise<void>;
 }
 
 export interface QuotaUsageClient extends QuotaClient {
@@ -27,9 +28,14 @@ export function liveSessionClient(env: AppEnv, workspaceId: string): SessionClie
   return env.LIVE_SESSION.get(env.LIVE_SESSION.idFromName(`workspace:${workspaceId}`)) as unknown as SessionClient;
 }
 
-export function overlaySocket(env: AppEnv, workspaceId: string, widget: OverlayWidget, request: Request): Promise<Response> {
+export const OVERLAY_CONFIG_HEADER = "X-ET-Widget-Config";
+
+export function overlaySocket(env: AppEnv, workspaceId: string, widget: OverlayWidget, request: Request, config: object): Promise<Response> {
   const stub = env.LIVE_SESSION.get(env.LIVE_SESSION.idFromName(`workspace:${workspaceId}`));
-  return stub.fetch(new Request(`https://live-session/overlay?widget=${widget}`, request));
+  const forwarded = new Request(`https://live-session/overlay?widget=${widget}`, request);
+  // Always overwritten here, so a client can't inject its own config header.
+  forwarded.headers.set(OVERLAY_CONFIG_HEADER, JSON.stringify(config));
+  return stub.fetch(forwarded);
 }
 
 export function quotaClient(env: AppEnv): QuotaUsageClient {

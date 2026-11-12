@@ -154,7 +154,7 @@ export const youtube = {
   },
 };
 
-export type OverlayWidget = "poll" | "leaderboard" | "game";
+export type OverlayWidget = "poll" | "leaderboard" | "game" | "alerts";
 
 export const overlays = {
   async rotate(tx: Queryable, widget: OverlayWidget, tokenHashHex: string): Promise<void> {
@@ -166,6 +166,14 @@ export const overlays = {
       `SELECT widget, rotated_at::text AS "rotatedAt" FROM app.overlay_token WHERE workspace_id = app.current_workspace_id() ORDER BY widget`,
     );
     return rows;
+  },
+
+  async resolve(tx: Queryable, tokenHashHex: string): Promise<{ workspaceId: string; widget: OverlayWidget; config: unknown } | null> {
+    const { rows } = await tx.query<{ workspaceId: string; widget: OverlayWidget; config: unknown }>(
+      'SELECT workspace_id AS "workspaceId", widget, config FROM app.overlay_resolve($1)',
+      [tokenHashHex],
+    );
+    return rows[0] ?? null;
   },
 
   async lookup(tx: Queryable, tokenHashHex: string): Promise<{ workspaceId: string; widget: OverlayWidget } | null> {
@@ -381,5 +389,24 @@ export const audit = {
       [limit],
     );
     return rows;
+  },
+};
+
+export const widgetConfigs = {
+  async get(tx: Queryable, widget: OverlayWidget): Promise<unknown> {
+    const { rows } = await tx.query<{ config: unknown }>(
+      "SELECT config FROM app.widget_config WHERE workspace_id = app.current_workspace_id() AND widget = $1",
+      [widget],
+    );
+    return rows[0]?.config ?? {};
+  },
+
+  // Callers pass an already-validated config; the database still caps size and shape.
+  async save(tx: Queryable, widget: OverlayWidget, config: object): Promise<void> {
+    await tx.query(
+      `INSERT INTO app.widget_config (workspace_id, widget, config) VALUES (app.current_workspace_id(), $1, $2::jsonb)
+       ON CONFLICT (workspace_id, widget) DO UPDATE SET config = excluded.config, updated_at = now()`,
+      [widget, JSON.stringify(config)],
+    );
   },
 };

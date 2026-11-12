@@ -19,7 +19,7 @@ export interface AppDeps {
   now(): Date;
   liveSession(env: AppEnv, workspaceId: string): SessionClient;
   quota(env: AppEnv): QuotaUsageClient;
-  overlaySocket(env: AppEnv, workspaceId: string, widget: OverlayWidget, request: Request): Promise<Response>;
+  overlaySocket(env: AppEnv, workspaceId: string, widget: OverlayWidget, request: Request, config: object): Promise<Response>;
 }
 
 export const defaultDeps: AppDeps = {

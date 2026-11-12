@@ -59,7 +59,7 @@ export function parseMessage(data: unknown): OverlayMessage | null {
   if (typeof data !== "string" || data.length > 16_384) return null;
   try {
     const value = JSON.parse(data) as OverlayMessage;
-    return value && (value.type === "poll" || value.type === "leaderboard") ? value : null;
+    return value && (value.type === "poll" || value.type === "leaderboard" || value.type === "config") ? value : null;
   } catch {
     return null;
   }

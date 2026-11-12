@@ -120,7 +120,8 @@ export interface Harness {
   engines: Map<string, SessionEngine>;
   quota: QuotaBudget;
   closedOverlays: [string, string][];
-  sockets: { workspaceId: string; widget: string }[];
+  sockets: { workspaceId: string; widget: string; config?: object }[];
+  configPushes: [string, string, object][];
   browser(): Browser;
 }
 
@@ -139,7 +140,8 @@ export async function makeHarness(
   };
   const engineClock = { now: () => clock.now };
   const closedOverlays: [string, string][] = [];
-  const sockets: { workspaceId: string; widget: string }[] = [];
+  const sockets: { workspaceId: string; widget: string; config?: object }[] = [];
+  const configPushes: [string, string, object][] = [];
   const app = createApp({
     database: () => db,
     fetch: google.fetch,
@@ -156,10 +158,11 @@ export async function makeHarness(
       }
       return Object.assign(Object.create(engine) as SessionEngine, {
         closeOverlays: async (widget: string) => void closedOverlays.push([ws, widget]),
+        configChanged: async (widget: string, config: object) => void configPushes.push([ws, widget, config]),
       });
     },
-    overlaySocket: async (_env, workspaceId, widget) => {
-      sockets.push({ workspaceId, widget });
+    overlaySocket: async (_env, workspaceId, widget, _request, config) => {
+      sockets.push({ workspaceId, widget, config });
       // Response.redirect has immutable headers, like the 101 a Durable Object returns for an upgrade.
       return Response.redirect("https://live-session/upgraded", 302);
     },
@@ -174,6 +177,6 @@ export async function makeHarness(
       ? {}
       : { GOOGLE_CLIENT_ID: "client-1", GOOGLE_CLIENT_SECRET: "secret", SESSION_SECRET: key(1), TOKEN_ENCRYPTION_KEY: key(2) }),
   } as unknown as AppEnv;
-  const h: Harness = { app, env, db, google, clock, engines, quota, closedOverlays, sockets, browser: () => new Browser(h) };
+  const h: Harness = { app, env, db, google, clock, engines, quota, closedOverlays, sockets, configPushes, browser: () => new Browser(h) };
   return h;
 }

@@ -5,15 +5,56 @@ body {
   overflow: hidden;
 }
 
+body {
+  --scale: 1;
+  --bg-alpha: 0.72;
+  --card: 10 10 20;
+  --fg: #fff;
+  --accent: #ff4d8d;
+  --accent2: #ffb347;
+  width: 1920px;
+  height: 1080px;
+  display: flex;
+}
+
+body[data-preset="day"] { --card: 255 255 255; --fg: #16161a; }
+body[data-preset="neon"] { --card: 0 0 0; --fg: #f5f5ff; }
+body[data-preset="pastel"] { --card: 255 240 246; --fg: #3b2a40; }
+
+body[data-accent="pink"] { --accent: #ff4d8d; --accent2: #ffb347; }
+body[data-accent="orange"] { --accent: #ff7a1a; --accent2: #ffd166; }
+body[data-accent="yellow"] { --accent: #f5c400; --accent2: #fff176; }
+body[data-accent="green"] { --accent: #22c55e; --accent2: #a3e635; }
+body[data-accent="teal"] { --accent: #14b8a6; --accent2: #67e8f9; }
+body[data-accent="blue"] { --accent: #3b82f6; --accent2: #93c5fd; }
+body[data-accent="purple"] { --accent: #8b5cf6; --accent2: #f0abfc; }
+body[data-accent="red"] { --accent: #ef4444; --accent2: #fca5a5; }
+
+body[data-position="top-left"] { align-items: flex-start; justify-content: flex-start; }
+body[data-position="top-right"] { align-items: flex-start; justify-content: flex-end; }
+body[data-position="bottom-left"] { align-items: flex-end; justify-content: flex-start; }
+body[data-position="bottom-right"] { align-items: flex-end; justify-content: flex-end; }
+body[data-position="center"] { align-items: center; justify-content: center; }
+
+body.hide-title .question,
+body.hide-total .total {
+  display: none;
+}
+
 #widget {
   font-family: system-ui, "Noto Sans", "Be Vietnam Pro", sans-serif;
-  color: #fff;
+  color: var(--fg);
   padding: 32px;
   width: 640px;
+  zoom: var(--scale);
+}
+
+body[data-preset="neon"] .poll {
+  box-shadow: 0 0 24px var(--accent), inset 0 0 12px rgb(255 255 255 / 8%);
 }
 
 .poll {
-  background: rgb(10 10 20 / 72%);
+  background: rgb(var(--card) / var(--bg-alpha));
   border-radius: 20px;
   padding: 24px 28px;
   box-shadow: 0 8px 30px rgb(0 0 0 / 35%);
@@ -49,14 +90,14 @@ body {
 .track {
   height: 22px;
   border-radius: 11px;
-  background: rgb(255 255 255 / 18%);
+  background: color-mix(in srgb, var(--fg) 15%, transparent);
   overflow: hidden;
 }
 
 .bar {
   height: 100%;
   border-radius: 11px;
-  background: linear-gradient(90deg, #ff4d8d, #ffb347);
+  background: linear-gradient(90deg, var(--accent), var(--accent2));
   transition: width 400ms ease;
 }
 
@@ -82,6 +123,6 @@ body {
 }
 
 .lb-rank {
-  color: #ffb347;
+  color: var(--accent2);
   font-variant-numeric: tabular-nums;
 }

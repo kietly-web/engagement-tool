@@ -75,7 +75,7 @@ export interface SessionResponse {
 
 export type SessionStartError = "not_connected" | "not_live" | "reconnect_required" | "quota_exhausted" | "youtube_unavailable" | "already_live" | "disabled" | "demo_limit";
 
-export type OverlayWidget = "poll" | "leaderboard" | "game";
+export type OverlayWidget = "poll" | "leaderboard" | "game" | "alerts";
 
 export interface OverlayPollMessage {
   type: "poll";
@@ -90,7 +90,23 @@ export interface OverlayLeaderboardMessage {
   entries: LeaderboardEntry[];
 }
 
-export type OverlayMessage = OverlayPollMessage | OverlayLeaderboardMessage;
+export interface OverlayTheme {
+  preset: "night" | "day" | "neon" | "pastel";
+  accent: "pink" | "orange" | "yellow" | "green" | "teal" | "blue" | "purple" | "red";
+  fontScale: number;
+  position: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center";
+  opacity: number;
+  showTitle: boolean;
+  showTotal: boolean;
+  showNames: boolean;
+}
+
+export interface OverlayConfigMessage {
+  type: "config";
+  config: { theme: OverlayTheme };
+}
+
+export type OverlayMessage = OverlayPollMessage | OverlayLeaderboardMessage | OverlayConfigMessage;
 
 export interface OverlayLinkView {
   widget: OverlayWidget;
