@@ -30,15 +30,54 @@ async function errorKind(res: HttpResponse): Promise<ChatSourceErrorKind> {
 }
 
 type RawItem = {
-  snippet?: { type?: unknown; publishedAt?: unknown; displayMessage?: unknown; textMessageDetails?: { messageText?: unknown } };
+  snippet?: {
+    type?: unknown;
+    publishedAt?: unknown;
+    displayMessage?: unknown;
+    textMessageDetails?: { messageText?: unknown };
+    superChatDetails?: { amountDisplayString?: unknown; userComment?: unknown };
+    superStickerDetails?: { amountDisplayString?: unknown };
+    membershipGiftingDetails?: { giftMembershipsCount?: unknown };
+  };
   authorDetails?: { channelId?: unknown; displayName?: unknown };
 };
+
+const str = (v: unknown, max: number) => (typeof v === "string" ? Array.from(v).slice(0, max).join("") : "");
+
+// Paid and membership events become donation messages with empty text, so they can never act as commands (ADR-008).
+function donationFrom(s: NonNullable<RawItem["snippet"]>): ChatMessage["donation"] | null {
+  switch (s.type) {
+    case "superChatEvent":
+      return { kind: "super_chat", amount: str(s.superChatDetails?.amountDisplayString, 20) || null, comment: str(s.superChatDetails?.userComment, MAX_TEXT) };
+    case "superStickerEvent":
+      return { kind: "super_sticker", amount: str(s.superStickerDetails?.amountDisplayString, 20) || null, comment: "" };
+    case "newSponsorEvent":
+      return { kind: "membership", amount: null, comment: "" };
+    case "membershipGiftingEvent": {
+      const n = s.membershipGiftingDetails?.giftMembershipsCount;
+      return { kind: "membership_gift", amount: typeof n === "number" && Number.isInteger(n) && n > 0 ? `×${Math.min(n, 999)}` : null, comment: "" };
+    }
+    default:
+      return null;
+  }
+}
 
 // Keeps only the four fields the engine needs; avatars and every other author field are dropped here.
 export function toChatMessage(item: RawItem): ChatMessage | null {
   const s = item.snippet;
   const a = item.authorDetails;
-  if (s?.type !== "textMessageEvent" || typeof a?.channelId !== "string" || !isChannelId(a.channelId)) return null;
+  if (!s || typeof a?.channelId !== "string" || !isChannelId(a.channelId)) return null;
+  const donation = donationFrom(s);
+  if (donation) {
+    return {
+      channelId: a.channelId,
+      displayName: typeof a.displayName === "string" ? a.displayName.slice(0, 100) : "",
+      text: "",
+      publishedAt: typeof s.publishedAt === "string" ? s.publishedAt : "",
+      donation,
+    };
+  }
+  if (s.type !== "textMessageEvent") return null;
   const text = typeof s.textMessageDetails?.messageText === "string" ? s.textMessageDetails.messageText : s.displayMessage;
   if (typeof text !== "string") return null;
   return {

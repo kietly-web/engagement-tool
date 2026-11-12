@@ -194,7 +194,7 @@ export const vi = {
   "alerts.test": "Gửi thử thông báo",
   "alerts.tested": "Đã gửi. Kiểm tra lớp phủ Thông báo trong OBS.",
   "alerts.reserved": "Không dùng được các lệnh có sẵn (!vote, !join, …); lệnh chỉ gồm chữ không dấu và số.",
-  "alerts.sticker.heart": "❤️ Tim",
+  "alerts.sticker.heart": "❤\uFE0F Tim",
   "alerts.sticker.fire": "🔥 Lửa",
   "alerts.sticker.clap": "👏 Vỗ tay",
   "alerts.sticker.star": "⭐ Sao",
@@ -206,6 +206,12 @@ export const vi = {
   "alerts.animation.slide": "Trượt vào",
   "alerts.animation.bounce": "Nảy",
   "alerts.animation.shake": "Rung",
+  "alerts.donations": "Super Chat và hội viên (YouTube)",
+  "alerts.donations.help": "Hiện Super Chat, Super Sticker và hội viên mới trên lớp phủ Thông báo. Công cụ không nhận hay giữ tiền; ủng hộ không được cộng điểm.",
+  "alerts.donations.superChats": "Hiện Super Chat và Super Sticker",
+  "alerts.donations.memberships": "Hiện hội viên mới và quà hội viên",
+  "alerts.donations.showAmount": "Hiện số tiền",
+  "alerts.donations.showComment": "Hiện lời nhắn kèm theo",
 } as const;
 
 export type MessageKey = keyof typeof vi;

@@ -21,6 +21,7 @@ Creator Google refresh tokens; workspace membership and roles; viewer channel ID
 | T9 | Secret reaches the browser | Secrets only from Worker `env`; `VITE_*` is public; CI name check | `scripts/check-public-env.sh` |
 | T10 | Over-collection of children's data | Allowlisted viewer fields; no text in storage or logs | Reviewer; tests assert stored shape |
 | T11 | Retention not enforced (cron down, database compute suspended at its monthly limit) | Daily cron with alert on failure; deletion is idempotent | Runbook; cron test |
+| T13 | Donation alerts reveal a possibly-child donor's spending or words on stream; an erased donor reappears | Owner switches for amount and message; names stripped server-side when hidden; erased donors shown only as a generic thank-you; nothing stored (ADR-008) | `apps/worker/test/alerts.test.ts` |
 | T12 | Supply chain (malicious package or Action) | Lockfile, Dependabot, pinned Action SHAs, `pnpm audit`, minimum release age | CI |
 
 ## Controls checklist (ASVS L2 highlights)

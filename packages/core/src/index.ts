@@ -1,4 +1,4 @@
-export type { ChatMessage } from "./chat";
+export type { ChatMessage, DonationInfo } from "./chat";
 export { fixedClock, type Clock } from "./clock";
 export { COMMAND_ALIASES, parseCommand, type Command } from "./commands";
 export {
@@ -33,6 +33,9 @@ export {
   AlertThrottle,
   ANIMATIONS,
   DEFAULT_ALERTS,
+  DEFAULT_DONATIONS,
+  donationAlert,
+  type DonationAlertSettings,
   matchAlertCommand,
   normaliseTrigger,
   parseAlertsConfig,

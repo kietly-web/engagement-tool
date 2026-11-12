@@ -1,5 +1,6 @@
 import {
   AlertThrottle,
+  donationAlert,
   matchAlertCommand,
   parseAlertsConfig,
   parseCommand,
@@ -432,6 +433,14 @@ export class SessionEngine {
       // An erased viewer must not reappear on stream this session, by name or by alert.
       const erased = tally.isErased(message.channelId);
       if (!erased) this.rememberName(message.channelId, message.displayName);
+      if (message.donation) {
+        // An erased donor gets a generic thank-you only: no name, message or amount on stream.
+        const event = erased
+          ? donationAlert({ ...message.donation, amount: null, comment: "" }, null, alerts.donations)
+          : donationAlert(message.donation, this.names.get(message.channelId) ?? null, alerts.donations);
+        if (event) this.emit(event);
+        continue;
+      }
       const command = parseCommand(message.text);
       let earned = 0;
       if (command?.kind === "vote" && poll?.status === "open" && poll.vote(message.channelId, command.option) === "counted") {

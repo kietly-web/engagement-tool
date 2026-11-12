@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 12/11/2026 (ET-14). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
+Last updated: 12/11/2026 (ET-17). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
 
 ## Where we are
 
@@ -21,8 +21,8 @@ Last updated: 12/11/2026 (ET-14). Update in every slice PR. Read after `CLAUDE.m
 Plan revised by the owner on 10/11/2026 (ET-20, see `docs/design/08-delivery-plan.md`). The main draw is **alerts and customisable overlays** with donation alerts; mini-games come later. Build the feature skeleton first on demo data, then the owner tests on a real stream and invites a few creators they know. Small beta, strictly $0.
 
 1. **ET-13 Overlay customisation** (FR-13): done, [PR #12](https://github.com/kietly-web/engagement-tool/pull/12).
-2. **ET-14 Custom chat commands to overlay alerts** (FR-14): in review on branch `ET-14-command-alerts`.
-3. **ET-17 Super Chat and membership alerts** (FR-15, ADR-008): on synthetic events.
+2. **ET-14 Custom chat commands to overlay alerts** (FR-14): done, [PR #13](https://github.com/kietly-web/engagement-tool/pull/13).
+3. **ET-17 Super Chat and membership alerts** (FR-15, ADR-008): in review on branch `ET-17-super-chat-alerts`; verified on synthetic events only.
 4. **ET-21 Free-limit fixes**: dashboard polling and points flush interval.
 5. **ET-15 First real run**: needs the owner's setup (SETUP §0–1) and a test live stream. Expect rework here: nothing has run against real Google, YouTube, Cloudflare or Neon, and the `streamList` reader is unproven (Q-T1).
 6. **ET-22 Invited beta gate**: before the first invited creator streams.

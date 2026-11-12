@@ -28,8 +28,35 @@ describe("toChatMessage", () => {
       authorDetails: { channelId: ID, displayName: "Khán giả", profileImageUrl: "https://example.test/a.png", isChatModerator: true },
     };
     expect(toChatMessage(item)).toEqual({ channelId: ID, displayName: "Khán giả", text: "!vote 2", publishedAt: "2026-11-08T13:00:00Z" });
-    expect(toChatMessage({ ...item, snippet: { ...item.snippet, type: "superChatEvent" } })).toBeNull();
+    expect(toChatMessage({ ...item, snippet: { ...item.snippet, type: "pollEvent" } })).toBeNull();
     expect(toChatMessage({ ...item, authorDetails: { channelId: "nope" } })).toBeNull();
+  });
+});
+
+describe("toChatMessage donations", () => {
+  const author = { channelId: ID, displayName: "Linh", profileImageUrl: "https://example.test/x.png" };
+  it("maps Super Chats, Super Stickers and memberships to donation messages with no command text", () => {
+    expect(toChatMessage({ snippet: { type: "superChatEvent", superChatDetails: { amountDisplayString: "₫50.000", userComment: "!vote 1 cố lên" } }, authorDetails: author })).toEqual({
+      channelId: ID,
+      displayName: "Linh",
+      text: "",
+      publishedAt: "",
+      donation: { kind: "super_chat", amount: "₫50.000", comment: "!vote 1 cố lên" },
+    });
+    expect(toChatMessage({ snippet: { type: "superStickerEvent", superStickerDetails: { amountDisplayString: "$2.00" } }, authorDetails: author })?.donation).toEqual({
+      kind: "super_sticker",
+      amount: "$2.00",
+      comment: "",
+    });
+    expect(toChatMessage({ snippet: { type: "newSponsorEvent" }, authorDetails: author })?.donation?.kind).toBe("membership");
+    expect(toChatMessage({ snippet: { type: "membershipGiftingEvent", membershipGiftingDetails: { giftMembershipsCount: 5 } }, authorDetails: author })?.donation).toEqual({
+      kind: "membership_gift",
+      amount: "×5",
+      comment: "",
+    });
+  });
+  it("still drops other event types", () => {
+    expect(toChatMessage({ snippet: { type: "pollEvent" }, authorDetails: author })).toBeNull();
   });
 });
 
