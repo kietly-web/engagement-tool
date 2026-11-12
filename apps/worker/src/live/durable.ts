@@ -8,11 +8,15 @@ import type { OverlayWidget, SessionStatus } from "../api-types";
 import { createPgDatabase } from "@et/db";
 import { googleCredentials, OVERLAY_CONFIG_HEADER, quotaClient } from "./clients";
 import { DbPointsStore } from "./points-store";
-import { overlayView } from "./overlay-view";
+import { forSocket, overlayView } from "./overlay-view";
 import { quotaLimits } from "./limits";
 import { LiveSourceProvider } from "./sources";
 
 const systemClock = { now: () => new Date() };
+
+function showsNames(socket: WebSocket): boolean {
+  return (socket.deserializeAttachment() as { showNames?: boolean } | null)?.showNames !== false;
+}
 
 function parseJson(text: string | null): unknown {
   try {
@@ -64,8 +68,10 @@ export class LiveSession extends DurableObject<AppEnv> {
     if (this.ctx.getWebSockets(widget).length >= MAX_SOCKETS_PER_WIDGET) return new Response(null, { status: 429 });
     const [client, server] = Object.values(new WebSocketPair()) as [WebSocket, WebSocket];
     this.ctx.acceptWebSocket(server, [widget]);
-    server.send(JSON.stringify({ type: "config", config: parseWidgetConfig(parseJson(request.headers.get(OVERLAY_CONFIG_HEADER))) }));
-    const view = overlayView(widget, await this.engine.status());
+    const config = parseWidgetConfig(parseJson(request.headers.get(OVERLAY_CONFIG_HEADER)));
+    server.serializeAttachment({ showNames: config.theme.showNames });
+    server.send(JSON.stringify({ type: "config", config }));
+    const view = forSocket(overlayView(widget, await this.engine.status()), config.theme.showNames);
     if (view) server.send(JSON.stringify(view));
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -74,10 +80,11 @@ export class LiveSession extends DurableObject<AppEnv> {
     for (const widget of WIDGETS) {
       const view = overlayView(widget, status);
       if (!view) continue;
-      const message = JSON.stringify(view);
+      const withNames = JSON.stringify(view);
+      const withoutNames = JSON.stringify(forSocket(view, false));
       for (const socket of this.ctx.getWebSockets(widget)) {
         try {
-          socket.send(message);
+          socket.send(showsNames(socket) ? withNames : withoutNames);
         } catch {
           socket.close(1011, "send failed");
         }
@@ -86,9 +93,11 @@ export class LiveSession extends DurableObject<AppEnv> {
   }
 
   configChanged(widget: OverlayWidget, config: object) {
-    const message = JSON.stringify({ type: "config", config: parseWidgetConfig(config) });
+    const parsed = parseWidgetConfig(config);
+    const message = JSON.stringify({ type: "config", config: parsed });
     for (const socket of this.ctx.getWebSockets(widget)) {
       try {
+        socket.serializeAttachment({ showNames: parsed.theme.showNames });
         socket.send(message);
       } catch {
         socket.close(1011, "send failed");

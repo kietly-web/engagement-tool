@@ -95,7 +95,7 @@ export function StylePanel({ workspaceId }: { workspaceId: string }) {
           </div>
           <figure className="preview">
             <figcaption className="muted">{t("style.preview")}</figcaption>
-            {previewSrc && <iframe title={t("style.preview")} src={previewSrc} sandbox="allow-scripts allow-same-origin" />}
+            {previewSrc && <iframe title={t("style.preview")} src={previewSrc} />}
           </figure>
         </div>
       )}

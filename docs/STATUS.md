@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 12/11/2026 (ET-20 delivery plan revision). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
+Last updated: 12/11/2026 (ET-13). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
 
 ## Where we are
 

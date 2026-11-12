@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { MeResponse, OverlayRotateResponse } from "../src/api-types";
-import { overlayView } from "../src/live/overlay-view";
+import { forSocket, overlayView } from "../src/live/overlay-view";
 import { clearOverlayMissCache, OVERLAY_PAGE_HEADERS } from "../src/overlay";
 import { makeHarness, ORIGIN, type Harness } from "./harness";
 
@@ -168,5 +168,15 @@ describe("widget config", () => {
     const outsider = h.browser();
     await outsider.signIn();
     expect((await outsider.request(`/api/workspaces/${ws}/widgets/poll/config`)).status).toBe(404);
+  });
+});
+
+describe("forSocket", () => {
+  it("strips display names for sockets whose widget hides them, and leaves other messages alone", () => {
+    const board = { type: "leaderboard" as const, live: true, title: "Mùa 1", entries: [{ rank: 1, name: "Linh", points: 30 }] };
+    expect(forSocket(board, false)).toEqual({ ...board, entries: [{ rank: 1, name: null, points: 30 }] });
+    expect(forSocket(board, true)).toBe(board);
+    const poll = { type: "poll" as const, live: true, poll: null };
+    expect(forSocket(poll, false)).toBe(poll);
   });
 });
