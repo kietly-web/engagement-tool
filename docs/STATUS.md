@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 12/11/2026 (ET-17). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
+Last updated: 12/11/2026 (ET-21). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
 
 ## Where we are
 
@@ -22,8 +22,8 @@ Plan revised by the owner on 10/11/2026 (ET-20, see `docs/design/08-delivery-pla
 
 1. **ET-13 Overlay customisation** (FR-13): done, [PR #12](https://github.com/kietly-web/engagement-tool/pull/12).
 2. **ET-14 Custom chat commands to overlay alerts** (FR-14): done, [PR #13](https://github.com/kietly-web/engagement-tool/pull/13).
-3. **ET-17 Super Chat and membership alerts** (FR-15, ADR-008): in review on branch `ET-17-super-chat-alerts`; verified on synthetic events only.
-4. **ET-21 Free-limit fixes**: dashboard polling and points flush interval.
+3. **ET-17 Super Chat and membership alerts** (FR-15, ADR-008): done, [PR #14](https://github.com/kietly-web/engagement-tool/pull/14); verified on synthetic events only.
+4. **ET-21 Free-limit fixes**: in review on branch `ET-21-free-limit-fixes`.
 5. **ET-15 First real run**: needs the owner's setup (SETUP §0–1) and a test live stream. Expect rework here: nothing has run against real Google, YouTube, Cloudflare or Neon, and the `streamList` reader is unproven (Q-T1).
 6. **ET-22 Invited beta gate**: before the first invited creator streams.
 
@@ -70,6 +70,7 @@ Everything not done lives in [SETUP.md](SETUP.md), with priorities and exact ste
 - Pooled connections forbid session-level `SET`; set the RLS context with `set_config(..., true)` inside the transaction (`withWorkspace` does this).
 - Hyperdrive must keep `--caching-disabled`: its cache ignores the RLS context.
 - Create Neon login roles with SQL, not the console (console roles join `neon_superuser`, which bypasses RLS).
+- Points flush about every 10 minutes (ET-21); the live leaderboard = season standings read once + unflushed tally. Don't shorten the interval without rechecking Neon compute hours.
 - Points flushes are batches with IDs recorded in `app.points_batch`; never "restore and retry" deltas without the same batch ID, or points double-count.
 - Seasons start at the database's `now()`, not the Worker's clock; mixing the two made a fresh season look inactive in tests.
 - Never edit an applied migration; the migrator compares checksums and refuses. Add a new numbered file.
