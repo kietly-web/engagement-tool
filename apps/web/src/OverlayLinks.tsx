@@ -33,8 +33,8 @@ export function OverlayLinks({ workspaceId, isOwner }: { workspaceId: string; is
   }
 
   return (
-    <div className="card">
-      <h2>{t("overlay.title")}</h2>
+    <details className="card">
+      <summary>{t("overlay.advanced")}</summary>
       {error && <p className="error">{t("state.error")}</p>}
       {fresh && (
         <div className="notice" role="status">
@@ -62,6 +62,6 @@ export function OverlayLinks({ workspaceId, isOwner }: { workspaceId: string; is
         ))}
       </ul>
       <p className="muted">{isOwner ? t("overlay.howto") : t("overlay.ownerOnly")}</p>
-    </div>
+    </details>
   );
 }

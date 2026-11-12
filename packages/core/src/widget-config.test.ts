@@ -2,6 +2,13 @@ import { describe, expect, it } from "vitest";
 import { DEFAULT_THEME, isWidget, parseWidgetConfig } from "./widget-config";
 
 describe("parseWidgetConfig", () => {
+  it("puts each widget in its own corner unless the creator chose one", () => {
+    expect(parseWidgetConfig({}, "poll").theme.position).toBe("top-left");
+    expect(parseWidgetConfig({}, "leaderboard").theme.position).toBe("top-right");
+    expect(parseWidgetConfig({}, "alerts").theme.position).toBe("bottom-right");
+    expect(parseWidgetConfig({ theme: { position: "center" } }, "alerts").theme.position).toBe("center");
+  });
+
   it("fills defaults for missing or broken input", () => {
     for (const input of [undefined, null, 42, "x", {}, { theme: "x" }]) expect(parseWidgetConfig(input)).toEqual({ theme: DEFAULT_THEME });
   });

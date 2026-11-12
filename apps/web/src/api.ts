@@ -1,4 +1,4 @@
-import type { AlertsConfigView, MeResponse, OverlayLinkView, OverlayTheme, OverlayRotateResponse, OverlayWidget, SessionMode, SessionResponse, WorkspaceResponse } from "@et/worker/api-types";
+import type { AlertsConfigView, MeResponse, ObsLinkResponse, OverlayLinkView, OverlayTheme, OverlayRotateResponse, OverlayWidget, SessionMode, SessionResponse, WorkspaceResponse } from "@et/worker/api-types";
 
 export interface SeasonView {
   id: string;
@@ -44,6 +44,8 @@ export const api = {
   stopSession: (id: string) => call<SessionResponse>(`/api/workspaces/${encodeURIComponent(id)}/session`, { method: "DELETE" }),
   openPoll: (id: string, poll: { question: string; options: string[]; voteChange: "first" | "latest" }) =>
     call<SessionResponse>(`/api/workspaces/${encodeURIComponent(id)}/session/poll`, jsonBody("POST", poll)),
+  obsLink: (id: string) => call<ObsLinkResponse>(`/api/workspaces/${encodeURIComponent(id)}/obs-link`),
+  rotateObsLink: (id: string) => call<ObsLinkResponse>(`/api/workspaces/${encodeURIComponent(id)}/obs-link/rotate`, { method: "POST" }),
   overlays: (id: string) => call<{ overlays: OverlayLinkView[] }>(`/api/workspaces/${encodeURIComponent(id)}/overlays`),
   rotateOverlay: (id: string, widget: OverlayWidget) =>
     call<OverlayRotateResponse>(`/api/workspaces/${encodeURIComponent(id)}/overlays/${widget}/rotate`, { method: "POST" }),

@@ -35,6 +35,14 @@ export const DEFAULT_THEME: WidgetTheme = {
   showNames: true,
 };
 
+// Different corners by default, so the one-link scene doesn't stack every widget in the same place.
+export const DEFAULT_POSITION: Record<Widget, WidgetTheme["position"]> = {
+  poll: "top-left",
+  leaderboard: "top-right",
+  game: "top-left",
+  alerts: "bottom-right",
+};
+
 export const isWidget = (value: unknown): value is Widget => WIDGETS.includes(value as Widget);
 
 const pick = <T extends string>(allowed: readonly T[], value: unknown, fallback: T): T => (allowed.includes(value as T) ? (value as T) : fallback);
@@ -51,7 +59,7 @@ export function parseWidgetConfig(input: unknown, widget?: Widget): WidgetConfig
       preset: pick(PRESETS, t.preset, DEFAULT_THEME.preset),
       accent: pick(ACCENTS, t.accent, DEFAULT_THEME.accent),
       fontScale: stepped(t.fontScale, 75, 150, 5, DEFAULT_THEME.fontScale),
-      position: pick(POSITIONS, t.position, DEFAULT_THEME.position),
+      position: pick(POSITIONS, t.position, widget ? DEFAULT_POSITION[widget] : DEFAULT_THEME.position),
       opacity: stepped(t.opacity, 0, 100, 5, DEFAULT_THEME.opacity),
       showTitle: bool(t.showTitle, DEFAULT_THEME.showTitle),
       showTotal: bool(t.showTotal, DEFAULT_THEME.showTotal),
