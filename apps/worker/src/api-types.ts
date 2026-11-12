@@ -58,6 +58,7 @@ export interface SessionStatus {
   poll: PollView | null;
   season?: string | null;
   leaderboard?: LeaderboardEntry[];
+  overlayConnections?: number;
 }
 
 export interface QuotaView {
@@ -75,7 +76,7 @@ export interface SessionResponse {
 
 export type SessionStartError = "not_connected" | "not_live" | "reconnect_required" | "quota_exhausted" | "youtube_unavailable" | "already_live" | "disabled" | "demo_limit";
 
-export type OverlayWidget = "poll" | "leaderboard" | "game" | "alerts";
+export type OverlayWidget = "poll" | "leaderboard" | "game" | "alerts" | "scene";
 
 export interface OverlayPollMessage {
   type: "poll";
@@ -121,7 +122,14 @@ export interface AlertsConfigView {
 
 export interface OverlayConfigMessage {
   type: "config";
+  // Present on scene sockets, which carry several widgets' configs.
+  widget?: "poll" | "leaderboard" | "alerts";
   config: { theme: OverlayTheme; alerts?: AlertsConfigView };
+}
+
+export interface ObsLinkResponse {
+  url: string;
+  dragUrl: string;
 }
 
 export interface OverlayAlertMessage {

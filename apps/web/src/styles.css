@@ -243,3 +243,31 @@ dd {
   margin-right: calc(1920px * -0.76);
   background: repeating-conic-gradient(#8884 0% 25%, transparent 0% 50%) 0 0 / 40px 40px;
 }
+
+.steps {
+  padding-left: 0;
+  list-style: none;
+}
+
+.steps > li {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid color-mix(in srgb, var(--muted) 25%, transparent);
+}
+
+.steps > li:last-child {
+  border-bottom: none;
+}
+
+.steps .ok {
+  color: var(--ok);
+  font-weight: 600;
+}
+
+.button.drag {
+  cursor: grab;
+}
+
+details.card > summary {
+  cursor: pointer;
+  font-weight: 600;
+}

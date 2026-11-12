@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 12/11/2026 (phase 1 built; ET-15 checklist). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
+Last updated: 12/11/2026 (phase 1 built; ET-23 one-step OBS setup; ET-15 checklist). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
 
 ## Where we are
 
@@ -19,6 +19,8 @@ Last updated: 12/11/2026 (phase 1 built; ET-15 checklist). Update in every slice
 ## Next
 
 **Phase 1 is built (12/11/2026)**: ET-13 overlay styling, ET-14 command alerts, ET-17 Super Chat and membership alerts and ET-21 free-limit fixes are merged, on top of ET-1 to ET-9.
+
+**ET-23 one-step OBS setup:** the owner's dashboard now has a setup card. Creator setup is: sign in with Google, then drag one button onto OBS (or copy one link). One "scene" link shows the poll, leaderboard and alerts, each in its own corner and style. Per-widget links still exist under "advanced".
 
 **Waiting on the owner: ET-15 first real run.** Follow [runbooks/first-real-run.md](runbooks/first-real-run.md): accounts and secrets (Part A), send Claude the Worker URL, Hyperdrive ID and Google client ID (Part B), then the test (Part C). Claude then adds the IDs to `wrangler.jsonc`, and fixes what the run finds. Expect rework: nothing has run against the real services, and the `streamList` reader is unproven (Q-T1).
 

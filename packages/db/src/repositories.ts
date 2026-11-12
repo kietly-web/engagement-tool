@@ -154,7 +154,7 @@ export const youtube = {
   },
 };
 
-export type OverlayWidget = "poll" | "leaderboard" | "game" | "alerts";
+export type OverlayWidget = "poll" | "leaderboard" | "game" | "alerts" | "scene";
 
 export const overlays = {
   async rotate(tx: Queryable, widget: OverlayWidget, tokenHashHex: string): Promise<void> {
@@ -166,6 +166,20 @@ export const overlays = {
       `SELECT widget, rotated_at::text AS "rotatedAt" FROM app.overlay_token WHERE workspace_id = app.current_workspace_id() ORDER BY widget`,
     );
     return rows;
+  },
+
+  async set(tx: Queryable, widget: OverlayWidget, tokenHashHex: string, tokenCiphertextHex: string): Promise<void> {
+    await tx.query("SELECT app.set_overlay_token($1, $2, $3)", [widget, tokenHashHex, tokenCiphertextHex]);
+  },
+
+  async tokenCiphertext(tx: Queryable, widget: OverlayWidget): Promise<string | null> {
+    const { rows } = await tx.query<{ hex: string | null }>("SELECT app.overlay_token_enc($1) AS hex", [widget]);
+    return rows[0]?.hex ?? null;
+  },
+
+  async sceneConfigs(tx: Queryable, tokenHashHex: string): Promise<Record<string, unknown>> {
+    const { rows } = await tx.query<{ configs: Record<string, unknown> }>("SELECT app.overlay_scene_configs($1) AS configs", [tokenHashHex]);
+    return rows[0]?.configs ?? {};
   },
 
   async resolve(tx: Queryable, tokenHashHex: string): Promise<{ workspaceId: string; widget: OverlayWidget; config: unknown } | null> {

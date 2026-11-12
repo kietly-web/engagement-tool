@@ -53,20 +53,20 @@ Claude adds B2 and B3 to `apps/worker/wrangler.jsonc` in a small PR. When it mer
 - [ ] Sign in with Google ("Đăng nhập với Google và kết nối kênh YouTube"). Allow the YouTube permission. You should land on your channel's workspace.
 - [ ] Live panel → "Chạy thử với chat giả lập". Open a poll with 2–4 options. Counts should rise within a few seconds.
 - [ ] Season panel → start a 1-day season ("Mùa thử"). In the demo, the leaderboard fills from fake viewers. Demo points are never saved.
-- [ ] Overlay links → create links for Bình chọn, Bảng xếp hạng and Thông báo. Each link is shown once, so copy it into a note.
 - [ ] Style panel → change the poll's colours and position, and save.
 - [ ] Alerts panel → add `!tim` → "Thả tim cho idol!" with a heart, and save. Then "Gửi thử thông báo".
 
 **C2 OBS**
 
-- [ ] In OBS: Sources → + → Browser, paste the Bình chọn link, size 1920×1080. Repeat for Bảng xếp hạng and Thông báo, then arrange them.
-- [ ] With the demo still running, the poll and leaderboard update in OBS. The test alert appears in the Thông báo source. Changing the style and saving updates OBS without a refresh.
+- [ ] Open OBS (not as Administrator). In the dashboard's "Cài đặt OBS" card, drag "Kéo nút này thả vào cửa sổ OBS" onto the OBS preview. OBS should add one browser source named "Engagement Tool", 1920×1080, and the card's step 2 should turn green within about 5 s. If dragging doesn't work, use "Sao chép link" and follow the steps under "Không kéo thả được?", then report it.
+- [ ] With the demo still running, the poll (top left) and leaderboard (top right) update in OBS. The test alert appears bottom right. Changing a widget's style or corner and saving updates OBS without a refresh.
+- [ ] Leaderboard style → turn off names and save. The leaderboard shows "Khán giả" while alerts still show names.
 - [ ] Stop the demo.
 
 **C3 Real stream (camera off)**
 
 - [ ] YouTube Studio → Go live → Stream, visibility **Unlisted** (not Private: private streams have no chat). Copy the stream key into OBS → Settings → Stream.
-- [ ] OBS: a background (colour or image) plus the three overlay sources → Start Streaming. Wait until YouTube Studio shows "Live".
+- [ ] OBS: a background (colour or image) plus the "Engagement Tool" source → Start Streaming. Wait until YouTube Studio shows "Live".
 - [ ] Dashboard → "Bắt đầu phiên live (YouTube)". It should find your stream. If it says the channel isn't live, wait 30 s and retry, then report it.
 - [ ] Open a poll. From your phone (or a friend's account), type `!vote 1`, `!bình chọn 2` and `!binh chon 2` in the stream's chat. Expect counts in OBS within about 5–10 s (YouTube's chat delay plus polling).
 - [ ] Type `!join` and `!tham gia`. The leaderboard shows the points with your display name.
