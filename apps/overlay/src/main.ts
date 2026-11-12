@@ -1,12 +1,37 @@
-import type { OverlayMessage } from "@et/worker/api-types";
+import type { AlertsConfigView, OverlayMessage } from "@et/worker/api-types";
 import { backoffMs, leaderboardModel, parseMessage, parseOverlayPath, pollModel, shouldReconnect } from "./model";
 import { applyTheme, decodePreview, DEFAULT_THEME, themeFrom } from "./theme";
+import { AlertQueue, alertView, hintTriggers, SHOW_MS, type AlertView } from "./alerts";
 import { t } from "./i18n";
 import "./overlay.css";
 
 const root = document.getElementById("widget")!;
 let showNames = DEFAULT_THEME.showNames;
 let lastContent: OverlayMessage | null = null;
+let hint: string[] = [];
+const queue = new AlertQueue<AlertView>();
+let showing = false;
+
+function renderHint(): void {
+  root.replaceChildren();
+  if (hint.length > 0) root.append(el("div", "alert-hint", t["alerts.hint"](hint)));
+}
+
+function playNext(): void {
+  const next = queue.next();
+  if (!next) {
+    showing = false;
+    renderHint();
+    return;
+  }
+  showing = true;
+  root.replaceChildren();
+  const card = el("div", `alert anim-${next.animation}`);
+  card.append(el("div", "alert-emoji", next.emoji), el("div", "alert-title", next.title));
+  if (next.name || next.amount) card.append(el("div", "alert-name", [next.name, next.amount].filter(Boolean).join(" · ")));
+  root.append(card);
+  window.setTimeout(playNext, SHOW_MS);
+}
 applyTheme(document.body, DEFAULT_THEME);
 
 function el(tag: string, className: string, text?: string): HTMLElement {
@@ -35,7 +60,16 @@ function render(message: OverlayMessage): void {
     const theme = themeFrom(message.config);
     showNames = theme.showNames;
     applyTheme(document.body, theme);
+    hint = hintTriggers(message.config.alerts);
+    if (isAlertsWidget && !showing) renderHint();
     if (lastContent) render(lastContent);
+    return;
+  }
+  if (message.type === "alert") {
+    const view = alertView(message, t["alerts.testTitle"]);
+    if (!view) return;
+    queue.push(showNames ? view : { ...view, name: null });
+    if (!showing) playNext();
     return;
   }
   lastContent = message;
@@ -80,6 +114,18 @@ function connect(target: { token: string; widget: string }, attempt = 0): void {
 
 function preview(widget: string): void {
   const showConfig = () => render({ type: "config", config: { theme: themeFrom(decodePreview(location.hash)) } });
+  if (widget === "alerts") {
+    const showConfig = () => {
+      const config = decodePreview(location.hash) as { alerts?: AlertsConfigView };
+      render({ type: "config", config: { theme: themeFrom(config), ...(config.alerts ? { alerts: config.alerts } : {}) } });
+    };
+    showConfig();
+    window.addEventListener("hashchange", showConfig);
+    const sample = () => render({ type: "alert", alert: { source: "command", title: t["preview.alert"], name: t["preview.names"][0]!, sticker: "heart", animation: "bounce" } });
+    sample();
+    window.setInterval(sample, SHOW_MS * 2);
+    return;
+  }
   if (widget === "leaderboard") {
     render({
       type: "leaderboard",
@@ -96,5 +142,6 @@ function preview(widget: string): void {
 
 const target = parseOverlayPath(location.pathname);
 const previewWidget = new URLSearchParams(location.search).get("preview");
+const isAlertsWidget = target?.widget === "alerts" || previewWidget === "alerts";
 if (target) connect(target);
-else if (previewWidget === "poll" || previewWidget === "leaderboard") preview(previewWidget);
+else if (previewWidget === "poll" || previewWidget === "leaderboard" || previewWidget === "alerts") preview(previewWidget);

@@ -101,12 +101,34 @@ export interface OverlayTheme {
   showNames: boolean;
 }
 
-export interface OverlayConfigMessage {
-  type: "config";
-  config: { theme: OverlayTheme };
+export type AlertSticker = "heart" | "fire" | "clap" | "star" | "laugh" | "wave" | "gift" | "sparkles";
+export type AlertAnimation = "pop" | "slide" | "bounce" | "shake";
+
+export interface AlertCommandView {
+  trigger: string;
+  text: string;
+  sticker: AlertSticker;
+  animation: AlertAnimation;
 }
 
-export type OverlayMessage = OverlayPollMessage | OverlayLeaderboardMessage | OverlayConfigMessage;
+export interface AlertsConfigView {
+  commands: AlertCommandView[];
+  viewerCooldownSeconds: number;
+  globalCooldownSeconds: number;
+  showHint: boolean;
+}
+
+export interface OverlayConfigMessage {
+  type: "config";
+  config: { theme: OverlayTheme; alerts?: AlertsConfigView };
+}
+
+export interface OverlayAlertMessage {
+  type: "alert";
+  alert: { source: "command" | "super_chat" | "membership" | "test"; title: string; name: string | null; sticker: AlertSticker; animation: AlertAnimation; amount?: string };
+}
+
+export type OverlayMessage = OverlayPollMessage | OverlayLeaderboardMessage | OverlayConfigMessage | OverlayAlertMessage;
 
 export interface OverlayLinkView {
   widget: OverlayWidget;

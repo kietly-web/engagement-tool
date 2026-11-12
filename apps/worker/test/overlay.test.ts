@@ -78,6 +78,7 @@ describe("overlay links", () => {
     expect(list.overlays).toEqual([
       { widget: "poll", rotatedAt: expect.any(String) },
       { widget: "leaderboard", rotatedAt: null },
+      { widget: "alerts", rotatedAt: null },
     ]);
     expect(JSON.stringify(list)).not.toMatch(/\/o\//);
     expect((await mod.post(`/api/workspaces/${ws}/overlays/poll/rotate`)).status).toBe(403);

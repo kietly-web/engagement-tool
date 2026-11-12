@@ -7,7 +7,7 @@ const t = translator("vi");
 const PRESETS = ["night", "day", "neon", "pastel"] as const;
 const ACCENTS = ["pink", "orange", "yellow", "green", "teal", "blue", "purple", "red"] as const;
 const POSITIONS = ["top-left", "top-right", "bottom-left", "bottom-right", "center"] as const;
-const WIDGETS: OverlayWidget[] = ["poll", "leaderboard"];
+const WIDGETS: OverlayWidget[] = ["poll", "leaderboard", "alerts"];
 
 function encode(theme: OverlayTheme): string {
   const bytes = new TextEncoder().encode(JSON.stringify({ theme }));

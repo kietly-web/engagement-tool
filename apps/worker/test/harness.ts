@@ -3,7 +3,7 @@ import { loadMigrations } from "@et/db/migrations";
 import { createTestDatabase } from "@et/db/testing";
 import { QuotaBudget, type FetchLike } from "@et/youtube";
 import { createApp } from "../src/app";
-import { googleCredentials, type QuotaUsageClient } from "../src/live/clients";
+import { googleCredentials, type QuotaUsageClient, type SessionClient } from "../src/live/clients";
 import { SessionEngine } from "../src/live/engine";
 import { DbPointsStore } from "../src/live/points-store";
 import { LiveSourceProvider } from "../src/live/sources";
@@ -122,6 +122,7 @@ export interface Harness {
   closedOverlays: [string, string][];
   sockets: { workspaceId: string; widget: string; config?: object }[];
   configPushes: [string, string, object][];
+  alertsSent: [string, unknown][];
   browser(): Browser;
 }
 
@@ -142,6 +143,7 @@ export async function makeHarness(
   const closedOverlays: [string, string][] = [];
   const sockets: { workspaceId: string; widget: string; config?: object }[] = [];
   const configPushes: [string, string, object][] = [];
+  const alertsSent: [string, unknown][] = [];
   const app = createApp({
     database: () => db,
     fetch: google.fetch,
@@ -152,14 +154,19 @@ export async function makeHarness(
       if (!engine) {
         const provider = new LiveSourceProvider({ fetch: google.fetch, quota: quotaClient, clock: engineClock, credentials: () => googleCredentials(env) });
         engine = new SessionEngine(new MemoryStorage(), provider, engineClock, {
+          onAlert: (event) => alertsSent.push([ws, event]),
           points: (state) => (state.startedBy ? new DbPointsStore(db, { memberId: state.startedBy, workspaceId: state.workspaceId }) : null),
+        });
+        Object.assign(engine, {
+          closeOverlays: async (widget: string) => void closedOverlays.push([ws, widget]),
+          configChanged: async (widget: string, config: object) => {
+            configPushes.push([ws, widget, config]);
+            if (widget === "alerts") await engine!.setAlertsConfig((config as { alerts?: unknown }).alerts);
+          },
         });
         engines.set(ws, engine);
       }
-      return Object.assign(Object.create(engine) as SessionEngine, {
-        closeOverlays: async (widget: string) => void closedOverlays.push([ws, widget]),
-        configChanged: async (widget: string, config: object) => void configPushes.push([ws, widget, config]),
-      });
+      return engine as unknown as SessionClient;
     },
     overlaySocket: async (_env, workspaceId, widget, _request, config) => {
       sockets.push({ workspaceId, widget, config });
@@ -177,6 +184,6 @@ export async function makeHarness(
       ? {}
       : { GOOGLE_CLIENT_ID: "client-1", GOOGLE_CLIENT_SECRET: "secret", SESSION_SECRET: key(1), TOKEN_ENCRYPTION_KEY: key(2) }),
   } as unknown as AppEnv;
-  const h: Harness = { app, env, db, google, clock, engines, quota, closedOverlays, sockets, configPushes, browser: () => new Browser(h) };
+  const h: Harness = { app, env, db, google, clock, engines, quota, closedOverlays, sockets, configPushes, alertsSent, browser: () => new Browser(h) };
   return h;
 }

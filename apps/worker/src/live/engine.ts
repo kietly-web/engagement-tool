@@ -1,4 +1,19 @@
-import { parseCommand, Poll, PollError, POINTS, PointsTally, type Clock, type PointsTallySnapshot, type PollInput, type PollSnapshot } from "@et/core";
+import {
+  AlertThrottle,
+  matchAlertCommand,
+  parseAlertsConfig,
+  parseCommand,
+  Poll,
+  PollError,
+  POINTS,
+  PointsTally,
+  type AlertEvent,
+  type AlertsConfig,
+  type Clock,
+  type PointsTallySnapshot,
+  type PollInput,
+  type PollSnapshot,
+} from "@et/core";
 import { ChatSourceError, type ChatSource } from "@et/youtube";
 import type { LeaderboardEntry, PollView, SessionMode, SessionStatus, StopReason } from "../api-types";
 import type { PointsStore } from "./points-store";
@@ -52,6 +67,7 @@ export interface StartInput {
   seasonId?: string | null;
   seasonName?: string | null;
   seasonEndsAt?: string | null;
+  alerts?: unknown;
 }
 
 export interface SourceProvider {
@@ -74,6 +90,7 @@ export interface EngineOptions {
   onChange(status: SessionStatus): void;
   points(state: SessionState): PointsStore | null;
   flushEveryMs: number;
+  onAlert(event: AlertEvent): void;
 }
 
 const DEFAULTS: EngineOptions = {
@@ -84,6 +101,7 @@ const DEFAULTS: EngineOptions = {
   onChange: () => undefined,
   points: () => null,
   flushEveryMs: 10_000,
+  onAlert: () => undefined,
 };
 
 export class SessionEngine {
@@ -94,6 +112,8 @@ export class SessionEngine {
   private leaderboard: { channelId: string; points: number }[] = [];
   private lastFlush = 0;
   private tally: PointsTally | null = null;
+  private alertsConfig: AlertsConfig | null = null;
+  private readonly throttle = new AlertThrottle();
   private flushing: Promise<unknown> | null = null;
   private flushFailures = 0;
   private nextFlushAt = 0;
@@ -109,6 +129,35 @@ export class SessionEngine {
 
   private loadState() {
     return this.storage.get<SessionState>("session");
+  }
+
+  private async loadAlerts(): Promise<AlertsConfig> {
+    this.alertsConfig ??= parseAlertsConfig(await this.storage.get("alerts"));
+    return this.alertsConfig;
+  }
+
+  async setAlertsConfig(config: unknown): Promise<void> {
+    this.alertsConfig = parseAlertsConfig(config);
+    await this.storage.put("alerts", this.alertsConfig);
+  }
+
+  private emit(event: AlertEvent): void {
+    try {
+      this.opts.onAlert(event);
+    } catch {
+      // A dead socket must not break chat handling.
+    }
+  }
+
+  private lastTestAlert = Number.NEGATIVE_INFINITY;
+
+  // Rate-limited so a member can't flood the stream or burn requests with test cards; the overlay supplies the text.
+  testAlert(): boolean {
+    const now = this.clock.now().getTime();
+    if (now - this.lastTestAlert < 3_000) return false;
+    this.lastTestAlert = now;
+    this.emit({ source: "test", title: "", name: null, sticker: "sparkles", animation: "pop" });
+    return true;
   }
 
   private async loadPoll(): Promise<Poll | null> {
@@ -204,6 +253,7 @@ export class SessionEngine {
     const state = await this.loadState();
     if (state) await this.saveTally(state);
     this.names.delete(channelId);
+    this.throttle.forget(channelId);
     this.sessionTotals.delete(channelId);
     this.leaderboard = this.leaderboard.filter((e) => e.channelId !== channelId);
   }
@@ -254,6 +304,8 @@ export class SessionEngine {
     };
     this.sources.invalidate();
     this.resetMemory();
+    this.throttle.reset();
+    if (input.alerts !== undefined) await this.setAlertsConfig(input.alerts);
     await this.storage.delete("poll");
     await this.storage.delete("points");
     await this.storage.put("session", state);
@@ -374,15 +426,23 @@ export class SessionEngine {
 
     const poll = await this.loadPoll();
     const tally = await this.loadTally();
+    const alerts = await this.loadAlerts();
     let scored = false;
     for (const message of page.messages) {
-      this.rememberName(message.channelId, message.displayName);
+      // An erased viewer must not reappear on stream this session, by name or by alert.
+      const erased = tally.isErased(message.channelId);
+      if (!erased) this.rememberName(message.channelId, message.displayName);
       const command = parseCommand(message.text);
       let earned = 0;
       if (command?.kind === "vote" && poll?.status === "open" && poll.vote(message.channelId, command.option) === "counted") {
         if (tally.countedVote(message.channelId)) earned = POINTS.countedVote;
       } else if (command?.kind === "join" && tally.join(message.channelId)) {
         earned = POINTS.join;
+      } else if (!command && !erased && alerts.commands.length > 0) {
+        const alert = matchAlertCommand(message.text, alerts.commands);
+        if (alert && this.throttle.allow(message.channelId, now, alerts)) {
+          this.emit({ source: "command", title: alert.text, name: this.names.get(message.channelId) ?? null, sticker: alert.sticker, animation: alert.animation });
+        }
       }
       if (earned > 0) {
         scored = true;

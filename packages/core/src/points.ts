@@ -98,6 +98,10 @@ export class PointsTally {
     if (this.inflight) this.inflight = { id: this.inflight.id, deltas: this.inflight.deltas.filter(([id]) => id !== channelId) };
   }
 
+  isErased(channelId: string): boolean {
+    return this.erased.has(channelId);
+  }
+
   hasPending(): boolean {
     return this.pending.size > 0 || this.inflight !== null;
   }

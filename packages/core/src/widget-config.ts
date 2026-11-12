@@ -1,3 +1,5 @@
+import { parseAlertsConfig, type AlertsConfig } from "./alerts";
+
 export const WIDGETS = ["poll", "leaderboard", "game", "alerts"] as const;
 export type Widget = (typeof WIDGETS)[number];
 
@@ -19,6 +21,7 @@ export interface WidgetTheme {
 
 export interface WidgetConfig {
   theme: WidgetTheme;
+  alerts?: AlertsConfig;
 }
 
 export const DEFAULT_THEME: WidgetTheme = {
@@ -40,8 +43,8 @@ const stepped = (value: unknown, min: number, max: number, step: number, fallbac
 const bool = (value: unknown, fallback: boolean) => (typeof value === "boolean" ? value : fallback);
 
 // Lenient by design: unknown keys are dropped and bad values fall back, so stored configs survive future changes.
-export function parseWidgetConfig(input: unknown): WidgetConfig {
-  const raw = (typeof input === "object" && input !== null ? input : {}) as { theme?: Record<string, unknown> };
+export function parseWidgetConfig(input: unknown, widget?: Widget): WidgetConfig {
+  const raw = (typeof input === "object" && input !== null ? input : {}) as { theme?: Record<string, unknown>; alerts?: unknown };
   const t = typeof raw.theme === "object" && raw.theme !== null ? raw.theme : {};
   return {
     theme: {
@@ -54,5 +57,6 @@ export function parseWidgetConfig(input: unknown): WidgetConfig {
       showTotal: bool(t.showTotal, DEFAULT_THEME.showTotal),
       showNames: bool(t.showNames, DEFAULT_THEME.showNames),
     },
+    ...(widget === "alerts" && { alerts: parseAlertsConfig(raw.alerts) }),
   };
 }

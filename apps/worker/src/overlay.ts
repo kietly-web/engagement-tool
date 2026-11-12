@@ -7,7 +7,7 @@ import { randomToken, toHex } from "./crypto";
 import type { AppDeps, AppEnv } from "./env";
 
 const TOKEN = /^[A-Za-z0-9_-]{43}$/;
-export const BUILT_WIDGETS: readonly OverlayWidget[] = ["poll", "leaderboard"];
+export const BUILT_WIDGETS: readonly OverlayWidget[] = ["poll", "leaderboard", "alerts"];
 const CONFIGURABLE: readonly OverlayWidget[] = ["poll", "leaderboard", "alerts"];
 const isConfigurable = (w: string): w is OverlayWidget => CONFIGURABLE.includes(w as OverlayWidget);
 const isBuilt = (w: string): w is OverlayWidget => BUILT_WIDGETS.includes(w as OverlayWidget);
@@ -77,7 +77,7 @@ export function overlayPublicRoutes(deps: AppDeps) {
     if (c.req.header("Upgrade") !== "websocket") return c.text("Expected WebSocket", 426);
     const found = await resolve(c);
     if (!found) return c.notFound();
-    return deps.overlaySocket(c.env, found.workspaceId, found.widget, c.req.raw, parseWidgetConfig(found.config));
+    return deps.overlaySocket(c.env, found.workspaceId, found.widget, c.req.raw, parseWidgetConfig(found.config, found.widget));
   });
 
   return app;
@@ -110,7 +110,7 @@ export function overlayManageRoutes(auth: ReturnType<typeof authRoutes>, deps: A
     const widget = c.req.param("widget");
     if (!isConfigurable(widget)) return c.json({ error: "unknown_widget" }, 400);
     const saved = await withWorkspace(c.var.db, { memberId: c.var.memberId, workspaceId: ws.id }, (tx) => widgetConfigs.get(tx, widget));
-    return c.json(parseWidgetConfig(saved));
+    return c.json(parseWidgetConfig(saved, widget));
   });
 
   app.put("/workspaces/:id/widgets/:widget/config", ...guard, async (c) => {
@@ -119,8 +119,14 @@ export function overlayManageRoutes(auth: ReturnType<typeof authRoutes>, deps: A
     if (ws.role !== "owner") return c.json({ error: "forbidden" }, 403);
     const widget = c.req.param("widget");
     if (!isConfigurable(widget)) return c.json({ error: "unknown_widget" }, 400);
-    const config = parseWidgetConfig(await c.req.json().catch(() => null));
-    await withWorkspace(c.var.db, { memberId: c.var.memberId, workspaceId: ws.id }, (tx) => widgetConfigs.save(tx, widget, config));
+    const body = (await c.req.json().catch(() => null)) as Record<string, unknown> | null;
+    // Sections not sent are kept, so the style editor can't wipe alert commands and vice versa.
+    const config = await withWorkspace(c.var.db, { memberId: c.var.memberId, workspaceId: ws.id }, async (tx) => {
+      const existing = (await widgetConfigs.get(tx, widget)) as Record<string, unknown>;
+      const merged = parseWidgetConfig({ ...existing, ...(body && typeof body === "object" ? body : {}) }, widget);
+      await widgetConfigs.save(tx, widget, merged);
+      return merged;
+    });
     try {
       await deps.liveSession(c.env, ws.id).configChanged(widget, config);
     } catch {
