@@ -116,6 +116,7 @@ export interface AlertsConfigView {
   viewerCooldownSeconds: number;
   globalCooldownSeconds: number;
   showHint: boolean;
+  donations: { superChats: boolean; memberships: boolean; showAmount: boolean; showComment: boolean };
 }
 
 export interface OverlayConfigMessage {

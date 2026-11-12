@@ -65,6 +65,12 @@ The poll's channel-ID → option map links a viewer to a choice, so it lives onl
 - In the session engine, a message that isn't a built-in command is matched against the triggers. An alert fires only if both cooldowns allow it: per viewer (5–600 s, default 30) and between any two alerts (1–60 s, default 3). Alerts earn no points.
 - An alert event is generic (`source`: `command`, `test`, later `super_chat`, `membership`), carries the creator's text, the viewer's session-memory display name (removed for widgets that hide names) and the sticker and animation keys. It is pushed straight to alerts sockets and never stored. The overlay plays at most 10 queued alerts, about 4.5 s each, then shows a "commands you can type" hint if enabled (Q-P1).
 
+## Donation alerts (ET-17, ADR-008)
+
+- The YouTube reader maps `superChatEvent`, `superStickerEvent`, `newSponsorEvent` and `membershipGiftingEvent` to chat messages with empty text and a `donation` field (kind, YouTube's amount string, comment). They never reach the command parser, so a paid message can't vote, join or earn points.
+- `donationAlert()` turns them into alerts per the owner's switches (Super Chats, memberships, show amount, show comment). No cooldown applies; the overlay queue (10) bounds bursts. Nothing is stored. An erased viewer's donation still shows, without their name.
+- Demo mode emits a synthetic Super Chat or membership every few pages.
+
 ## Not yet
 
 Games (ET-10); configurable aliases per workspace (backlog idea).

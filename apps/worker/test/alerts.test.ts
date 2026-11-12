@@ -71,3 +71,44 @@ describe("custom command alerts", () => {
     expect((await other.post(`/api/workspaces/${ws}/session/alerts/test`)).status).toBe(404);
   });
 });
+
+describe("donation alerts", () => {
+  it("shows Super Chats and memberships without letting their text vote or earn points", async () => {
+    const h = await makeHarness();
+    const { b, ws } = await live(h);
+    await b.post(`/api/workspaces/${ws}/session/poll`, json({ question: "Q?", options: ["a", "b"] }));
+    const donor = { channelId: syntheticChannelId(7), displayName: "Nhà tài trợ" };
+    h.google.chatPages.push({
+      items: [
+        { snippet: { type: "superChatEvent", superChatDetails: { amountDisplayString: "₫50.000", userComment: "!vote 1" } }, authorDetails: donor },
+        { snippet: { type: "newSponsorEvent" }, authorDetails: { ...donor, channelId: syntheticChannelId(8) } },
+      ],
+      nextPageToken: "p",
+      pollingIntervalMillis: 3000,
+    });
+    await h.engines.get(ws)!.tick();
+    expect(h.alertsSent.map(([, e]) => e)).toEqual([
+      { source: "super_chat", title: "!vote 1", name: "Nhà tài trợ", sticker: "gift", animation: "bounce", amount: "₫50.000" },
+      { source: "membership", title: "", name: "Nhà tài trợ", sticker: "star", animation: "bounce" },
+    ]);
+    const session = (await (await b.request(`/api/workspaces/${ws}/session`)).json()) as { session: { poll: { total: number }; leaderboard: unknown[] } };
+    expect(session.session.poll.total).toBe(0);
+    expect(session.session.leaderboard).toEqual([]);
+  });
+
+  it("respects the owner's switches", async () => {
+    const h = await makeHarness();
+    const { b, ws } = await live(h);
+    await b.request(`/api/workspaces/${ws}/widgets/alerts/config`, put({ alerts: { donations: { superChats: false, memberships: true, showAmount: false, showComment: true } } }));
+    h.google.chatPages.push({
+      items: [
+        { snippet: { type: "superChatEvent", superChatDetails: { amountDisplayString: "$5", userComment: "hi" } }, authorDetails: { channelId: syntheticChannelId(1), displayName: "A" } },
+        { snippet: { type: "membershipGiftingEvent", membershipGiftingDetails: { giftMembershipsCount: 3 } }, authorDetails: { channelId: syntheticChannelId(2), displayName: "B" } },
+      ],
+      nextPageToken: "p",
+      pollingIntervalMillis: 3000,
+    });
+    await h.engines.get(ws)!.tick();
+    expect(h.alertsSent.map(([, e]) => e)).toEqual([{ source: "membership", title: "", name: "B", sticker: "gift", animation: "bounce" }]);
+  });
+});

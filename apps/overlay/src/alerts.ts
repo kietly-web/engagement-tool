@@ -23,12 +23,24 @@ export interface AlertView {
   animation: string;
 }
 
-export function alertView(message: OverlayAlertMessage, testTitle = "Test alert"): AlertView | null {
+export interface AlertDefaults {
+  test: string;
+  superChat: string;
+  membership: string;
+}
+
+const FALLBACK: AlertDefaults = { test: "Test alert", superChat: "Thanks for the Super Chat!", membership: "New member!" };
+
+export function alertView(message: OverlayAlertMessage, defaults: AlertDefaults = FALLBACK): AlertView | null {
   const a = message.alert;
   if (!a || typeof a.title !== "string") return null;
+  const own = safeText(a.title, 120);
+  const title =
+    a.source === "test" ? defaults.test : own || (a.source === "super_chat" ? defaults.superChat : a.source === "membership" ? defaults.membership : "");
+  if (!title) return null;
   return {
     emoji: STICKER_EMOJI[a.sticker] ?? STICKER_EMOJI.heart!,
-    title: a.source === "test" ? testTitle : safeText(a.title, 80),
+    title,
     name: typeof a.name === "string" && a.name ? safeText(a.name, 24) : null,
     amount: typeof a.amount === "string" && a.amount ? safeText(a.amount, 20) : null,
     animation: ANIMATIONS.has(a.animation) ? a.animation : "pop",

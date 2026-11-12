@@ -66,7 +66,7 @@ function render(message: OverlayMessage): void {
     return;
   }
   if (message.type === "alert") {
-    const view = alertView(message, t["alerts.testTitle"]);
+    const view = alertView(message, { test: t["alerts.testTitle"], superChat: t["alerts.superChat"], membership: t["alerts.membership"] });
     if (!view) return;
     queue.push(showNames ? view : { ...view, name: null });
     if (!showing) playNext();
