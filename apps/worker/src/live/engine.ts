@@ -22,6 +22,8 @@ import type { PointsStore } from "./points-store";
 export type { PollView, SessionMode, SessionStatus, StopReason };
 
 const LEADERBOARD_SIZE = 10;
+// Read more than shown, so unflushed session points can lift someone just outside the top 10.
+const LEADERBOARD_READ = 30;
 const MAX_NAMES = 5_000;
 const MAX_FLUSH_FAILURES = 5;
 const MAX_FLUSH_BACKOFF_MS = 5 * 60_000;
@@ -101,7 +103,8 @@ const DEFAULTS: EngineOptions = {
   disabled: () => false,
   onChange: () => undefined,
   points: () => null,
-  flushEveryMs: 10_000,
+  // ~10 minutes keeps Neon's compute asleep most of a stream; the live leaderboard adds unflushed points itself.
+  flushEveryMs: 10 * 60_000,
   onAlert: () => undefined,
 };
 
@@ -113,6 +116,7 @@ export class SessionEngine {
   private leaderboard: { channelId: string; points: number }[] = [];
   private lastFlush = 0;
   private tally: PointsTally | null = null;
+  private seasonStandingsLoaded = false;
   private alertsConfig: AlertsConfig | null = null;
   private readonly throttle = new AlertThrottle();
   private flushing: Promise<unknown> | null = null;
@@ -192,10 +196,15 @@ export class SessionEngine {
   }
 
   private leaderboardView(): LeaderboardEntry[] {
-    const source =
-      this.leaderboard.length > 0
-        ? this.leaderboard
-        : [...this.sessionTotals.entries()].map(([channelId, points]) => ({ channelId, points })).sort((a, b) => b.points - a.points);
+    const totals = new Map<string, number>();
+    if (this.seasonStandingsLoaded) {
+      for (const e of this.leaderboard) totals.set(e.channelId, e.points);
+      const snap = this.tally?.snapshot();
+      for (const [id, d] of [...(snap?.pending ?? []), ...(snap?.inflight?.deltas ?? [])]) totals.set(id, (totals.get(id) ?? 0) + d.points);
+    } else {
+      for (const [id, p] of this.sessionTotals) totals.set(id, p);
+    }
+    const source = [...totals.entries()].map(([channelId, points]) => ({ channelId, points })).sort((a, b) => b.points - a.points);
     return source.slice(0, LEADERBOARD_SIZE).map((e, i) => ({ rank: i + 1, name: this.names.get(e.channelId) ?? null, points: e.points }));
   }
 
@@ -213,6 +222,20 @@ export class SessionEngine {
     this.tally = null;
     this.flushFailures = 0;
     this.nextFlushAt = 0;
+    this.seasonStandingsLoaded = false;
+  }
+
+  // One read at the first tick so the live leaderboard starts from the season's standings, not zero.
+  private async loadSeasonStandings(state: SessionState): Promise<void> {
+    if (this.seasonStandingsLoaded || !state.seasonId) return;
+    const store = this.opts.points(state);
+    if (!store) return;
+    try {
+      this.leaderboard = await store.top(state.seasonId, LEADERBOARD_READ);
+      this.seasonStandingsLoaded = true;
+    } catch {
+      // Retried next tick; the session works without standings meanwhile.
+    }
   }
 
   private async flushPoints(state: SessionState, force: boolean): Promise<{ flushed: boolean; state: SessionState }> {
@@ -226,10 +249,11 @@ export class SessionEngine {
     if (!batch) return { flushed: false, state };
     await this.saveTally(state);
 
-    const attempt = store.flushAndTop(seasonId, batch.id, batch.deltas, LEADERBOARD_SIZE);
+    const attempt = store.flushAndTop(seasonId, batch.id, batch.deltas, LEADERBOARD_READ);
     this.flushing = attempt.catch(() => undefined);
     try {
       this.leaderboard = await attempt;
+      this.seasonStandingsLoaded = true;
       tally.completeBatch(batch.id);
       this.lastFlush = now;
       this.flushFailures = 0;
@@ -425,6 +449,7 @@ export class SessionEngine {
       return;
     }
 
+    await this.loadSeasonStandings(state);
     const poll = await this.loadPoll();
     const tally = await this.loadTally();
     const alerts = await this.loadAlerts();

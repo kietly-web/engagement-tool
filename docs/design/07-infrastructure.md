@@ -31,6 +31,8 @@ ET-7: each overlay page load or WebSocket connect costs one Postgres lookup. Val
 
 ET-14: alerts add no Durable Object requests (they're sent inside the existing chat tick; outgoing socket messages aren't billed as requests) and no storage. Test alerts are limited to one every 3 s per workspace.
 
+ET-21 (free-limit fixes): points flush about every 10 minutes and at stop (one Hyperdrive transaction of about 8 queries), so about 50 queries per stream-hour instead of about 2,900, and Neon's compute can sleep between flushes. The live leaderboard combines the season standings (read once per session) with unflushed points. The dashboard live panel polls every 5 s only while the tab is visible: about 720 Worker requests plus 720 Durable Object calls per watched stream-hour, down from 1,800 each.
+
 Consequence: with `streamList` the beta is bounded by Durable Object duration (~28 stream-hours/day), which is ample for 5–20 creators. If ET-6 finds streaming unusable, quota becomes the limit again (a few streams a day) and the quota extension moves up to P1. The quota ledger divides the daily budget among workspaces and stops sessions cleanly either way (R1, FR-11).
 
 ## Configuration

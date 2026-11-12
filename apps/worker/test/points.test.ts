@@ -28,6 +28,11 @@ class FakeStore implements PointsStore {
   fail = false;
   failAfterCommit = false;
   gate: Promise<void> | null = null;
+  topReads = 0;
+  async top(_season: string, limit: number) {
+    this.topReads++;
+    return [...this.totals.entries()].map(([channelId, points]) => ({ channelId, points })).sort((a, b) => b.points - a.points).slice(0, limit);
+  }
   async flushAndTop(_season: string, batchId: string, deltas: [string, { points: number }][], limit: number) {
     if (this.gate) await this.gate;
     if (this.fail) throw new Error("db down");
@@ -57,6 +62,30 @@ function engineWith(store: FakeStore | null) {
 
 const start = (engine: SessionEngine, mode: "youtube" | "demo" = "youtube") =>
   engine.start({ workspaceId: "ws", mode, broadcastId: "b", liveChatId: "c", startedBy: "m", seasonId: "s1", seasonName: "Mùa 1", seasonEndsAt: "2026-11-20T00:00:00Z" });
+
+describe("engine points with slow flushes (ET-21)", () => {
+  it("starts from season standings and shows unflushed points live, writing to the database only every 10 minutes", async () => {
+    const store = new FakeStore();
+    store.totals.set(syntheticChannelId(5), 40);
+    const source = new Pages();
+    const clock = fixedClock("2026-11-08T13:00:00Z");
+    const engine = new SessionEngine(new MemoryStorage(), { get: async () => source, invalidate: () => undefined }, clock, { points: () => store });
+    await start(engine);
+    source.pages.push({ messages: [msg(1, "!join")], nextPageToken: "1", waitMs: 1000 });
+    await engine.tick();
+    expect(store.flushes).toBe(1);
+    source.pages.push({ messages: [msg(2, "!join"), msg(5, "!join")], nextPageToken: "2", waitMs: 1000 });
+    clock.advance(60_000);
+    await engine.tick();
+    expect(store.flushes).toBe(1);
+    expect((await engine.status()).leaderboard?.map((e) => e.points)).toEqual([50, 10, 10]);
+    clock.advance(10 * 60_000);
+    source.pages.push({ messages: [], nextPageToken: "3", waitMs: 1000 });
+    await engine.tick();
+    expect(store.flushes).toBe(2);
+    expect(store.totals.get(syntheticChannelId(5))).toBe(50);
+  });
+});
 
 describe("engine points", () => {
   it("awards joins once and counted votes, flushes every 10 s and builds the leaderboard with session-only names", async () => {
