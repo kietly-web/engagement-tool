@@ -1,4 +1,4 @@
-import type { MeResponse, OverlayLinkView, OverlayTheme, OverlayRotateResponse, OverlayWidget, SessionMode, SessionResponse, WorkspaceResponse } from "@et/worker/api-types";
+import type { AlertsConfigView, MeResponse, OverlayLinkView, OverlayTheme, OverlayRotateResponse, OverlayWidget, SessionMode, SessionResponse, WorkspaceResponse } from "@et/worker/api-types";
 
 export interface SeasonView {
   id: string;
@@ -69,6 +69,10 @@ export const api = {
     call<{ theme: OverlayTheme }>(`/api/workspaces/${encodeURIComponent(id)}/widgets/${widget}/config`),
   saveWidgetConfig: (id: string, widget: OverlayWidget, config: { theme: OverlayTheme }) =>
     call<{ theme: OverlayTheme }>(`/api/workspaces/${encodeURIComponent(id)}/widgets/${widget}/config`, jsonBody("PUT", config)),
+  alertsConfig: (id: string) => call<{ alerts: AlertsConfigView }>(`/api/workspaces/${encodeURIComponent(id)}/widgets/alerts/config`),
+  saveAlertsConfig: (id: string, alerts: AlertsConfigView) =>
+    call<{ alerts: AlertsConfigView }>(`/api/workspaces/${encodeURIComponent(id)}/widgets/alerts/config`, jsonBody("PUT", { alerts })),
+  testAlert: (id: string) => call<void>(`/api/workspaces/${encodeURIComponent(id)}/session/alerts/test`, { method: "POST" }),
   closePoll: (id: string) => call<SessionResponse>(`/api/workspaces/${encodeURIComponent(id)}/session/poll/close`, { method: "POST" }),
 };
 

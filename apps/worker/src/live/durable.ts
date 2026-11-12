@@ -3,7 +3,7 @@ import { QuotaBudget, type QuotaSnapshot } from "@et/youtube";
 import { DurableObject } from "cloudflare:workers";
 import { defaultDeps, type AppEnv } from "../env";
 import { SessionEngine, type StartInput, type StopReason } from "./engine";
-import { parseWidgetConfig } from "@et/core";
+import { parseWidgetConfig, type AlertEvent } from "@et/core";
 import type { OverlayWidget, SessionStatus } from "../api-types";
 import { createPgDatabase } from "@et/db";
 import { googleCredentials, OVERLAY_CONFIG_HEADER, quotaClient } from "./clients";
@@ -51,6 +51,7 @@ export class LiveSession extends DurableObject<AppEnv> {
     this.engine = new SessionEngine(storage, provider, systemClock, {
       disabled: () => String(env.SESSIONS_DISABLED) === "true",
       onChange: (status) => this.broadcast(status),
+      onAlert: (event) => this.sendAlert(event),
       points: (state) =>
         env.HYPERDRIVE && state.startedBy
           ? new DbPointsStore(createPgDatabase(env.HYPERDRIVE.connectionString), { memberId: state.startedBy, workspaceId: state.workspaceId })
@@ -68,7 +69,7 @@ export class LiveSession extends DurableObject<AppEnv> {
     if (this.ctx.getWebSockets(widget).length >= MAX_SOCKETS_PER_WIDGET) return new Response(null, { status: 429 });
     const [client, server] = Object.values(new WebSocketPair()) as [WebSocket, WebSocket];
     this.ctx.acceptWebSocket(server, [widget]);
-    const config = parseWidgetConfig(parseJson(request.headers.get(OVERLAY_CONFIG_HEADER)));
+    const config = parseWidgetConfig(parseJson(request.headers.get(OVERLAY_CONFIG_HEADER)), widget);
     server.serializeAttachment({ showNames: config.theme.showNames });
     server.send(JSON.stringify({ type: "config", config }));
     const view = forSocket(overlayView(widget, await this.engine.status()), config.theme.showNames);
@@ -92,8 +93,26 @@ export class LiveSession extends DurableObject<AppEnv> {
     }
   }
 
-  configChanged(widget: OverlayWidget, config: object) {
-    const parsed = parseWidgetConfig(config);
+  private sendAlert(event: AlertEvent): void {
+    const full = { type: "alert" as const, alert: event };
+    const withNames = JSON.stringify(full);
+    const withoutNames = JSON.stringify(forSocket(full, false));
+    for (const socket of this.ctx.getWebSockets("alerts")) {
+      try {
+        socket.send(showsNames(socket) ? withNames : withoutNames);
+      } catch {
+        socket.close(1011, "send failed");
+      }
+    }
+  }
+
+  testAlert() {
+    this.engine.testAlert();
+  }
+
+  async configChanged(widget: OverlayWidget, config: object) {
+    const parsed = parseWidgetConfig(config, widget);
+    if (widget === "alerts") await this.engine.setAlertsConfig(parsed.alerts);
     const message = JSON.stringify({ type: "config", config: parsed });
     for (const socket of this.ctx.getWebSockets(widget)) {
       try {

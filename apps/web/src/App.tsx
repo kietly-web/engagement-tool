@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { MeResponse, SignInOutcome, WorkspaceResponse } from "@et/worker/api-types";
 import { api, ApiError, signInUrl } from "./api";
+import { AlertsPanel } from "./AlertsPanel";
 import { LivePanel } from "./LivePanel";
 import { MembersPanel } from "./MembersPanel";
 import { OverlayLinks } from "./OverlayLinks";
@@ -248,6 +249,7 @@ function Workspace({ id, selfId, onError, onChange }: { id: string; selfId: stri
     <SeasonPanel workspaceId={id} isOwner={isOwner} />
     <MembersPanel workspace={data} selfId={selfId} onLeft={onChange} />
     <OverlayLinks workspaceId={id} isOwner={isOwner} />
+    <AlertsPanel workspaceId={id} isOwner={isOwner} />
     {isOwner && <StylePanel workspaceId={id} />}
     <div className="card">
       <h2>

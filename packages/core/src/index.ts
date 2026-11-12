@@ -28,3 +28,19 @@ export {
   type WidgetConfig,
   type WidgetTheme,
 } from "./widget-config";
+export {
+  ALERT_LIMITS,
+  AlertThrottle,
+  ANIMATIONS,
+  DEFAULT_ALERTS,
+  matchAlertCommand,
+  normaliseTrigger,
+  parseAlertsConfig,
+  STICKERS,
+  type AlertCommand,
+  type AlertEvent,
+  type AlertsConfig,
+  type AlertSource,
+  type Animation,
+  type Sticker,
+} from "./alerts";

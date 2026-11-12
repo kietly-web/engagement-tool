@@ -59,6 +59,12 @@ The poll's channel-ID → option map links a viewer to a choice, so it lives onl
 - Seasons last 1 to 29 days (`seasonWindow`), one at a time per workspace. Without a running season, or in demo mode, points live only in session memory as a preview leaderboard.
 - The leaderboard shows the top 10 with display names only for viewers seen in the current session; others show as "Khán giả". Channel IDs never reach an overlay.
 
+## Custom command alerts (ET-14)
+
+- The owner defines up to 20 commands in the alerts widget config: a trigger (letters and digits, folded like built-ins, never shadowing `!vote`, `!join` and the others), their own text (≤ 80 characters, NFC, controls stripped), a sticker from a fixed set and an animation from a fixed set.
+- In the session engine, a message that isn't a built-in command is matched against the triggers. An alert fires only if both cooldowns allow it: per viewer (5–600 s, default 30) and between any two alerts (1–60 s, default 3). Alerts earn no points.
+- An alert event is generic (`source`: `command`, `test`, later `super_chat`, `membership`), carries the creator's text, the viewer's session-memory display name (removed for widgets that hide names) and the sticker and animation keys. It is pushed straight to alerts sockets and never stored. The overlay plays at most 10 queued alerts, about 4.5 s each, then shows a "commands you can type" hint if enabled (Q-P1).
+
 ## Not yet
 
 Games (ET-10); configurable aliases per workspace (backlog idea).

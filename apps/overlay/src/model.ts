@@ -4,7 +4,7 @@ import { safeText } from "./render";
 const TOKEN = /^[A-Za-z0-9_-]{43}$/;
 
 export function parseOverlayPath(pathname: string): { token: string; widget: OverlayWidget } | null {
-  const match = /^\/o\/([^/]+)\/(poll|leaderboard)\/?$/.exec(pathname);
+  const match = /^\/o\/([^/]+)\/(poll|leaderboard|alerts)\/?$/.exec(pathname);
   if (!match || !TOKEN.test(match[1]!)) return null;
   return { token: match[1]!, widget: match[2] as OverlayWidget };
 }
@@ -59,7 +59,7 @@ export function parseMessage(data: unknown): OverlayMessage | null {
   if (typeof data !== "string" || data.length > 16_384) return null;
   try {
     const value = JSON.parse(data) as OverlayMessage;
-    return value && (value.type === "poll" || value.type === "leaderboard" || value.type === "config") ? value : null;
+    return value && (value.type === "poll" || value.type === "leaderboard" || value.type === "config" || value.type === "alert") ? value : null;
   } catch {
     return null;
   }

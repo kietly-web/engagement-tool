@@ -1,4 +1,5 @@
-import { audit, ContextError, seasons, withWorkspace, workspaces, youtube } from "@et/db";
+import { parseWidgetConfig } from "@et/core";
+import { audit, ContextError, seasons, widgetConfigs, withWorkspace, workspaces, youtube } from "@et/db";
 import type { PollInput } from "@et/core";
 import { ChatSourceError } from "@et/youtube";
 import { Hono, type Context } from "hono";
@@ -78,13 +79,17 @@ export function sessionRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps
     const mode = body?.mode === "demo" ? "demo" : body?.mode === "youtube" ? "youtube" : null;
     if (!mode) return c.json({ error: "invalid_mode" }, 400);
     const client = deps.liveSession(c.env, m.workspaceId);
-    const season = await withWorkspace(c.var.db, { memberId: c.var.memberId, workspaceId: m.workspaceId }, (tx) => seasons.active(tx));
+    const { season, alertsSaved } = await withWorkspace(c.var.db, { memberId: c.var.memberId, workspaceId: m.workspaceId }, async (tx) => ({
+      season: await seasons.active(tx),
+      alertsSaved: await widgetConfigs.get(tx, "alerts"),
+    }));
     const common = {
       workspaceId: m.workspaceId,
       startedBy: c.var.memberId,
       seasonId: season?.id ?? null,
       seasonName: season?.name ?? null,
       seasonEndsAt: season?.endsAt ?? null,
+      alerts: parseWidgetConfig(alertsSaved, "alerts").alerts,
     };
 
     if (mode === "demo") {
@@ -134,6 +139,13 @@ export function sessionRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps
     const input = parsePollInput(await c.req.json().catch(() => null));
     if (!input) return c.json({ error: "invalid_poll" }, 400);
     return fromResult(c, m.workspaceId, await deps.liveSession(c.env, m.workspaceId).createPoll(input), 201);
+  });
+
+  app.post("/workspaces/:id/session/alerts/test", ...guard, async (c) => {
+    const m = await member(c);
+    if (m instanceof Response) return m;
+    await deps.liveSession(c.env, m.workspaceId).testAlert();
+    return c.body(null, 204);
   });
 
   app.post("/workspaces/:id/session/poll/close", ...guard, async (c) => {
