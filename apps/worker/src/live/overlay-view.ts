@@ -24,6 +24,8 @@ export function overlayView(widget: OverlayWidget, status: SessionStatus): Overl
 
 // Hidden names are removed before sending, not just hidden by the page, so the link holder never receives them.
 export function forSocket(message: OverlayMessage | null, showNames: boolean): OverlayMessage | null {
-  if (!message || showNames || message.type !== "leaderboard") return message;
-  return { ...message, entries: message.entries.map((e) => ({ ...e, name: null })) };
+  if (!message || showNames) return message;
+  if (message.type === "leaderboard") return { ...message, entries: message.entries.map((e) => ({ ...e, name: null })) };
+  if (message.type === "alert") return { ...message, alert: { ...message.alert, name: null } };
+  return message;
 }
