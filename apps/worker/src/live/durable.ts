@@ -106,6 +106,9 @@ export class LiveSession extends DurableObject<AppEnv> {
     }
   }
 
+  flushNow() {
+    return this.engine.flushNow();
+  }
   testAlert() {
     return this.engine.testAlert();
   }

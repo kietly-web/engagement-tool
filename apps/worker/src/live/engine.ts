@@ -50,6 +50,7 @@ export interface SessionState {
   startedAt: string;
   stoppedAt?: string;
   stopReason?: StopReason;
+  pendingFlushAttempts?: number;
   failures: number;
   messagesSeen: number;
   startedBy?: string;
@@ -117,6 +118,7 @@ export class SessionEngine {
   private lastFlush = 0;
   private tally: PointsTally | null = null;
   private seasonStandingsLoaded = false;
+  private nextStandingsAt = 0;
   private alertsConfig: AlertsConfig | null = null;
   private readonly throttle = new AlertThrottle();
   private flushing: Promise<unknown> | null = null;
@@ -198,7 +200,7 @@ export class SessionEngine {
   private leaderboardView(): LeaderboardEntry[] {
     const totals = new Map<string, number>();
     if (this.seasonStandingsLoaded) {
-      for (const e of this.leaderboard) totals.set(e.channelId, e.points);
+      for (const e of this.leaderboard) if (!this.tally?.isErased(e.channelId)) totals.set(e.channelId, e.points);
       const snap = this.tally?.snapshot();
       for (const [id, d] of [...(snap?.pending ?? []), ...(snap?.inflight?.deltas ?? [])]) totals.set(id, (totals.get(id) ?? 0) + d.points);
     } else {
@@ -227,15 +229,25 @@ export class SessionEngine {
 
   // One read at the first tick so the live leaderboard starts from the season's standings, not zero.
   private async loadSeasonStandings(state: SessionState): Promise<void> {
-    if (this.seasonStandingsLoaded || !state.seasonId) return;
+    const now = this.clock.now().getTime();
+    if (this.seasonStandingsLoaded || !state.seasonId || now < this.nextStandingsAt) return;
     const store = this.opts.points(state);
     if (!store) return;
+    const read = store.top(state.seasonId, LEADERBOARD_READ);
+    this.flushing = read.catch(() => undefined);
     try {
-      this.leaderboard = await store.top(state.seasonId, LEADERBOARD_READ);
+      this.leaderboard = await read;
       this.seasonStandingsLoaded = true;
     } catch {
-      // Retried next tick; the session works without standings meanwhile.
+      this.nextStandingsAt = now + 60_000;
+    } finally {
+      this.flushing = null;
     }
+  }
+
+  async flushNow(): Promise<void> {
+    const state = await this.loadState();
+    if (state?.status === "live") await this.flushPoints(state, true);
   }
 
   private async flushPoints(state: SessionState, force: boolean): Promise<{ flushed: boolean; state: SessionState }> {
@@ -243,7 +255,10 @@ export class SessionEngine {
     const store = seasonId ? this.opts.points(state) : null;
     if (!store || !seasonId) return { flushed: false, state };
     const now = this.clock.now().getTime();
-    if (!force && (now < this.nextFlushAt || now - this.lastFlush < this.opts.flushEveryMs)) return { flushed: false, state };
+    // Writes are refused once the season ends, so the last minute always flushes whatever is pending.
+    const endingSoon = !!state.seasonEndsAt && now >= Date.parse(state.seasonEndsAt) - 60_000;
+    if (!force && now < this.nextFlushAt) return { flushed: false, state };
+    if (!force && !endingSoon && now - this.lastFlush < this.opts.flushEveryMs) return { flushed: false, state };
     const tally = await this.loadTally();
     const batch = tally.beginBatch(crypto.randomUUID());
     if (!batch) return { flushed: false, state };
@@ -347,7 +362,8 @@ export class SessionEngine {
       await this.storage.put("poll", poll.snapshot());
     }
     await this.flushPoints(state, true);
-    await this.storage.delete("points");
+    const unwritten = this.tally?.hasPending() ?? false;
+    if (!unwritten) await this.storage.delete("points");
     this.tally = null;
     // YouTube identifiers and the token copy go at stop, so nothing YouTube-derived lingers in DO storage (NN3).
     const stopped: SessionState = {
@@ -360,8 +376,11 @@ export class SessionEngine {
     };
     delete stopped.tokenCiphertext;
     delete stopped.pageToken;
+    // A failed final write (e.g. a cold database) is retried a few times instead of losing up to 10 minutes of points.
+    if (unwritten) stopped.pendingFlushAttempts = 0;
     await this.storage.put("session", stopped);
-    await this.storage.deleteAlarm();
+    if (unwritten) await this.storage.setAlarm(this.clock.now().getTime() + 60_000);
+    else await this.storage.deleteAlarm();
     this.sources.invalidate();
     const result = this.changed({ ok: true, value: this.view(stopped, poll) }).value;
     this.names.clear();
@@ -424,8 +443,25 @@ export class SessionEngine {
     }
   }
 
+  private async retryStoppedFlush(state: SessionState): Promise<void> {
+    const { flushed } = await this.flushPoints(state, true);
+    const attempts = (state.pendingFlushAttempts ?? 0) + 1;
+    if (flushed || attempts >= 5) {
+      if (!flushed) console.error(JSON.stringify({ event: "points_dropped_after_stop" }));
+      const done = { ...state };
+      delete done.pendingFlushAttempts;
+      await this.storage.delete("points");
+      await this.storage.put("session", done);
+      this.tally = null;
+      return;
+    }
+    await this.storage.put("session", { ...state, pendingFlushAttempts: attempts });
+    await this.storage.setAlarm(this.clock.now().getTime() + 60_000);
+  }
+
   private async tickOnce(): Promise<void> {
     let state = await this.loadState();
+    if (state?.status === "stopped" && state.pendingFlushAttempts !== undefined) return this.retryStoppedFlush(state);
     if (state?.status !== "live") return;
     if (state.seasonId && state.seasonEndsAt && this.clock.now().getTime() >= Date.parse(state.seasonEndsAt)) {
       state = await this.disablePoints(state, "season_ended_mid_session");

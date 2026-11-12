@@ -17,6 +17,7 @@ export interface SessionClient {
   stopIfStartedBy(memberId: string): Promise<boolean>;
   configChanged(widget: OverlayWidget, config: object): Promise<void>;
   testAlert(): Promise<boolean>;
+  flushNow(): Promise<void>;
 }
 
 export interface QuotaUsageClient extends QuotaClient {

@@ -87,6 +87,58 @@ describe("engine points with slow flushes (ET-21)", () => {
   });
 });
 
+describe("ET-21 review regressions", () => {
+  it("flushes in the last minute before the season ends instead of dropping points", async () => {
+    const store = new FakeStore();
+    const source = new Pages();
+    const clock = fixedClock("2026-11-19T23:50:00Z");
+    const engine = new SessionEngine(new MemoryStorage(), { get: async () => source, invalidate: () => undefined }, clock, { points: () => store });
+    await start(engine);
+    source.pages.push({ messages: [msg(1, "!join")], nextPageToken: "1", waitMs: 1000 });
+    await engine.tick();
+    source.pages.push({ messages: [msg(2, "!join")], nextPageToken: "2", waitMs: 1000 });
+    clock.advance(9 * 60_000 + 30_000);
+    await engine.tick();
+    expect(store.totals.get(syntheticChannelId(2))).toBe(10);
+  });
+
+  it("keeps and retries points when the final flush at stop fails", async () => {
+    const store = new FakeStore();
+    const source = new Pages();
+    const clock = fixedClock("2026-11-08T13:00:00Z");
+    const storage = new MemoryStorage();
+    const engine = new SessionEngine(storage, { get: async () => source, invalidate: () => undefined }, clock, { points: () => store });
+    await start(engine);
+    source.pages.push({ messages: [msg(2, "!join")], nextPageToken: "0", waitMs: 1000 });
+    await engine.tick();
+    source.pages.push({ messages: [msg(3, "!join")], nextPageToken: "1", waitMs: 1000 });
+    clock.advance(1000);
+    await engine.tick();
+    store.fail = true;
+    await engine.stop();
+    expect(await storage.get("points")).toBeDefined();
+    expect(storage.alarm).not.toBeNull();
+    store.fail = false;
+    clock.advance(60_000);
+    await engine.tick();
+    expect(store.totals.get(syntheticChannelId(3))).toBe(10);
+    expect(await storage.get("points")).toBeUndefined();
+  });
+
+  it("an erased viewer drops off the live leaderboard even with stale standings", async () => {
+    const store = new FakeStore();
+    store.totals.set(syntheticChannelId(4), 99);
+    const source = new Pages();
+    const engine = new SessionEngine(new MemoryStorage(), { get: async () => source, invalidate: () => undefined }, fixedClock("2026-11-08T13:00:00Z"), {
+      points: () => store,
+    });
+    await start(engine);
+    await engine.tick();
+    await engine.eraseViewer(syntheticChannelId(4));
+    expect((await engine.status()).leaderboard).toEqual([]);
+  });
+});
+
 describe("engine points", () => {
   it("awards joins once and counted votes, flushes every 10 s and builds the leaderboard with session-only names", async () => {
     const store = new FakeStore();
