@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 12/11/2026 (ET-21). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
+Last updated: 12/11/2026 (phase 1 built; ET-15 checklist). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
 
 ## Where we are
 
@@ -18,16 +18,11 @@ Last updated: 12/11/2026 (ET-21). Update in every slice PR. Read after `CLAUDE.m
 
 ## Next
 
-Plan revised by the owner on 10/11/2026 (ET-20, see `docs/design/08-delivery-plan.md`). The main draw is **alerts and customisable overlays** with donation alerts; mini-games come later. Build the feature skeleton first on demo data, then the owner tests on a real stream and invites a few creators they know. Small beta, strictly $0.
+**Phase 1 is built (12/11/2026)**: ET-13 overlay styling, ET-14 command alerts, ET-17 Super Chat and membership alerts and ET-21 free-limit fixes are merged, on top of ET-1 to ET-9.
 
-1. **ET-13 Overlay customisation** (FR-13): done, [PR #12](https://github.com/kietly-web/engagement-tool/pull/12).
-2. **ET-14 Custom chat commands to overlay alerts** (FR-14): done, [PR #13](https://github.com/kietly-web/engagement-tool/pull/13).
-3. **ET-17 Super Chat and membership alerts** (FR-15, ADR-008): done, [PR #14](https://github.com/kietly-web/engagement-tool/pull/14); verified on synthetic events only.
-4. **ET-21 Free-limit fixes**: in review on branch `ET-21-free-limit-fixes`.
-5. **ET-15 First real run**: needs the owner's setup (SETUP §0–1) and a test live stream. Expect rework here: nothing has run against real Google, YouTube, Cloudflare or Neon, and the `streamList` reader is unproven (Q-T1).
-6. **ET-22 Invited beta gate**: before the first invited creator streams.
+**Waiting on the owner: ET-15 first real run.** Follow [runbooks/first-real-run.md](runbooks/first-real-run.md): accounts and secrets (Part A), send Claude the Worker URL, Hyperdrive ID and Google client ID (Part B), then the test (Part C). Claude then adds the IDs to `wrangler.jsonc`, and fixes what the run finds. Expect rework: nothing has run against the real services, and the `streamList` reader is unproven (Q-T1).
 
-Slices 1 to 4 need no owner setup. Later: ET-19 Vietnamese donation services (after Q-T4 research), ET-10/ET-16 mini-games (ET-10 is parked on branch `ET-10-guess-game`, unreviewed), ET-18 English, ET-11 public launch.
+After ET-15: **ET-22 invited beta gate** (privacy notice, terms, contact, alerts, retention gaps), then phase 2 (ET-19 Vietnamese donation services after Q-T4, ET-10/ET-16 mini-games, ET-18 English).
 
 ## Open PRs
 
