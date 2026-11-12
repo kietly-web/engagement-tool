@@ -144,8 +144,8 @@ export function sessionRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps
   app.post("/workspaces/:id/session/alerts/test", ...guard, async (c) => {
     const m = await member(c);
     if (m instanceof Response) return m;
-    await deps.liveSession(c.env, m.workspaceId).testAlert();
-    return c.body(null, 204);
+    const sent = await deps.liveSession(c.env, m.workspaceId).testAlert();
+    return sent ? c.body(null, 204) : c.json({ error: "too_soon" }, 429);
   });
 
   app.post("/workspaces/:id/session/poll/close", ...guard, async (c) => {

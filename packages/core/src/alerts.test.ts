@@ -14,7 +14,7 @@ describe("normaliseTrigger", () => {
     ["ＨＯＩ", "hoi"],
   ])("%j → %j", (raw, key) => expect(normaliseTrigger(raw)).toBe(key));
 
-  it.each(["", "!", "vote", "!bình chọn", "join", "doan", "two words", "x".repeat(21), "<b>", 42])("rejects %j", (raw) => {
+  it.each(["", "!", "vote", "!bình chọn", "join", "doan", "two words", "x".repeat(21), "<b>", 42, "vote1", "v2", "v0", "vote00", "bc3", "chon5", "tham", "binh"])("rejects %j", (raw) => {
     expect(normaliseTrigger(raw)).toBeNull();
   });
 });

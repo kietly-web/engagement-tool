@@ -149,8 +149,15 @@ export class SessionEngine {
     }
   }
 
-  testAlert(): void {
-    this.emit({ source: "test", title: "Thử thông báo ✓", name: null, sticker: "sparkles", animation: "pop" });
+  private lastTestAlert = Number.NEGATIVE_INFINITY;
+
+  // Rate-limited so a member can't flood the stream or burn requests with test cards; the overlay supplies the text.
+  testAlert(): boolean {
+    const now = this.clock.now().getTime();
+    if (now - this.lastTestAlert < 3_000) return false;
+    this.lastTestAlert = now;
+    this.emit({ source: "test", title: "", name: null, sticker: "sparkles", animation: "pop" });
+    return true;
   }
 
   private async loadPoll(): Promise<Poll | null> {
@@ -422,14 +429,16 @@ export class SessionEngine {
     const alerts = await this.loadAlerts();
     let scored = false;
     for (const message of page.messages) {
-      this.rememberName(message.channelId, message.displayName);
+      // An erased viewer must not reappear on stream this session, by name or by alert.
+      const erased = tally.isErased(message.channelId);
+      if (!erased) this.rememberName(message.channelId, message.displayName);
       const command = parseCommand(message.text);
       let earned = 0;
       if (command?.kind === "vote" && poll?.status === "open" && poll.vote(message.channelId, command.option) === "counted") {
         if (tally.countedVote(message.channelId)) earned = POINTS.countedVote;
       } else if (command?.kind === "join" && tally.join(message.channelId)) {
         earned = POINTS.join;
-      } else if (!command && alerts.commands.length > 0) {
+      } else if (!command && !erased && alerts.commands.length > 0) {
         const alert = matchAlertCommand(message.text, alerts.commands);
         if (alert && this.throttle.allow(message.channelId, now, alerts)) {
           this.emit({ source: "command", title: alert.text, name: this.names.get(message.channelId) ?? null, sticker: alert.sticker, animation: alert.animation });

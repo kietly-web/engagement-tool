@@ -16,7 +16,7 @@ export interface SessionClient {
   eraseViewer(channelId: string): Promise<void>;
   stopIfStartedBy(memberId: string): Promise<boolean>;
   configChanged(widget: OverlayWidget, config: object): Promise<void>;
-  testAlert(): Promise<void>;
+  testAlert(): Promise<boolean>;
 }
 
 export interface QuotaUsageClient extends QuotaClient {

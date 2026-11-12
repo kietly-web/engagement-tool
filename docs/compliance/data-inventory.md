@@ -2,7 +2,7 @@
 
 Draft for counsel, not legal advice. One row per kind of personal data the product touches, including data it only passes through. Update in the same PR that adds, moves or stops collecting a field; `security-compliance-reviewer` checks this.
 
-Last updated: 08/11/2026 (ET-8: viewer points and seasons).
+Last updated: 12/11/2026 (ET-14: display names also on the alerts overlay).
 
 | Data | Whose | Source | Purpose (FR / US) | Lawful basis or consent | Stored where (region) | Retention, then | Who can access | Sub-processors | Sensitive? |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

@@ -3,7 +3,7 @@ import { loadMigrations } from "@et/db/migrations";
 import { createTestDatabase } from "@et/db/testing";
 import { QuotaBudget, type FetchLike } from "@et/youtube";
 import { createApp } from "../src/app";
-import { googleCredentials, type QuotaUsageClient } from "../src/live/clients";
+import { googleCredentials, type QuotaUsageClient, type SessionClient } from "../src/live/clients";
 import { SessionEngine } from "../src/live/engine";
 import { DbPointsStore } from "../src/live/points-store";
 import { LiveSourceProvider } from "../src/live/sources";
@@ -157,16 +157,16 @@ export async function makeHarness(
           onAlert: (event) => alertsSent.push([ws, event]),
           points: (state) => (state.startedBy ? new DbPointsStore(db, { memberId: state.startedBy, workspaceId: state.workspaceId }) : null),
         });
+        Object.assign(engine, {
+          closeOverlays: async (widget: string) => void closedOverlays.push([ws, widget]),
+          configChanged: async (widget: string, config: object) => {
+            configPushes.push([ws, widget, config]);
+            if (widget === "alerts") await engine!.setAlertsConfig((config as { alerts?: unknown }).alerts);
+          },
+        });
         engines.set(ws, engine);
       }
-      return Object.assign(Object.create(engine) as SessionEngine, {
-        closeOverlays: async (widget: string) => void closedOverlays.push([ws, widget]),
-        configChanged: async (widget: string, config: object) => {
-          configPushes.push([ws, widget, config]);
-          if (widget === "alerts") await engine!.setAlertsConfig((config as { alerts?: unknown }).alerts);
-        },
-        testAlert: async () => engine!.testAlert(),
-      });
+      return engine as unknown as SessionClient;
     },
     overlaySocket: async (_env, workspaceId, widget, _request, config) => {
       sockets.push({ workspaceId, widget, config });

@@ -1,3 +1,4 @@
+import { parseCommand } from "./commands";
 import { commandKey, toNfc } from "./text";
 import { isChannelId } from "./viewer";
 
@@ -14,7 +15,11 @@ export const ALERT_LIMITS = {
 } as const;
 
 // Built-in commands keep their meaning; a creator trigger may not shadow them.
-const RESERVED = new Set(["vote", "v", "binhchon", "chon", "bc", "join", "thamgia", "tg", "guess", "doan", "points", "diem"]);
+const RESERVED = new Set(["vote", "v", "binhchon", "binh", "chon", "bc", "join", "thamgia", "tham", "tg", "guess", "doan", "points", "diem"]);
+
+// Also rejects keys a built-in would claim or half-claim (e.g. "vote1", "v0"), which would never fire or misfire.
+const clashesWithBuiltIn = (key: string) =>
+  RESERVED.has(key) || parseCommand(`!${key}`) !== null || parseCommand(`!${key} 1`) !== null || /^(?:vote|v|bc|chon|binhchon)\d+$/.test(key);
 
 export interface AlertCommand {
   trigger: string;
@@ -38,7 +43,7 @@ const int = (v: unknown, min: number, max: number, d: number) => (typeof v === "
 export function normaliseTrigger(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const key = commandKey(raw.startsWith("!") ? raw : `!${raw}`).slice(1);
-  return /^[a-z0-9]{1,20}$/.test(key) && !RESERVED.has(key) ? key : null;
+  return /^[a-z0-9]{1,20}$/.test(key) && !clashesWithBuiltIn(key) ? key : null;
 }
 
 function cleanText(raw: unknown): string | null {

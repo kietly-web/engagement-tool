@@ -107,7 +107,7 @@ export class LiveSession extends DurableObject<AppEnv> {
   }
 
   testAlert() {
-    this.engine.testAlert();
+    return this.engine.testAlert();
   }
 
   async configChanged(widget: OverlayWidget, config: object) {

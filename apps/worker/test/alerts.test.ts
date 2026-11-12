@@ -20,6 +20,18 @@ async function live(h: Harness) {
   return { b, ws };
 }
 
+describe("erased viewers", () => {
+  it("can't fire alerts or put their name back on stream after erasure", async () => {
+    const h = await makeHarness();
+    const { b, ws } = await live(h);
+    const erased = syntheticChannelId(9);
+    expect((await b.request(`/api/workspaces/${ws}/viewers/${erased}`, { method: "DELETE", headers: { Origin: ORIGIN } })).status).toBe(200);
+    h.google.chatPages.push({ items: [item(9, "!tim")], nextPageToken: "p", pollingIntervalMillis: 3000 });
+    await h.engines.get(ws)!.tick();
+    expect(h.alertsSent).toEqual([]);
+  });
+});
+
 describe("custom command alerts", () => {
   it("fires the creator's alert with the viewer's session name, honours cooldowns, and never steals built-in commands", async () => {
     const h = await makeHarness();
@@ -52,6 +64,7 @@ describe("custom command alerts", () => {
     const { b, ws } = await live(h);
     expect((await b.post(`/api/workspaces/${ws}/session/alerts/test`)).status).toBe(204);
     expect(h.alertsSent.at(-1)?.[1]).toMatchObject({ source: "test" });
+    expect((await b.post(`/api/workspaces/${ws}/session/alerts/test`)).status).toBe(429);
     h.google.account = { sub: "g-x", email: "x@example.test", channel: { id: "UCSYNTHxXXXXXXXXXXXXXXXX", title: "X" } };
     const other = h.browser();
     await other.signIn();

@@ -23,12 +23,12 @@ export interface AlertView {
   animation: string;
 }
 
-export function alertView(message: OverlayAlertMessage): AlertView | null {
+export function alertView(message: OverlayAlertMessage, testTitle = "Test alert"): AlertView | null {
   const a = message.alert;
   if (!a || typeof a.title !== "string") return null;
   return {
     emoji: STICKER_EMOJI[a.sticker] ?? STICKER_EMOJI.heart!,
-    title: safeText(a.title, 80),
+    title: a.source === "test" ? testTitle : safeText(a.title, 80),
     name: typeof a.name === "string" && a.name ? safeText(a.name, 24) : null,
     amount: typeof a.amount === "string" && a.amount ? safeText(a.amount, 20) : null,
     animation: ANIMATIONS.has(a.animation) ? a.animation : "pop",

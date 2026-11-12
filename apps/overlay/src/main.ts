@@ -66,7 +66,7 @@ function render(message: OverlayMessage): void {
     return;
   }
   if (message.type === "alert") {
-    const view = alertView(message);
+    const view = alertView(message, t["alerts.testTitle"]);
     if (!view) return;
     queue.push(showNames ? view : { ...view, name: null });
     if (!showing) playNext();
@@ -121,7 +121,7 @@ function preview(widget: string): void {
     };
     showConfig();
     window.addEventListener("hashchange", showConfig);
-    const sample = () => render({ type: "alert", alert: { source: "test", title: t["preview.alert"], name: t["preview.names"][0]!, sticker: "heart", animation: "bounce" } });
+    const sample = () => render({ type: "alert", alert: { source: "command", title: t["preview.alert"], name: t["preview.names"][0]!, sticker: "heart", animation: "bounce" } });
     sample();
     window.setInterval(sample, SHOW_MS * 2);
     return;

@@ -29,6 +29,8 @@ ET-6 load (offline estimate, corrected in review). Demo mode ticks every 2 s: ab
 
 ET-7: each overlay page load or WebSocket connect costs one Postgres lookup. Valid sockets stay connected, and unknown tokens are cached as misses for 5 minutes per isolate. A rotated link stops reconnecting, and a dead one retries only every 10 minutes after 8 failures, so a forgotten OBS source can't keep Neon's compute awake. Client frames close the socket, so a leaked link can't burn Durable Object requests by sending.
 
+ET-14: alerts add no Durable Object requests (they're sent inside the existing chat tick; outgoing socket messages aren't billed as requests) and no storage. Test alerts are limited to one every 3 s per workspace.
+
 Consequence: with `streamList` the beta is bounded by Durable Object duration (~28 stream-hours/day), which is ample for 5–20 creators. If ET-6 finds streaming unusable, quota becomes the limit again (a few streams a day) and the quota extension moves up to P1. The quota ledger divides the daily budget among workspaces and stops sessions cleanly either way (R1, FR-11).
 
 ## Configuration
