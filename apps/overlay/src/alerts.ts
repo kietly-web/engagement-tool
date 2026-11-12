@@ -16,6 +16,7 @@ export const QUEUE_LIMIT = 10;
 export const SHOW_MS = 4500;
 
 export interface AlertView {
+  paid: boolean;
   emoji: string;
   title: string;
   name: string | null;
@@ -39,6 +40,7 @@ export function alertView(message: OverlayAlertMessage, defaults: AlertDefaults 
     a.source === "test" ? defaults.test : own || (a.source === "super_chat" ? defaults.superChat : a.source === "membership" ? defaults.membership : "");
   if (!title) return null;
   return {
+    paid: a.source === "super_chat" || a.source === "membership",
     emoji: STICKER_EMOJI[a.sticker] ?? STICKER_EMOJI.heart!,
     title,
     name: typeof a.name === "string" && a.name ? safeText(a.name, 24) : null,
@@ -55,11 +57,17 @@ export function hintTriggers(config: AlertsConfigView | undefined): string[] {
     .slice(0, 6);
 }
 
-// Bounded queue: a burst of alerts can't build an endless backlog on stream.
+// Bounded queue: a burst can't build an endless backlog. When full, free command alerts are dropped before paid ones.
 export class AlertQueue<T> {
   private readonly items: T[] = [];
+  constructor(private readonly isPaid: (item: T) => boolean = () => false) {}
   push(item: T): void {
-    if (this.items.length >= QUEUE_LIMIT) this.items.shift();
+    if (this.items.length >= QUEUE_LIMIT) {
+      const free = this.items.findIndex((i) => !this.isPaid(i));
+      if (free >= 0) this.items.splice(free, 1);
+      else if (this.isPaid(item)) this.items.shift();
+      else return;
+    }
     this.items.push(item);
   }
   next(): T | undefined {

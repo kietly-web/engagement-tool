@@ -98,6 +98,11 @@ function parseDonations(input: unknown): DonationAlertSettings {
   return { superChats: b("superChats"), memberships: b("memberships"), showAmount: b("showAmount"), showComment: b("showComment") };
 }
 
+function cleanAmount(raw: string): string | null {
+  const text = cleanText(raw);
+  return text ? Array.from(text).slice(0, 20).join("") : null;
+}
+
 const DONATION_STICKER: Record<string, Sticker> = { super_chat: "gift", super_sticker: "sparkles", membership: "star", membership_gift: "gift" };
 
 // Donations never earn points or touch polls (ADR-008, non-negotiable 6); this only decides what is drawn.
@@ -115,7 +120,7 @@ export function donationAlert(
     name,
     sticker: DONATION_STICKER[donation.kind] ?? "gift",
     animation: "bounce",
-    ...(settings.showAmount && donation.amount ? { amount: donation.amount.slice(0, 20) } : {}),
+    ...(settings.showAmount && donation.amount && cleanAmount(donation.amount) ? { amount: cleanAmount(donation.amount)! } : {}),
   };
 }
 

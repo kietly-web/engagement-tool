@@ -112,3 +112,24 @@ describe("donation alerts", () => {
     expect(h.alertsSent.map(([, e]) => e)).toEqual([{ source: "membership", title: "", name: "B", sticker: "gift", animation: "bounce" }]);
   });
 });
+
+describe("donation review regressions", () => {
+  it("a donation can't fire a custom command or join, and an erased donor shows only a generic thank-you", async () => {
+    const h = await makeHarness();
+    const { b, ws } = await live(h);
+    await b.request(`/api/workspaces/${ws}/widgets/alerts/config`, put({ alerts: { commands: [{ trigger: "hype", text: "HYPE!" }] } }));
+    const erased = syntheticChannelId(6);
+    await b.request(`/api/workspaces/${ws}/viewers/${erased}`, { method: "DELETE", headers: { Origin: ORIGIN } });
+    const sc = (v: number, comment: string) => ({
+      snippet: { type: "superChatEvent", superChatDetails: { amountDisplayString: "₫10.000", userComment: comment } },
+      authorDetails: { channelId: syntheticChannelId(v), displayName: `Người ${v}` },
+    });
+    h.google.chatPages.push({ items: [sc(1, "!hype"), sc(2, "!join"), sc(6, "Linh lớp 6A đây!")], nextPageToken: "p", pollingIntervalMillis: 3000 });
+    await h.engines.get(ws)!.tick();
+    const events = h.alertsSent.map(([, e]) => e as { source: string; title: string; name: string | null; amount?: string });
+    expect(events.every((e) => e.source === "super_chat")).toBe(true);
+    expect(events.at(-1)).toEqual({ source: "super_chat", title: "", name: null, sticker: "gift", animation: "bounce" });
+    const session = (await (await b.request(`/api/workspaces/${ws}/session`)).json()) as { session: { leaderboard: unknown[] } };
+    expect(session.session.leaderboard).toEqual([]);
+  });
+});

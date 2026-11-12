@@ -68,7 +68,7 @@ The poll's channel-ID → option map links a viewer to a choice, so it lives onl
 ## Donation alerts (ET-17, ADR-008)
 
 - The YouTube reader maps `superChatEvent`, `superStickerEvent`, `newSponsorEvent` and `membershipGiftingEvent` to chat messages with empty text and a `donation` field (kind, YouTube's amount string, comment). They never reach the command parser, so a paid message can't vote, join or earn points.
-- `donationAlert()` turns them into alerts per the owner's switches (Super Chats, memberships, show amount, show comment). No cooldown applies; the overlay queue (10) bounds bursts. Nothing is stored. An erased viewer's donation still shows, without their name.
+- `donationAlert()` turns them into alerts per the owner's switches (Super Chats, memberships, show amount, show comment). No cooldown applies; the overlay queue (10) bounds bursts. Nothing is stored. An erased viewer's donation shows only as a generic thank-you: no name, message or amount. When the overlay queue is full, free command alerts are dropped before paid ones.
 - Demo mode emits a synthetic Super Chat or membership every few pages.
 
 ## Not yet

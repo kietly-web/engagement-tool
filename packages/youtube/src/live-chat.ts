@@ -42,7 +42,7 @@ type RawItem = {
   authorDetails?: { channelId?: unknown; displayName?: unknown };
 };
 
-const str = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
+const str = (v: unknown, max: number) => (typeof v === "string" ? Array.from(v).slice(0, max).join("") : "");
 
 // Paid and membership events become donation messages with empty text, so they can never act as commands (ADR-008).
 function donationFrom(s: NonNullable<RawItem["snippet"]>): ChatMessage["donation"] | null {

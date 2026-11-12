@@ -434,7 +434,10 @@ export class SessionEngine {
       const erased = tally.isErased(message.channelId);
       if (!erased) this.rememberName(message.channelId, message.displayName);
       if (message.donation) {
-        const event = donationAlert(message.donation, erased ? null : (this.names.get(message.channelId) ?? null), alerts.donations);
+        // An erased donor gets a generic thank-you only: no name, message or amount on stream.
+        const event = erased
+          ? donationAlert({ ...message.donation, amount: null, comment: "" }, null, alerts.donations)
+          : donationAlert(message.donation, this.names.get(message.channelId) ?? null, alerts.donations);
         if (event) this.emit(event);
         continue;
       }

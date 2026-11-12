@@ -9,7 +9,7 @@ const root = document.getElementById("widget")!;
 let showNames = DEFAULT_THEME.showNames;
 let lastContent: OverlayMessage | null = null;
 let hint: string[] = [];
-const queue = new AlertQueue<AlertView>();
+const queue = new AlertQueue<AlertView>((a) => a.paid);
 let showing = false;
 
 function renderHint(): void {
