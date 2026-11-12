@@ -1,4 +1,5 @@
-import { audit, overlays, withSystem, withWorkspace, workspaces, ContextError } from "@et/db";
+import { parseWidgetConfig } from "@et/core";
+import { audit, overlays, widgetConfigs, withSystem, withWorkspace, workspaces, ContextError } from "@et/db";
 import { Hono, type Context } from "hono";
 import type { OverlayLinkView, OverlayRotateResponse, OverlayWidget } from "./api-types";
 import type { authRoutes, Vars } from "./auth";
@@ -7,6 +8,8 @@ import type { AppDeps, AppEnv } from "./env";
 
 const TOKEN = /^[A-Za-z0-9_-]{43}$/;
 export const BUILT_WIDGETS: readonly OverlayWidget[] = ["poll", "leaderboard"];
+const CONFIGURABLE: readonly OverlayWidget[] = ["poll", "leaderboard", "alerts"];
+const isConfigurable = (w: string): w is OverlayWidget => CONFIGURABLE.includes(w as OverlayWidget);
 const isBuilt = (w: string): w is OverlayWidget => BUILT_WIDGETS.includes(w as OverlayWidget);
 
 export const OVERLAY_PAGE_HEADERS: Record<string, string> = {
@@ -58,7 +61,7 @@ export function overlayPublicRoutes(deps: AppDeps) {
     const hash = await hashToken(token);
     const now = deps.now().getTime();
     if (recentlyMissed(hash, now)) return null;
-    const found = await withSystem(db, (tx) => overlays.lookup(tx, hash));
+    const found = await withSystem(db, (tx) => overlays.resolve(tx, hash));
     if (!found) rememberMiss(hash, now);
     return found && found.widget === widget ? found : null;
   }
@@ -74,7 +77,7 @@ export function overlayPublicRoutes(deps: AppDeps) {
     if (c.req.header("Upgrade") !== "websocket") return c.text("Expected WebSocket", 426);
     const found = await resolve(c);
     if (!found) return c.notFound();
-    return deps.overlaySocket(c.env, found.workspaceId, found.widget, c.req.raw);
+    return deps.overlaySocket(c.env, found.workspaceId, found.widget, c.req.raw, parseWidgetConfig(found.config));
   });
 
   return app;
@@ -99,6 +102,31 @@ export function overlayManageRoutes(auth: ReturnType<typeof authRoutes>, deps: A
     const links = await withWorkspace(c.var.db, { memberId: c.var.memberId, workspaceId: ws.id }, (tx) => overlays.list(tx));
     const body: OverlayLinkView[] = BUILT_WIDGETS.map((widget) => ({ widget, rotatedAt: links.find((l) => l.widget === widget)?.rotatedAt ?? null }));
     return c.json({ overlays: body });
+  });
+
+  app.get("/workspaces/:id/widgets/:widget/config", ...guard, async (c) => {
+    const ws = await current(c);
+    if (!ws) return c.json({ error: "not_found" }, 404);
+    const widget = c.req.param("widget");
+    if (!isConfigurable(widget)) return c.json({ error: "unknown_widget" }, 400);
+    const saved = await withWorkspace(c.var.db, { memberId: c.var.memberId, workspaceId: ws.id }, (tx) => widgetConfigs.get(tx, widget));
+    return c.json(parseWidgetConfig(saved));
+  });
+
+  app.put("/workspaces/:id/widgets/:widget/config", ...guard, async (c) => {
+    const ws = await current(c);
+    if (!ws) return c.json({ error: "not_found" }, 404);
+    if (ws.role !== "owner") return c.json({ error: "forbidden" }, 403);
+    const widget = c.req.param("widget");
+    if (!isConfigurable(widget)) return c.json({ error: "unknown_widget" }, 400);
+    const config = parseWidgetConfig(await c.req.json().catch(() => null));
+    await withWorkspace(c.var.db, { memberId: c.var.memberId, workspaceId: ws.id }, (tx) => widgetConfigs.save(tx, widget, config));
+    try {
+      await deps.liveSession(c.env, ws.id).configChanged(widget, config);
+    } catch {
+      console.error(JSON.stringify({ event: "overlay_config_push_failed" }));
+    }
+    return c.json(config);
   });
 
   app.post("/workspaces/:id/overlays/:widget/rotate", ...guard, async (c) => {

@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 10/11/2026 (ET-20 delivery plan revision). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
+Last updated: 12/11/2026 (ET-20 delivery plan revision). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
 
 ## Where we are
 
@@ -20,7 +20,7 @@ Last updated: 10/11/2026 (ET-20 delivery plan revision). Update in every slice P
 
 Plan revised by the owner on 10/11/2026 (ET-20, see `docs/design/08-delivery-plan.md`). The main draw is **alerts and customisable overlays** with donation alerts; mini-games come later. Build the feature skeleton first on demo data, then the owner tests on a real stream and invites a few creators they know. Small beta, strictly $0.
 
-1. **ET-13 Overlay customisation** (FR-13): one shared per-widget config.
+1. **ET-13 Overlay customisation** (FR-13): in review on branch `ET-13-overlay-customisation`.
 2. **ET-14 Custom chat commands to overlay alerts** (FR-14): generic alert event, command hint.
 3. **ET-17 Super Chat and membership alerts** (FR-15, ADR-008): on synthetic events.
 4. **ET-21 Free-limit fixes**: dashboard polling and points flush interval.

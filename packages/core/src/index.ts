@@ -16,3 +16,15 @@ export { cleanSeasonName, PointsError, PointsTally, POINTS, SEASON_LIMITS, seaso
 export { syntheticChannelId, syntheticChat, type SyntheticChatOptions, type SyntheticMessage } from "./synthetic-chat";
 export { commandKey, foldVietnamese, toNfc } from "./text";
 export { isChannelId } from "./viewer";
+export {
+  ACCENTS,
+  DEFAULT_THEME,
+  isWidget,
+  parseWidgetConfig,
+  POSITIONS,
+  PRESETS,
+  WIDGETS,
+  type Widget,
+  type WidgetConfig,
+  type WidgetTheme,
+} from "./widget-config";

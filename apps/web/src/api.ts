@@ -1,4 +1,4 @@
-import type { MeResponse, OverlayLinkView, OverlayRotateResponse, OverlayWidget, SessionMode, SessionResponse, WorkspaceResponse } from "@et/worker/api-types";
+import type { MeResponse, OverlayLinkView, OverlayTheme, OverlayRotateResponse, OverlayWidget, SessionMode, SessionResponse, WorkspaceResponse } from "@et/worker/api-types";
 
 export interface SeasonView {
   id: string;
@@ -65,6 +65,10 @@ export const api = {
     call<{ events: { action: string; actorName: string | null; createdAt: string }[] }>(`/api/workspaces/${encodeURIComponent(id)}/audit`),
   previewInvite: (token: string) => call<{ workspaceName: string }>("/api/invites/preview", jsonBody("POST", { token })),
   acceptInvite: (token: string) => call<{ workspaceId: string; outcome: string }>("/api/invites/accept", jsonBody("POST", { token })),
+  widgetConfig: (id: string, widget: OverlayWidget) =>
+    call<{ theme: OverlayTheme }>(`/api/workspaces/${encodeURIComponent(id)}/widgets/${widget}/config`),
+  saveWidgetConfig: (id: string, widget: OverlayWidget, config: { theme: OverlayTheme }) =>
+    call<{ theme: OverlayTheme }>(`/api/workspaces/${encodeURIComponent(id)}/widgets/${widget}/config`, jsonBody("PUT", config)),
   closePoll: (id: string) => call<SessionResponse>(`/api/workspaces/${encodeURIComponent(id)}/session/poll/close`, { method: "POST" }),
 };
 

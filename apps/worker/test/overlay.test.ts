@@ -60,7 +60,7 @@ describe("overlay links", () => {
     const { ws, path } = await link(h);
     expect((await h.browser().request(`${path}/ws`)).status).toBe(426);
     expect((await h.browser().request(`${path}/ws`, { headers: { Upgrade: "websocket" } })).status).toBe(302);
-    expect(h.sockets).toEqual([{ workspaceId: ws, widget: "poll" }]);
+    expect(h.sockets).toMatchObject([{ workspaceId: ws, widget: "poll", config: { theme: { preset: "night" } } }]);
     expect((await h.browser().request(`/o/${"C".repeat(43)}/poll/ws`, { headers: { Upgrade: "websocket" } })).status).toBe(404);
     expect(h.sockets).toHaveLength(1);
   });
@@ -135,5 +135,38 @@ describe("overlayView", () => {
     expect(
       overlayView("leaderboard", { status: "live", messagesSeen: 1, poll: null, season: "Mùa 1", leaderboard: [{ rank: 1, name: "A", points: 10 }] }),
     ).toEqual({ type: "leaderboard", live: true, title: "Mùa 1", entries: [{ rank: 1, name: "A", points: 10 }] });
+  });
+});
+
+describe("widget config", () => {
+  const json = (body: unknown) => ({ method: "PUT", body: JSON.stringify(body), headers: { "Content-Type": "application/json", Origin: ORIGIN } });
+
+  it("the owner saves a sanitised theme, it's pushed live and travels with the overlay socket", async () => {
+    const h = await makeHarness();
+    const { b, ws, path } = await link(h);
+    const saved = await b.request(`/api/workspaces/${ws}/widgets/poll/config`, json({ theme: { preset: "neon", accent: "teal", fontScale: 141, position: "url(x)" }, evil: "<script>" }));
+    expect(await saved.json()).toEqual({ theme: expect.objectContaining({ preset: "neon", accent: "teal", fontScale: 140, position: "top-left" }) });
+    expect(h.configPushes).toMatchObject([[ws, "poll", { theme: { preset: "neon" } }]]);
+    expect(JSON.stringify(await (await b.request(`/api/workspaces/${ws}/widgets/poll/config`)).json())).not.toContain("script");
+    await h.browser().request(`${path}/ws`, { headers: { Upgrade: "websocket" } });
+    expect(h.sockets.at(-1)).toMatchObject({ config: { theme: { preset: "neon", accent: "teal" } } });
+  });
+
+  it("moderators read but can't save; outsiders see nothing; unknown widgets are rejected", async () => {
+    const h = await makeHarness();
+    const { b, ws } = await owner(h);
+    expect((await b.request(`/api/workspaces/${ws}/widgets/chat/config`)).status).toBe(400);
+    h.google.account = { sub: "g-mod", email: "mod@example.test", scopes: ["openid", "email", "profile"] };
+    const mod = h.browser();
+    await mod.signIn("moderator");
+    await h.db.transaction((tx) =>
+      tx.query("INSERT INTO app.workspace_member (workspace_id, member_id, role) SELECT $1, id, 'moderator' FROM app.member WHERE google_sub = 'g-mod'", [ws]),
+    );
+    expect((await mod.request(`/api/workspaces/${ws}/widgets/poll/config`)).status).toBe(200);
+    expect((await mod.request(`/api/workspaces/${ws}/widgets/poll/config`, json({ theme: { preset: "day" } }))).status).toBe(403);
+    h.google.account = { sub: "g-x", email: "x@example.test", channel: { id: "UCSYNTHxXXXXXXXXXXXXXXXX", title: "X" } };
+    const outsider = h.browser();
+    await outsider.signIn();
+    expect((await outsider.request(`/api/workspaces/${ws}/widgets/poll/config`)).status).toBe(404);
   });
 });

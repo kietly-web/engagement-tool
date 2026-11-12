@@ -10,6 +10,7 @@ Results must appear on stream without writing to YouTube (ADR-004). Creators alr
 
 - `apps/overlay` serves one page per widget (poll, leaderboard, game) at `/o/<token>/<widget>`. The token is 32 random bytes, base64url, stored as SHA-256 in `app.overlay_token`. It's shown to the owner once, at creation or rotation; rotating closes existing sockets with code 4001. Only owners create or rotate links. Moderators see whether a link exists, never the link itself.
 - Overlay pages open a read-only WebSocket (`/o/<token>/<widget>/ws`) that the Worker forwards to the workspace's `LiveSession` after resolving the token. It uses the hibernation API, allows at most 20 sockets per widget, and ignores anything a client sends. The server builds every message with `overlayView()`: question, options, counts, total, status. No viewer ids or names.
+- Styling (ET-13) comes only from fixed presets, palette keys and clamped numbers, validated by `parseWidgetConfig()` on the server and again in the overlay; the overlay maps them to CSS it owns. The config reaches the overlay as the first socket message and is pushed again when the owner saves. The dashboard previews the real overlay page in a same-origin iframe (`/overlay/?preview=<widget>#<config>`, sample data, no socket); only `/overlay/*` allows `frame-ancestors 'self'`.
 - Chat-derived text is set with `textContent` only, length-capped, with control and bidi-override characters stripped. Strict CSP, no third-party scripts, `Referrer-Policy: no-referrer`.
 
 ## Consequences
