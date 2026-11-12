@@ -117,6 +117,18 @@ export function AlertsPanel({ workspaceId, isOwner }: { workspaceId: string; isO
           <label className="inline">
             <input type="checkbox" checked={config.showHint} onChange={(e) => setConfig({ ...config, showHint: e.target.checked })} /> {t("alerts.showHint")}
           </label>
+          <h3>{t("alerts.donations")}</h3>
+          <p className="muted">{t("alerts.donations.help")}</p>
+          {(["superChats", "memberships", "showAmount", "showComment"] as const).map((key) => (
+            <label key={key} className="inline">
+              <input
+                type="checkbox"
+                checked={config.donations[key]}
+                onChange={(e) => setConfig({ ...config, donations: { ...config.donations, [key]: e.target.checked } })}
+              />{" "}
+              {t(`alerts.donations.${key}`)}
+            </label>
+          ))}
           <button type="button" className="button primary" onClick={save}>
             {t("alerts.save")}
           </button>

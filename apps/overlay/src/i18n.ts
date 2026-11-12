@@ -9,6 +9,8 @@ const vi = {
   "preview.names": ["Linh", "Bảo", "Khán giả 7", "Minh Anh"],
   "preview.alert": "Thả tim cho idol!",
   "alerts.testTitle": "Thử thông báo ✓",
+  "alerts.superChat": "Cảm ơn Super Chat!",
+  "alerts.membership": "Chào thành viên mới!",
   "alerts.hint": (triggers: string[]) => `Gõ ${triggers.map((t) => `!${t}`).join(" · ")} vào chat`,
 };
 const en: typeof vi = {
@@ -22,6 +24,8 @@ const en: typeof vi = {
   "preview.names": ["Linh", "Bao", "Viewer 7", "Minh Anh"],
   "preview.alert": "Hearts for the streamer!",
   "alerts.testTitle": "Test alert ✓",
+  "alerts.superChat": "Thanks for the Super Chat!",
+  "alerts.membership": "Welcome, new member!",
   "alerts.hint": (triggers: string[]) => `Type ${triggers.map((t) => `!${t}`).join(" · ")} in chat`,
 };
 

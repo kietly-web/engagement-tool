@@ -65,6 +65,8 @@ P0: production doesn't work without it. P1: a feature or workflow is degraded. P
 | [x] 08/11/2026 | Overlay link rotation isn't in an audit log | ET-9 logs `overlay_rotated` | `apps/worker/src/overlay.ts` |
 | [ ] | Invite email matching uses the email stored at the member's last sign-in; Gmail dot and `+tag` variants don't match | Acceptable for the beta; require a sign-in in the last hour before accepting if abuse appears | `packages/db` `accept_invite` |
 | [ ] | `/overlay/*` CSP override (`!` detach in `_headers`) only checked with `wrangler dev` | After the first deploy: `curl -sI https://<worker>/overlay/?preview=poll` must show exactly one `Content-Security-Policy` with `frame-ancestors 'self'`; if two, the dashboard preview goes blank (fails safe) | ET-15 |
+| [ ] | Membership milestone messages (`memberMilestoneChatEvent`) aren't shown | Add as a donation kind if creators want it | `packages/youtube/src/live-chat.ts` |
+| [ ] | Donation alerts verified only on synthetic events | ET-15: a friend sends a small Super Chat on the Unlisted test stream | ET-15 |
 | [ ] | No rate limit on sign-in and session lookups | Add Workers Rate Limiting binding (free plan) or a per-IP Durable Object counter before open sign-up | `apps/worker` |
 | [x] 08/11/2026 | Audit log not built | ET-9: invites, membership, overlay rotation, disconnect, viewer erasure, seasons. Account deletion deletes the workspace and its log with it | `packages/db`, `apps/worker` |
 | [ ] | Preview deployments can't sign in (Google needs exact redirect URIs) | Dev-only sign-in stub compiled out of production, if previews need it | `apps/worker` |

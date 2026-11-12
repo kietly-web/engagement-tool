@@ -9,7 +9,7 @@ const root = document.getElementById("widget")!;
 let showNames = DEFAULT_THEME.showNames;
 let lastContent: OverlayMessage | null = null;
 let hint: string[] = [];
-const queue = new AlertQueue<AlertView>();
+const queue = new AlertQueue<AlertView>((a) => a.paid);
 let showing = false;
 
 function renderHint(): void {
@@ -66,7 +66,7 @@ function render(message: OverlayMessage): void {
     return;
   }
   if (message.type === "alert") {
-    const view = alertView(message, t["alerts.testTitle"]);
+    const view = alertView(message, { test: t["alerts.testTitle"], superChat: t["alerts.superChat"], membership: t["alerts.membership"] });
     if (!view) return;
     queue.push(showNames ? view : { ...view, name: null });
     if (!showing) playNext();

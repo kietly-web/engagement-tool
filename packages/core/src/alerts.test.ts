@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { AlertThrottle, DEFAULT_ALERTS, matchAlertCommand, normaliseTrigger, parseAlertsConfig } from "./alerts";
+import { AlertThrottle, DEFAULT_ALERTS, donationAlert, matchAlertCommand, normaliseTrigger, parseAlertsConfig } from "./alerts";
 import { syntheticChannelId } from "./synthetic-chat";
 
 const A = syntheticChannelId(1);
@@ -67,5 +67,30 @@ describe("AlertThrottle", () => {
     expect(t.allow(A, 10_000, config)).toBe(false);
     expect(t.allow(A, 30_000, config)).toBe(true);
     expect(t.allow("bad", 100_000, config)).toBe(false);
+  });
+});
+
+describe("donationAlert", () => {
+  const on = { superChats: true, memberships: true, showAmount: true, showComment: true };
+  it("shows Super Chats with amount and cleaned comment", () => {
+    expect(donationAlert({ kind: "super_chat", amount: "₫50.000", comment: "  Cố lên\u202E!  " }, "Linh", on)).toEqual({
+      source: "super_chat",
+      title: "Cố lên!",
+      name: "Linh",
+      sticker: "gift",
+      animation: "bounce",
+      amount: "₫50.000",
+    });
+  });
+  it("respects the owner's switches", () => {
+    expect(donationAlert({ kind: "super_chat", amount: "$5", comment: "hi" }, "A", { ...on, superChats: false })).toBeNull();
+    expect(donationAlert({ kind: "membership", amount: null, comment: "" }, "A", { ...on, memberships: false })).toBeNull();
+    expect(donationAlert({ kind: "super_chat", amount: "$5", comment: "hi" }, "A", { ...on, showAmount: false, showComment: false })).toEqual({
+      source: "super_chat",
+      title: "",
+      name: "A",
+      sticker: "gift",
+      animation: "bounce",
+    });
   });
 });

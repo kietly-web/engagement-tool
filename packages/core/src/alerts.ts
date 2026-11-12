@@ -28,14 +28,30 @@ export interface AlertCommand {
   animation: Animation;
 }
 
+export interface DonationAlertSettings {
+  superChats: boolean;
+  memberships: boolean;
+  showAmount: boolean;
+  showComment: boolean;
+}
+
 export interface AlertsConfig {
   commands: AlertCommand[];
   viewerCooldownSeconds: number;
   globalCooldownSeconds: number;
   showHint: boolean;
+  donations: DonationAlertSettings;
 }
 
-export const DEFAULT_ALERTS: AlertsConfig = { commands: [], viewerCooldownSeconds: 30, globalCooldownSeconds: 3, showHint: true };
+export const DEFAULT_DONATIONS: DonationAlertSettings = { superChats: true, memberships: true, showAmount: true, showComment: true };
+
+export const DEFAULT_ALERTS: AlertsConfig = {
+  commands: [],
+  viewerCooldownSeconds: 30,
+  globalCooldownSeconds: 3,
+  showHint: true,
+  donations: DEFAULT_DONATIONS,
+};
 
 const pick = <T extends string>(allowed: readonly T[], v: unknown, d: T): T => (allowed.includes(v as T) ? (v as T) : d);
 const int = (v: unknown, min: number, max: number, d: number) => (typeof v === "number" && Number.isFinite(v) ? Math.min(max, Math.max(min, Math.round(v))) : d);
@@ -72,6 +88,39 @@ export function parseAlertsConfig(input: unknown): AlertsConfig {
     viewerCooldownSeconds: int(raw.viewerCooldownSeconds, 5, 600, DEFAULT_ALERTS.viewerCooldownSeconds),
     globalCooldownSeconds: int(raw.globalCooldownSeconds, 1, 60, DEFAULT_ALERTS.globalCooldownSeconds),
     showHint: typeof raw.showHint === "boolean" ? raw.showHint : DEFAULT_ALERTS.showHint,
+    donations: parseDonations(raw.donations),
+  };
+}
+
+function parseDonations(input: unknown): DonationAlertSettings {
+  const d = (typeof input === "object" && input !== null ? input : {}) as Record<string, unknown>;
+  const b = (k: keyof DonationAlertSettings) => (typeof d[k] === "boolean" ? (d[k] as boolean) : DEFAULT_DONATIONS[k]);
+  return { superChats: b("superChats"), memberships: b("memberships"), showAmount: b("showAmount"), showComment: b("showComment") };
+}
+
+function cleanAmount(raw: string): string | null {
+  const text = cleanText(raw);
+  return text ? Array.from(text).slice(0, 20).join("") : null;
+}
+
+const DONATION_STICKER: Record<string, Sticker> = { super_chat: "gift", super_sticker: "sparkles", membership: "star", membership_gift: "gift" };
+
+// Donations never earn points or touch polls (ADR-008, non-negotiable 6); this only decides what is drawn.
+export function donationAlert(
+  donation: { kind: "super_chat" | "super_sticker" | "membership" | "membership_gift"; amount: string | null; comment: string },
+  name: string | null,
+  settings: DonationAlertSettings,
+): AlertEvent | null {
+  const isMembership = donation.kind === "membership" || donation.kind === "membership_gift";
+  if (isMembership ? !settings.memberships : !settings.superChats) return null;
+  const comment = settings.showComment ? (cleanText(donation.comment) ?? "") : "";
+  return {
+    source: isMembership ? "membership" : "super_chat",
+    title: comment,
+    name,
+    sticker: DONATION_STICKER[donation.kind] ?? "gift",
+    animation: "bounce",
+    ...(settings.showAmount && donation.amount && cleanAmount(donation.amount) ? { amount: cleanAmount(donation.amount)! } : {}),
   };
 }
 

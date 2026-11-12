@@ -5,7 +5,7 @@ describe("alertView", () => {
   it("maps stickers and animations from fixed sets and keeps text as plain text", () => {
     expect(
       alertView({ type: "alert", alert: { source: "command", title: "<b>Thả tim</b>\u202E", name: "Linh", sticker: "fire", animation: "shake" } }),
-    ).toEqual({ emoji: "🔥", title: "<b>Thả tim</b>", name: "Linh", amount: null, animation: "shake" });
+    ).toEqual({ paid: false, emoji: "🔥", title: "<b>Thả tim</b>", name: "Linh", amount: null, animation: "shake" });
     expect(alertView({ type: "alert", alert: { source: "command", title: "x", name: null, sticker: "evil" as never, animation: "spin" as never } })).toMatchObject({
       emoji: "❤\uFE0F",
       animation: "pop",
@@ -13,12 +13,42 @@ describe("alertView", () => {
   });
 });
 
+describe("alertView donations", () => {
+  const defaults = { test: "T", superChat: "SC", membership: "M" };
+  it("shows the amount and falls back to a thank-you line when there's no comment", () => {
+    expect(alertView({ type: "alert", alert: { source: "super_chat", title: "", name: "Linh", sticker: "gift", animation: "bounce", amount: "₫50.000" } }, defaults)).toMatchObject({
+      title: "SC",
+      amount: "₫50.000",
+      name: "Linh",
+    });
+    expect(alertView({ type: "alert", alert: { source: "membership", title: "", name: null, sticker: "star", animation: "bounce" } }, defaults)?.title).toBe("M");
+    expect(alertView({ type: "alert", alert: { source: "command", title: "", name: null, sticker: "star", animation: "pop" } }, defaults)).toBeNull();
+  });
+});
+
 describe("hintTriggers", () => {
   it("lists at most six safe triggers only when the hint is on", () => {
     const commands = Array.from({ length: 8 }, (_, i) => ({ trigger: `c${i}`, text: "x", sticker: "heart" as const, animation: "pop" as const }));
-    expect(hintTriggers({ commands, showHint: true, viewerCooldownSeconds: 30, globalCooldownSeconds: 3 })).toHaveLength(6);
-    expect(hintTriggers({ commands, showHint: false, viewerCooldownSeconds: 30, globalCooldownSeconds: 3 })).toEqual([]);
-    expect(hintTriggers({ commands: [{ ...commands[0]!, trigger: "<x>" }], showHint: true, viewerCooldownSeconds: 30, globalCooldownSeconds: 3 })).toEqual([]);
+    const base = { viewerCooldownSeconds: 30, globalCooldownSeconds: 3, donations: { superChats: true, memberships: true, showAmount: true, showComment: true } };
+    expect(hintTriggers({ ...base, commands, showHint: true })).toHaveLength(6);
+    expect(hintTriggers({ ...base, commands, showHint: false })).toEqual([]);
+    expect(hintTriggers({ ...base, commands: [{ ...commands[0]!, trigger: "<x>" }], showHint: true })).toEqual([]);
+  });
+});
+
+describe("AlertQueue priority", () => {
+  it("drops free alerts before paid ones when full", () => {
+    const q = new AlertQueue<{ paid: boolean; n: number }>((i) => i.paid);
+    for (let i = 0; i < QUEUE_LIMIT; i++) q.push({ paid: i % 2 === 0, n: i });
+    q.push({ paid: true, n: 99 });
+    const drained = [];
+    for (let x = q.next(); x; x = q.next()) drained.push(x);
+    expect(drained.filter((x) => x.paid)).toHaveLength(6);
+    expect(drained.some((x) => x.n === 99)).toBe(true);
+    const full = new AlertQueue<{ paid: boolean }>((i) => i.paid);
+    for (let i = 0; i < QUEUE_LIMIT; i++) full.push({ paid: true });
+    full.push({ paid: false });
+    expect(full.size).toBe(QUEUE_LIMIT);
   });
 });
 
