@@ -8,6 +8,7 @@ describe("parseOverlayPath", () => {
     expect(parseOverlayPath(`/o/${TOKEN}/poll`)).toEqual({ token: TOKEN, widget: "poll" });
     expect(parseOverlayPath(`/o/${TOKEN}/poll/`)).toEqual({ token: TOKEN, widget: "poll" });
     expect(parseOverlayPath(`/o/${TOKEN}/leaderboard`)).toEqual({ token: TOKEN, widget: "leaderboard" });
+    expect(parseOverlayPath(`/o/${TOKEN}/scene`)).toEqual({ token: TOKEN, widget: "scene" });
     for (const bad of [`/o/short/poll`, `/o/${TOKEN}/admin`, `/o/${TOKEN}/poll/ws`, `/x/${TOKEN}/poll`, `/o/${"<".repeat(43)}/poll`]) {
       expect(parseOverlayPath(bad)).toBeNull();
     }

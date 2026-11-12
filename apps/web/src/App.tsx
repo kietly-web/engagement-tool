@@ -4,6 +4,7 @@ import { api, ApiError, signInUrl } from "./api";
 import { AlertsPanel } from "./AlertsPanel";
 import { LivePanel } from "./LivePanel";
 import { MembersPanel } from "./MembersPanel";
+import { ObsSetup } from "./ObsSetup";
 import { OverlayLinks } from "./OverlayLinks";
 import { SeasonPanel } from "./SeasonPanel";
 import { StylePanel } from "./StylePanel";
@@ -245,6 +246,7 @@ function Workspace({ id, selfId, onError, onChange }: { id: string; selfId: stri
 
   return (
     <>
+    {isOwner && <ObsSetup workspaceId={id} youtubeConnected={data.youtube !== null} />}
     <LivePanel workspaceId={id} youtubeConnected={data.youtube !== null} />
     <SeasonPanel workspaceId={id} isOwner={isOwner} />
     <MembersPanel workspace={data} selfId={selfId} onLeft={onChange} />

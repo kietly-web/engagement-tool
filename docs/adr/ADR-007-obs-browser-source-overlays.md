@@ -13,6 +13,13 @@ Results must appear on stream without writing to YouTube (ADR-004). Creators alr
 - Styling (ET-13) comes only from fixed presets, palette keys and clamped numbers, validated by `parseWidgetConfig()` on the server and again in the overlay; the overlay maps them to CSS it owns. The config reaches the overlay as the first socket message and is pushed again when the owner saves. The dashboard previews the real overlay page in a same-origin iframe (`/overlay/?preview=<widget>#<config>`, sample data, no socket); only `/overlay/*` allows `frame-ancestors 'self'`.
 - Chat-derived text is set with `textContent` only, length-capped, with control and bidi-override characters stripped. Strict CSP, no third-party scripts, `Referrer-Policy: no-referrer`.
 
+## Amendment: one-step OBS setup (ET-23, 12/11/2026)
+
+- A combined **scene** link (`/o/<token>/scene`) shows the poll, leaderboard and alerts widgets on one 1920×1080 page, each with its own saved style and corner. It opens one socket; the `LiveSession` sends it every widget's config and messages, and removes names per widget for widgets that hide them.
+- The dashboard offers the scene link as a button the owner drags onto OBS. OBS (25+) creates a browser source from the dropped link and reads `layer-name`, `layer-width` and `layer-height` from its query string ([OBS docs](https://obsproject.com/tools/browser-drag-and-drop)). A "copy link" fallback covers OBS run as Administrator, Streamlabs and other apps.
+- So the owner can see the scene link again instead of copying it once, its token is also stored encrypted (AES-GCM with `TOKEN_ENCRYPTION_KEY`, associated data `overlay:<workspace>:scene`, key-version byte), next to its SHA-256 hash, which is still what resolves a request. Only the owner can read the ciphertext, through `app.overlay_token_enc()`. Per-widget links are unchanged and stay shown once; they move under "advanced" in the dashboard. Storing this one token encrypted adds little risk: the same key already protects Google refresh tokens, and a database leak without the key still yields neither (requests resolve by hash). If the ciphertext can't be decrypted (for example after a key change), the link is replaced, its sockets closed, and the change audited, so the creator drags the new link into OBS again.
+- The dashboard checks once whether OBS has the scene link open (`overlayConnections`, scene sockets only). After a drag or copy it checks every 10 s while the tab is visible, for at most 10 minutes (≤ 60 Worker requests, DO calls and short Neon transactions per setup), and stops once OBS connects.
+
 ## Consequences
 
 - Nothing is installed on the creator's PC; works in OBS, Streamlabs Desktop and any browser source.

@@ -54,7 +54,7 @@ P0: production doesn't work without it. P1: a feature or workflow is degraded. P
 | [x] 08/11/2026 | ET-4 review note: call `app.upsert_member` only after ID-token verification | Done in ET-5 (`auth.ts` callback) | `apps/worker` |
 | [ ] | Production check that `SET LOCAL ROLE app_runtime` works through Hyperdrive (`current_user` is `app_runtime` inside a transaction) | Run once by hand after setup; automate in the smoke test when `/healthz` gains a DB probe | Smoke test |
 | [ ] | If Google's revoke endpoint is down, disconnect and account deletion return 502 and rely on the user retrying | Queue a pending revoke-and-delete for the daily cron, so the 7-day promise (NN3) holds without a retry (ET-8 cron) | `apps/worker`, `packages/db` |
-| [ ] | Token encryption key rotation not built | Ciphertexts carry a version byte; add `TOKEN_ENCRYPTION_KEY_V2` handling and a re-encrypt job when a rotation is needed | `apps/worker/src/crypto.ts` |
+| [ ] | Token encryption key rotation not built; changing `TOKEN_ENCRYPTION_KEY` today also replaces every creator's OBS scene link the next time they open the dashboard (old OBS sources stop) | Ciphertexts carry a version byte; add `TOKEN_ENCRYPTION_KEY_V2` handling and a re-encrypt job when a rotation is needed | `apps/worker/src/crypto.ts` |
 | [ ] | Chat is read by polling `liveChatMessages.list` (about 3,600 units per stream-hour), so a workspace gets about 50 live minutes a day | ET-6 spike: implement and verify `streamList` (ADR-004) against a real stream; then raise the per-workspace budget | `packages/youtube`, `apps/worker/src/live` |
 | [ ] | `LiveSession`/`QuotaKeeper` adapters only boot-checked with `wrangler dev`; the engine and routes are tested in Node with in-memory storage | First real run after owner setup: start a demo session, then a YouTube session | `apps/worker/src/live/durable.ts` |
 | [ ] | A visible dashboard keeps Neon's compute awake for the whole stream (each 5 s poll = 2 Postgres transactions + 2 DO calls); fine for a small beta (~200 of 400 compute-hours a month) | Cache membership in the session's Durable Object or use a session-authenticated WebSocket before the beta grows | `apps/web`, `apps/worker` |
@@ -66,6 +66,8 @@ P0: production doesn't work without it. P1: a feature or workflow is degraded. P
 | [ ] | Invite email matching uses the email stored at the member's last sign-in; Gmail dot and `+tag` variants don't match | Acceptable for the beta; require a sign-in in the last hour before accepting if abuse appears | `packages/db` `accept_invite` |
 | [ ] | `/overlay/*` CSP override (`!` detach in `_headers`) only checked with `wrangler dev` | After the first deploy: `curl -sI https://<worker>/overlay/?preview=poll` must show exactly one `Content-Security-Policy` with `frame-ancestors 'self'`; if two, the dashboard preview goes blank (fails safe) | ET-15 |
 | [ ] | Membership milestone messages (`memberMilestoneChatEvent`) aren't shown | Add as a donation kind if creators want it | `packages/youtube/src/live-chat.ts` |
+| [ ] | OBS drag-and-drop of the scene link checked only against OBS's documented behaviour, not in a real OBS | ET-15 C2: drag the button from the setup card onto OBS; it should add one 1920×1080 browser source named "Engagement Tool" | ET-15 |
+| [ ] | Scene socket fan-out and per-widget name hiding only boot-checked in the Durable Object (Node tests stub it; the flag logic is unit-tested) | ET-15 C2: hide names on the leaderboard and check the scene shows "Khán giả" while the alerts still show names | `apps/worker/src/live/durable.ts` |
 | [ ] | Donation alerts verified only on synthetic events | ET-15: a friend sends a small Super Chat on the Unlisted test stream | ET-15 |
 | [ ] | No rate limit on sign-in and session lookups | Add Workers Rate Limiting binding (free plan) or a per-IP Durable Object counter before open sign-up | `apps/worker` |
 | [x] 08/11/2026 | Audit log not built | ET-9: invites, membership, overlay rotation, disconnect, viewer erasure, seasons. Account deletion deletes the workspace and its log with it | `packages/db`, `apps/worker` |
@@ -80,7 +82,7 @@ P0: production doesn't work without it. P1: a feature or workflow is degraded. P
 
 ## 4. Remaining backlog
 
-Next slices in order: ET-13, ET-14, ET-17, ET-21, ET-15, ET-22; then ET-19, ET-10, ET-16, ET-18, ET-11. Details in [design/08-delivery-plan.md](design/08-delivery-plan.md).
+Next slices in order: ET-15, ET-22; then ET-19, ET-10, ET-16, ET-18, ET-11. Details in [design/08-delivery-plan.md](design/08-delivery-plan.md).
 
 ## 5. Open questions
 

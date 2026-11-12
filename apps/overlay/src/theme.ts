@@ -34,14 +34,13 @@ export function themeFrom(config: unknown): OverlayTheme {
   };
 }
 
-export function applyTheme(body: HTMLElement, theme: OverlayTheme): void {
-  body.dataset.preset = theme.preset;
-  body.dataset.accent = theme.accent;
-  body.dataset.position = theme.position;
-  body.style.setProperty("--scale", String(theme.fontScale / 100));
-  body.style.setProperty("--bg-alpha", String(theme.opacity / 100));
-  body.classList.toggle("hide-title", !theme.showTitle);
-  body.classList.toggle("hide-total", !theme.showTotal);
+export function applyTheme(panel: HTMLElement, theme: OverlayTheme): void {
+  panel.dataset.preset = theme.preset;
+  panel.dataset.accent = theme.accent;
+  panel.style.setProperty("--scale", String(theme.fontScale / 100));
+  panel.style.setProperty("--bg-alpha", String(theme.opacity / 100));
+  panel.classList.toggle("hide-title", !theme.showTitle);
+  panel.classList.toggle("hide-total", !theme.showTotal);
 }
 
 export function decodePreview(hash: string): unknown {

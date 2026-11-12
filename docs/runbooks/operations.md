@@ -35,6 +35,7 @@ Logs and error reports carry no personal data, chat text or overlay tokens.
 - **Neon compute suspended (monthly CU-hours or transfer used up):** sessions keep counting in Durable Objects but can't flush. Check Console → Usage; reduce flush frequency or wait for the monthly reset. Data is kept.
 - **Creator's sessions won't start, "reconnect Google":** Testing-mode refresh token expired after 7 days (R4); creator reconnects from settings.
 - **Overlay URL leaked:** the creator rotates it in the dashboard; old sockets close at once. A leaked link can also fill the 20 sockets allowed per widget, so the creator's own OBS gets refused; rotating fixes that too.
+- **Changing `TOKEN_ENCRYPTION_KEY`:** Google refresh tokens stop decrypting (creators reconnect YouTube), and each creator's OBS scene link is replaced the next time they open the dashboard, so they must drag it into OBS again. Tell beta creators before doing it.
 
 ## Incident response
 
