@@ -45,9 +45,10 @@ Before the first invited creator streams. Their viewers are real people and may 
 
 | Slice | Delivers | IDs | Review |
 | --- | --- | --- | --- |
+| ET-10 | Game framework and first game, **Đại chiến boss** (boss raid). Framework: one game at a time per session, started and stopped from the dashboard by the owner or a moderator, a game panel in the one-link OBS scene (and its own per-widget link and style), timed rounds that tolerate YouTube's chat delay, each viewer's action counted at most once per interval, rewards as points only. Boss raid: the streamer or VTuber is the boss with an HP bar; viewers pick a role (`!kiem` attack, `!khien` block, `!thuoc` heal); every ~20 s the boss attacks a role and knocks out unprotected attackers for a round; an enrage phase at 50% HP; the streamer fires boss moves from dashboard buttons; a weak-spot word flashes on the overlay for bonus damage; if chat wins, every participant earns points | FR-07, R5, R8 | Yes (command parsing, overlays) |
+| ET-24 | **Thú cưng của kênh** (shared pet): one pet per workspace on the overlay; chat feeds (`!an`), plays (`!choi`) and puts it to sleep (`!ngu`), each viewer counted once per interval; the pet's mood and growth change its look, it grows through the season and resets with it; the pet's state is channel-level (no viewer IDs or names stored), kept in Postgres between streams | FR-07, R2, R5 | Yes (new workspace table, command parsing, overlays) |
 | ET-19 | Vietnamese donation services on the alerts widget, one service per slice, each with its own ADR (after Q-T4 research, which needs no owner setup) | FR-16 | Yes |
-| ET-10 | First mini-game: number guessing (`!doan 42`), points only. Work in progress parked on branch `ET-10-guess-game` (not reviewed) | FR-07, R8 | Yes |
-| ET-16 | More mini-games and richer overlay animations (scheduled one by one) | FR-07 | Yes |
+| ET-16 | More games, one per slice, from the shortlist: Chat là sếp (quick votes on the streamer's next move), Truyện tự chọn (creator-written branching story), Đấu trường chat (bracket arena), Truy tìm kho báu (group map hunt), Đoán số (number guessing; earlier work parked on branch `ET-10-guess-game`, not reviewed). Excluded on purpose: wagers, slots, gacha or luck-based catches, raffles (R8), hidden-role games (need private messages), shared pixel drawing (abuse on stream) | FR-07, R5, R8 | Yes |
 | ET-18 | English UI | NFR-I18N | No |
 
 ## Phase 3 Public launch readiness

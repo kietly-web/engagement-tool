@@ -24,7 +24,7 @@ Last updated: 12/11/2026 (phase 1 built; ET-23 one-step OBS setup; ET-15 checkli
 
 **Waiting on the owner: ET-15 first real run.** Follow [runbooks/first-real-run.md](runbooks/first-real-run.md): accounts and secrets (Part A), send Claude the Worker URL, Hyperdrive ID and Google client ID (Part B), then the test (Part C). Claude then adds the IDs to `wrangler.jsonc`, and fixes what the run finds. Expect rework: nothing has run against the real services, and the `streamList` reader is unproven (Q-T1).
 
-After ET-15: **ET-22 invited beta gate** (privacy notice, terms, contact, alerts, retention gaps), then phase 2 (ET-19 Vietnamese donation services after Q-T4, ET-10/ET-16 mini-games, ET-18 English).
+After ET-15: **ET-22 invited beta gate** (privacy notice, terms, contact, alerts, retention gaps), then phase 2: ET-10 boss raid with the game framework, ET-24 shared pet, ET-19 Vietnamese donation services after Q-T4, ET-16 more games, ET-18 English. Owner picked boss raid and shared pet first (18/11/2026); games need no owner setup, so they can be built while ET-15 waits.
 
 ## Open PRs
 
