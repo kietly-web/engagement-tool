@@ -37,7 +37,7 @@ A free engagement tool for Vietnamese YouTubers and VTubers: viewers type comman
 | FR-04 | Polls: create with 2–6 options, open, close; viewers vote with `!vote N` (one counted vote per viewer channel); live counts on the overlay | Must |
 | FR-05 | Overlays: one URL per widget with a secret token, transparent background, sized for 1920×1080; the creator can rotate a token, which disconnects the old URL at once | Must |
 | FR-06 | Loyalty points per workspace: earned for participation (`!join`, voting, game wins) within a season of at most 30 days; leaderboard overlay | Must |
-| FR-07 | Mini-games played through chat commands, rewarded with points only (first game chosen in ET-10) | Should |
+| FR-07 | Mini-games played through chat commands, rewarded with points only: boss raid first (ET-10), then a shared channel pet (ET-24), then more one by one (ET-16) | Should |
 | FR-08 | Commands match with and without Vietnamese diacritics; built-in Vietnamese aliases (for example `!binhchon 2` for `!vote 2`) | Must |
 | FR-09 | Disconnect: the Google token is revoked at once and the workspace's YouTube-derived data is deleted within 7 days; the creator can delete the whole workspace | Must |
 | FR-10 | Dashboard and overlays in Vietnamese; all copy in message catalogs so English can follow | Must |

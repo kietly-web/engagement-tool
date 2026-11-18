@@ -82,7 +82,7 @@ P0: production doesn't work without it. P1: a feature or workflow is degraded. P
 
 ## 4. Remaining backlog
 
-Next slices in order: ET-15, ET-22; then ET-19, ET-10, ET-16, ET-18, ET-11. Details in [design/08-delivery-plan.md](design/08-delivery-plan.md).
+Next slices in order: ET-15, ET-22; then ET-10, ET-24, ET-19, ET-16, ET-18, ET-11. Details in [design/08-delivery-plan.md](design/08-delivery-plan.md).
 
 ## 5. Open questions
 
@@ -97,7 +97,7 @@ Next slices in order: ET-15, ET-22; then ET-19, ET-10, ET-16, ET-18, ET-11. Deta
 | [x] 08/11/2026 | Q-T2 Hyperdrive vs Neon serverless driver | ET-4 | Hyperdrive + `pg`, caching disabled (ADR-002) |
 | [ ] | Q-T3 Concurrent sessions on DO free plan | ET-6 | Estimate |
 | [ ] | Q-P1 Show `!points` on an overlay ticker? | Owner | Product |
-| [ ] | Q-P2 Product name and domain | Owner | Strictly $0 confirmed 10/11/2026, so no domain. Google app verification is likely to need one, which may block public sign-up (ET-11); the invited beta is unaffected. A domain needs an ADR (cost) |
+| [ ] | Q-P2 Product name and domain | Owner | Strictly $0 confirmed 10/11/2026, so no domain; owner deferred the domain decision until after the invited beta (17/11/2026). Google app verification is likely to need one, which may block public sign-up (ET-11); the invited beta is unaffected. A domain needs an ADR (cost) |
 | [x] 10/11/2026 | Q-P3 What "donation items" means | Owner | YouTube Super Chats first, VN donation services later, never handling money (ADR-008) |
 | [ ] | Q-T4 Which VN donation services have usable webhooks/APIs and which creators use | Claude + owner | Blocks FR-16 (ET-19) |
 
