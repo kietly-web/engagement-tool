@@ -13,5 +13,5 @@ description: Build the next slice of the engagement tool end to end: pick it fro
 6. **Watch the free limits.** If the slice adds requests, Durable Object time, YouTube quota or database size, put an estimate against `docs/design/07-infrastructure.md` in the PR.
 7. **Update the record.** `docs/STATUS.md` (done, next, gotchas); `docs/SETUP.md` (new settings, secrets, gaps, ideas); `docs/compliance/data-inventory.md` if a personal-data field changed; `docs/discovery/discovery-summary.md` if scope changed (new IDs, never renumber); design docs or ADRs only if a contract or decision changed; README folder map if you added a folder, package or page.
 8. **PR.** Commit subject and PR title `ET-n short imperative description`; fill "What changed"; list every backlog ID.
-9. **Merge** only as `CLAUDE.md` allows. While `main` has no required checks, wait for CI to pass before merging. Never resolve conflicts, rebase or force-push; hand conflicts to the owner (`kietly-web`).
+9. **Merge** only as `CLAUDE.md` allows. While `main` has no required checks, wait for CI to pass before merging. Never resolve conflicts, rebase or force-push; hand conflicts to the owner (`thekietly`).
 10. **Report** in plain language: what a creator can now do, what the review found and fixed, what's still not verified, and what the owner must do next.

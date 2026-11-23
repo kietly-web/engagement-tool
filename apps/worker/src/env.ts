@@ -4,8 +4,9 @@ import type { FetchLike } from "@et/youtube";
 import type { OverlayWidget } from "./api-types";
 import { liveSessionClient, overlaySocket, quotaClient, type QuotaUsageClient, type SessionClient } from "./live/clients";
 
-// Secrets come from `wrangler secret put`; the binding and client id are added once the owner creates them (SETUP §1).
-export interface AppEnv extends Env {
+// Secrets come from `wrangler secret put`. The binding and client id stay optional so tests and a
+// fresh deploy without them answer 503 `not_configured` instead of crashing.
+export interface AppEnv extends Omit<Env, "GOOGLE_CLIENT_ID" | "HYPERDRIVE"> {
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   TOKEN_ENCRYPTION_KEY?: string;

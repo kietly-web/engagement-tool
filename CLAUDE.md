@@ -78,5 +78,5 @@ Subagents and new sessions see the repo, not the conversation. Brief them with t
 ## Merging (owner's rule)
 
 - Claude may commit, push branches, open PRs and enable auto-merge on conflict-free PRs once required checks are configured on `main`. Until then, Claude waits for CI to pass before merging.
-- Merge conflicts go to the owner (`kietly-web`); Claude never resolves them, rebases or force-pushes.
+- Merge conflicts go to the owner (`thekietly`); Claude never resolves them, rebases or force-pushes.
 - Never bypass branch protection.

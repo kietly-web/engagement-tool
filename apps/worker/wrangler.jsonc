@@ -36,6 +36,9 @@
     "SESSIONS_DISABLED": "false",
     "QUOTA_PROJECT_DAILY": "9000",
     "QUOTA_WORKSPACE_DAILY": "3000",
-    "DEMO_STARTS_DAILY": "4"
-  }
+    "DEMO_STARTS_DAILY": "4",
+    "GOOGLE_CLIENT_ID": "305781804915-18b0vtt2ascvf0ql5414aairc0vbuus5.apps.googleusercontent.com"
+  },
+  // Caching must stay disabled: the Hyperdrive cache ignores the RLS context.
+  "hyperdrive": [{ "binding": "HYPERDRIVE", "id": "1957013a3cde4cab8bacf17d5261dd1d" }]
 }

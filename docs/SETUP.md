@@ -2,7 +2,7 @@
 
 Everything **not done yet**. Pick an item, do it, tick it with the date in the same PR. Add a row whenever you leave something unfinished. Never write secret values here.
 
-Last updated: 10/11/2026.
+Last updated: 23/11/2026.
 
 ## 0. Security fixes on existing configuration
 
@@ -17,15 +17,15 @@ P0: production doesn't work without it. P1: a feature or workflow is degraded. P
 
 | Done | Pri | Setting | Where | How / value | Unlocks | Who |
 | --- | --- | --- | --- | --- | --- | --- |
-| [ ] | P0 | Cloudflare account, **no payment method** | dash.cloudflare.com → Sign up | Free plan only; then run `npx wrangler login` so Claude can deploy previews | ET-2 deploy | Owner |
-| [ ] | P0 | Connect repo to Workers Builds | Cloudflare → Workers & Pages → Create → Import a repository → `kietly-web/engagement-tool` | Project name `engagement-tool`; root directory `/`; build command `pnpm build`; deploy command `pnpm --filter @et/worker exec wrangler deploy`; non-production branch deploy command `pnpm --filter @et/worker exec wrangler versions upload`; production branch `main` | Production deploy of ET-2 | Owner |
-| [ ] | P0 | Neon account (Free, no card) and project in **Singapore** | console.neon.tech → New project → Region AWS Asia Pacific (Singapore) | Postgres 17; keep the owner connection string in a password manager, never in the repo | ET-4 | Owner |
-| [ ] | P0 | Apply migrations | Owner's machine | `DATABASE_OWNER_URL='<owner connection string, direct (not pooled)>' pnpm --filter @et/db migrate`; prints `Applied: 0001_tenancy.sql` | ET-5 | Owner (or Claude once `neonctl`/Neon MCP is authorised) |
-| [ ] | P0 | Worker login role `app_worker` | Neon Console → SQL Editor, as the owner | `CREATE ROLE app_worker LOGIN PASSWORD '<openssl rand -base64 32>' IN ROLE app_runtime;` then check `SELECT rolbypassrls, rolsuper, pg_has_role('app_worker', 'neon_superuser', 'MEMBER') FROM pg_roles WHERE rolname = 'app_worker';` returns `f, f, f`. Use SQL, not the console's Roles page (that adds `neon_superuser`) | ET-5 | Owner |
-| [ ] | P0 | Hyperdrive config, **caching disabled** | `npx wrangler hyperdrive create engagement-tool-db --connection-string="postgres://app_worker:<password>@<neon-host>/neondb?sslmode=require" --caching-disabled` | Send Claude the printed ID (not secret) to add as `"hyperdrive": [{ "binding": "HYPERDRIVE", "id": "…" }]` in `apps/worker/wrangler.jsonc`. Until then the API answers 503 `not_configured`. The password stays inside Hyperdrive | ET-5 | Owner |
-| [ ] | P0 | Google Cloud project, **no billing account** | console.cloud.google.com → New project | Then APIs & Services → Library → enable "YouTube Data API v3" | ET-5 | Owner |
-| [ ] | P0 | OAuth consent screen | Google Auth Platform → Branding / Audience / Data access | External; Testing; add beta creators and mods as test users; scopes `openid`, `email`, `profile`, `youtube.readonly` | ET-5 | Owner |
-| [ ] | P0 | OAuth web client | Google Auth Platform → Clients → Create → Web application | Authorised redirect URIs: `https://<worker>.workers.dev/api/auth/google/callback` and `http://localhost:8787/api/auth/google/callback` (local testing). Send Claude the client ID (not secret) to add as `GOOGLE_CLIENT_ID` in `wrangler.jsonc` vars | ET-5 verification | Owner |
+| [x] 23/11/2026 | P0 | Cloudflare account, **no payment method** | dash.cloudflare.com → Sign up | Free plan only; then run `npx wrangler login` so Claude can deploy previews | ET-2 deploy | Owner |
+| [x] 23/11/2026 | P0 | Connect repo to Workers Builds | Cloudflare → Workers & Pages → Create → Import a repository → `thekietly/engagement-tool` | Project name `engagement-tool`; root directory `/`; build command `pnpm build`; deploy command `pnpm --filter @et/worker exec wrangler deploy`; non-production branch deploy command `pnpm --filter @et/worker exec wrangler versions upload`; production branch `main` | Production deploy of ET-2 | Owner |
+| [x] 23/11/2026 | P0 | Neon account (Free, no card) and project in **Singapore** | console.neon.tech → New project → Region AWS Asia Pacific (Singapore) | Postgres 17; keep the owner connection string in a password manager, never in the repo | ET-4 | Owner |
+| [x] 23/11/2026 | P0 | Apply migrations | Owner's machine | `DATABASE_OWNER_URL='<owner connection string, direct (not pooled)>' pnpm --filter @et/db migrate`; prints `Applied: 0001_tenancy.sql` | ET-5 | Owner (or Claude once `neonctl`/Neon MCP is authorised) |
+| [x] 23/11/2026 | P0 | Worker login role `app_worker` | Neon Console → SQL Editor, as the owner | `CREATE ROLE app_worker LOGIN PASSWORD '<openssl rand -base64 32>' IN ROLE app_runtime;` then check `SELECT rolbypassrls, rolsuper, pg_has_role('app_worker', 'neon_superuser', 'MEMBER') FROM pg_roles WHERE rolname = 'app_worker';` returns `f, f, f`. Use SQL, not the console's Roles page (that adds `neon_superuser`) | ET-5 | Owner |
+| [x] 23/11/2026 | P0 | Hyperdrive config, **caching disabled** | `npx wrangler hyperdrive create engagement-tool-db --connection-string="postgres://app_worker:<password>@<neon-host>/neondb?sslmode=require" --caching-disabled` | Send Claude the printed ID (not secret) to add as `"hyperdrive": [{ "binding": "HYPERDRIVE", "id": "…" }]` in `apps/worker/wrangler.jsonc`. Until then the API answers 503 `not_configured`. The password stays inside Hyperdrive | ET-5 | Owner |
+| [x] 23/11/2026 | P0 | Google Cloud project, **no billing account** | console.cloud.google.com → New project | Then APIs & Services → Library → enable "YouTube Data API v3" | ET-5 | Owner |
+| [x] 23/11/2026 | P0 | OAuth consent screen | Google Auth Platform → Branding / Audience / Data access | External; Testing; add beta creators and mods as test users; scopes `openid`, `email`, `profile`, `youtube.readonly` | ET-5 | Owner |
+| [x] 23/11/2026 | P0 | OAuth web client | Google Auth Platform → Clients → Create → Web application | Authorised redirect URIs: `https://<worker>.workers.dev/api/auth/google/callback` and `http://localhost:8787/api/auth/google/callback` (local testing). Send Claude the client ID (not secret) to add as `GOOGLE_CLIENT_ID` in `wrangler.jsonc` vars | ET-5 verification | Owner |
 | [ ] | P0 | `GOOGLE_CLIENT_SECRET` (Secret) | `wrangler secret put GOOGLE_CLIENT_SECRET` | From the OAuth client above | ET-5 | Owner |
 | [ ] | P0 | `TOKEN_ENCRYPTION_KEY` (Secret) | `wrangler secret put TOKEN_ENCRYPTION_KEY` | `openssl rand -base64 32` | ET-5 | Owner |
 | [ ] | P0 | `SESSION_SECRET` (Secret) | `wrangler secret put SESSION_SECRET` | `openssl rand -base64 32` | ET-5 | Owner |
@@ -71,6 +71,7 @@ P0: production doesn't work without it. P1: a feature or workflow is degraded. P
 | [ ] | Donation alerts verified only on synthetic events | ET-15: a friend sends a small Super Chat on the Unlisted test stream | ET-15 |
 | [ ] | No rate limit on sign-in and session lookups | Add Workers Rate Limiting binding (free plan) or a per-IP Durable Object counter before open sign-up | `apps/worker` |
 | [x] 08/11/2026 | Audit log not built | ET-9: invites, membership, overlay rotation, disconnect, viewer erasure, seasons. Account deletion deletes the workspace and its log with it | `packages/db`, `apps/worker` |
+| [ ] | Workers Builds runs Cloudflare's default `npx wrangler preview` on non-`main` branches, which fails (no `previews` block), so the "Workers Builds" PR check is red; production deploys from `main` are unaffected. The owner couldn't find the non-production deploy command setting in the dashboard (23/11/2026) | Set it to `pnpm --filter @et/worker exec wrangler versions upload` or turn off non-production branch builds once the setting is found; don't adopt the beta `previews` block without an ADR | Cloudflare → Workers & Pages → engagement-tool → Settings → Build |
 | [ ] | Preview deployments can't sign in (Google needs exact redirect URIs) | Dev-only sign-in stub compiled out of production, if previews need it | `apps/worker` |
 | [ ] | `channels.list` (1 unit per creator sign-in) isn't counted by the quota ledger | Route sign-in's channel lookup through `QuotaKeeper` | `apps/worker/src/auth.ts` |
 | [ ] | Dashboard tested by unit and route tests only; not yet clicked through against real Google | First run after owner setup | `apps/web` |

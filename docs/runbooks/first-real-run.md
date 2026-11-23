@@ -10,13 +10,13 @@ None of these needs a payment method. If any step asks for a card, stop and tell
 
 - [ ] A1 **YouTube live streaming enabled** on your channel: studio.youtube.com → Create → Go live. First-time channels need phone verification and can wait up to 24 hours, so do this first.
 - [ ] A2 **Cloudflare account** (free): dash.cloudflare.com → Sign up. Then in a terminal in the repo: `npx wrangler login`.
-- [ ] A3 **Workers Builds**: Cloudflare → Workers & Pages → Create → Import a repository → `kietly-web/engagement-tool`, using the build and deploy commands in [SETUP.md](../SETUP.md) §1. Let it deploy `main` once and note the URL, `https://engagement-tool.<your-subdomain>.workers.dev`. Opening it should show the dashboard saying the service isn't set up yet. That's expected.
+- [ ] A3 **Workers Builds**: Cloudflare → Workers & Pages → Create → Import a repository → `thekietly/engagement-tool`, using the build and deploy commands in [SETUP.md](../SETUP.md) §1. Let it deploy `main` once and note the URL, `https://engagement-tool.<your-subdomain>.workers.dev`. Opening it should show the dashboard saying the service isn't set up yet. That's expected.
 - [ ] A4 **Neon** (free, region AWS Singapore): console.neon.tech → New project. Copy the owner connection string (direct, not pooled) into a password manager.
 - [ ] A5 **Apply the database migrations** from the repo folder:
   ```bash
   DATABASE_OWNER_URL='<owner connection string>' pnpm --filter @et/db migrate
   ```
-  It should print `Applied: 0001_tenancy.sql, …, 0006_widget_config.sql`.
+  It should print `Applied: 0001_tenancy.sql, …, 0007_scene_overlay.sql`.
 - [ ] A6 **Worker database login**: Neon Console → SQL Editor, run the `CREATE ROLE app_worker …` statement from SETUP §1 with a password from `openssl rand -base64 32`. Then run the check query there; it must return `f, f, f`.
 - [ ] A7 **Hyperdrive** (caching must be off):
   ```bash

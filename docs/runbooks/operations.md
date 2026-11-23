@@ -50,4 +50,4 @@ Logs and error reports carry no personal data, chat text or overlay tokens.
 | VN PDPL (Law 91/2025/QH15) and Decree 356/2025/ND-CP | Ministry of Public Security (A05) and affected creators; viewers via creators where identifiable | 72 hours from awareness, to be confirmed by counsel |
 | Google API / YouTube API Terms | Google, if Google user data is involved | Promptly, per Google's terms |
 
-Contacts: owner (kietly-web); counsel to be named before launch (SETUP §7); Cloudflare and Neon support through their dashboards.
+Contacts: owner (thekietly); counsel to be named before launch (SETUP §7); Cloudflare and Neon support through their dashboards.

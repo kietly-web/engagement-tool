@@ -1,15 +1,15 @@
 # Project status
 
-Last updated: 12/11/2026 (phase 1 built; ET-23 one-step OBS setup; ET-15 checklist). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
+Last updated: 23/11/2026 (ET-15 first real run under way: Cloudflare, Neon, Hyperdrive and Google set up). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
 
 ## Where we are
 
 | Area | State |
 | --- | --- |
 | ET-1 Kickoff (rules, discovery, ADR-001–007, design 00/01/03/07/08, CI guardrails) | Done, [PR #1](https://github.com/kietly-web/engagement-tool/pull/1) |
-| ET-2 Repo skeleton (workspace, six packages, Hono Worker, dashboard and overlay hello pages, `pnpm check`) | Done, [PR #2](https://github.com/kietly-web/engagement-tool/pull/2); runs locally, not deployed yet |
+| ET-2 Repo skeleton (workspace, six packages, Hono Worker, dashboard and overlay hello pages, `pnpm check`) | Done, [PR #2](https://github.com/kietly-web/engagement-tool/pull/2); deployed 23/11/2026 |
 | ET-3 Command engine (normalisation, `!vote`/`!join` parser, polls, synthetic chat; `05-domain-engine.md`) | Done, [PR #3](https://github.com/kietly-web/engagement-tool/pull/3) |
-| ET-4 Database foundation (tenancy migration, forced RLS, role-derived policies, `withWorkspace`, PGlite isolation suite; `02-data-model.md`; Q-T2 decided) | Done, [PR #4](https://github.com/kietly-web/engagement-tool/pull/4); not applied to Neon yet |
+| ET-4 Database foundation (tenancy migration, forced RLS, role-derived policies, `withWorkspace`, PGlite isolation suite; `02-data-model.md`; Q-T2 decided) | Done, [PR #4](https://github.com/kietly-web/engagement-tool/pull/4); applied to Neon 23/11/2026 |
 | ET-5 Google sign-in (OAuth + PKCE, encrypted refresh token, sessions, disconnect, export, account deletion, Vietnamese dashboard) | Done, [PR #5](https://github.com/kietly-web/engagement-tool/pull/5); tested against a fake Google; **not verified with real Google** |
 | ET-6 offline (session engine, `LiveSession` + `QuotaKeeper` Durable Objects, demo mode, YouTube polling reader, session and poll API, dashboard live panel) | Done, [PR #6](https://github.com/kietly-web/engagement-tool/pull/6); the `streamList` spike is still open |
 | ET-7 Overlays (per-widget hashed tokens, rotation, overlay page and WebSocket from `LiveSession`, poll widget, dashboard links) | Done, [PR #7](https://github.com/kietly-web/engagement-tool/pull/7) |
@@ -22,7 +22,7 @@ Last updated: 12/11/2026 (phase 1 built; ET-23 one-step OBS setup; ET-15 checkli
 
 **ET-23 one-step OBS setup:** the owner's dashboard now has a setup card. Creator setup is: sign in with Google, then drag one button onto OBS (or copy one link). One "scene" link shows the poll, leaderboard and alerts, each in its own corner and style. Per-widget links still exist under "advanced".
 
-**Waiting on the owner: ET-15 first real run.** Follow [runbooks/first-real-run.md](runbooks/first-real-run.md): accounts and secrets (Part A), send Claude the Worker URL, Hyperdrive ID and Google client ID (Part B), then the test (Part C). Claude then adds the IDs to `wrangler.jsonc`, and fixes what the run finds. Expect rework: nothing has run against the real services, and the `streamList` reader is unproven (Q-T1).
+**ET-15 first real run, in progress (23/11/2026).** Parts A and B are done: the Worker is live at `https://engagement-tool.lythekiet333.workers.dev`, migrations 0001–0007 are applied to Neon (`neondb`), and the Hyperdrive ID and Google client ID are in `wrangler.jsonc`. A1 (YouTube live streaming) and the Worker secrets are the owner's to confirm. Next is the owner's test, Part C of [runbooks/first-real-run.md](runbooks/first-real-run.md); Claude then fixes what the run finds. Expect rework: nothing has run against the real services, and the `streamList` reader is unproven (Q-T1).
 
 After ET-15: **ET-22 invited beta gate** (privacy notice, terms, contact, alerts, retention gaps), then phase 2: ET-10 boss raid with the game framework, ET-24 shared pet, ET-19 Vietnamese donation services after Q-T4, ET-16 more games, ET-18 English. Owner picked boss raid and shared pet first (18/11/2026); games need no owner setup, so they can be built while ET-15 waits.
 
@@ -30,7 +30,7 @@ After ET-15: **ET-22 invited beta gate** (privacy notice, terms, contact, alerts
 
 | PR | What | Action |
 | --- | --- | --- |
-| ET-20 | Delivery plan revision (docs only) | Merge when CI is green |
+| ET-15 | Production config: Hyperdrive binding and Google client ID | Merge when CI is green; Workers Builds then deploys it |
 
 ## Waiting on the owner
 
@@ -38,11 +38,11 @@ Everything not done lives in [SETUP.md](SETUP.md), with priorities and exact ste
 
 ## Environment facts
 
-- GitHub: `kietly-web/engagement-tool`, **public** repository (docs are public; never commit real data or secrets). `main` not protected yet.
-- Hosting (planned, ADR-001): Cloudflare Workers free plan, `*.workers.dev`. Account not created yet.
-- Database (planned, ADR-002): Neon free, AWS Singapore. Project not created yet. A Neon MCP connector is configured in Claude but not yet authorised.
-- Google Cloud project with YouTube Data API v3: not created yet; must never get a billing account (ADR-005).
-- CLIs signed in for Claude: `gh` yes; `wrangler` no; `neonctl` no.
+- GitHub: `thekietly/engagement-tool`, **public** repository (docs are public; never commit real data or secrets). `main` not protected yet. It replaced `kietly-web/engagement-tool` on 23/11/2026: same history with new commit IDs, and PR numbers restarted at 1. The PR links for ET-1 to ET-9 above (and older PRs up to 21) point to the old repo, which still exists.
+- Hosting (ADR-001): Cloudflare Workers free plan, `https://engagement-tool.lythekiet333.workers.dev`, deployed by Workers Builds from `main`.
+- Database (ADR-002): Neon free, AWS Singapore, database `neondb` (not the Neon project's name). Reached through Hyperdrive `engagement-tool-db` as `app_worker`, caching disabled. A Neon MCP connector is configured in Claude but not yet authorised.
+- Google Cloud project with YouTube Data API v3 and an OAuth web client (Testing mode); must never get a billing account (ADR-005).
+- CLIs signed in for Claude: `gh` yes; `wrangler` yes (owner's Cloudflare account); `neonctl` no.
 - Toolchain: Node 24 (`.nvmrc`), pnpm 12.16.1 (`packageManager`), TypeScript 6.0, Vite 8, Vitest 5, Hono 4, Wrangler 4, React 19.
 
 ## Gotchas we've hit
@@ -56,6 +56,10 @@ Everything not done lives in [SETUP.md](SETUP.md), with priorities and exact ste
 - `pnpm-workspace.yaml` enforces `minimumReleaseAge` (7 days) and an `allowBuilds` list (only `esbuild`, `workerd`), and blocks exotic sub-dependencies and provenance downgrades. Add to `allowBuilds` only after checking what the script does.
 - TypeScript stays on 6.0 until typescript-eslint supports 7 (its peer range is `<6.1`).
 - `wrangler.jsonc` changes need `pnpm --filter @et/worker types` and committing `worker-configuration.d.ts`; `pnpm typecheck` fails until you do.
+- `wrangler hyperdrive create` rewrites `wrangler.jsonc` (reformats it and appends the binding); restore the layout from git and add the binding by hand.
+- `AppEnv` overrides `GOOGLE_CLIENT_ID` and `HYPERDRIVE` as optional (`Omit<Env, …>`), so a deploy without them answers 503 `not_configured`.
+- On the owner's Windows machine `corepack enable` needs admin; use `corepack pnpm …`, or `corepack enable --install-directory <dir>` and put that dir on `PATH` (nested `pnpm` calls in scripts need it).
+- Owner-run steps that need a secret (connection strings, passwords, keys) go through a script with a hidden `Read-Host -AsSecureString` prompt in a terminal tab, so the value never enters the chat. Validate every prompt's input before sending anything: a full connection string pasted at a "host" prompt once reached Cloudflare.
 - `wrangler types` types `vars` as literals, so compare them as strings (`String(env.SESSIONS_DISABLED) === "true"`).
 - Durable Object RPC loses custom error classes, so `LiveSession` methods return `{ ok, value | error }` results instead of throwing.
 - `securityHeaders` only fills headers a route hasn't set, so overlay pages can carry their own CSP; API routes get the strict default.
