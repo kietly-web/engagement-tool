@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import type { MeResponse, SignInOutcome, WorkspaceResponse } from "@et/worker/api-types";
 import { api, ApiError, signInUrl } from "./api";
 import { AlertsPanel } from "./AlertsPanel";
-import { LivePanel } from "./LivePanel";
+import { LivePanel, type TallyState } from "./LivePanel";
 import { MembersPanel } from "./MembersPanel";
 import { ObsSetup } from "./ObsSetup";
 import { OverlayLinks } from "./OverlayLinks";
@@ -66,7 +66,7 @@ export function App() {
   }, []);
 
   useEffect(() => {
-    if (outcome) window.history.replaceState(null, "", "/");
+    if (outcome) window.history.replaceState(null, "", window.location.pathname + window.location.hash);
     load();
   }, [load, outcome]);
 
@@ -96,9 +96,8 @@ export function App() {
       .finally(load);
   }
 
-  return (
-    <main className="page">
-      <h1>{t("app.title")}</h1>
+  const banners = (
+    <>
       {outcome && (
         <p className="notice" role="status">
           {t(`signin.outcome.${outcome}` as MessageKey)}
@@ -125,11 +124,21 @@ export function App() {
           </p>
         </div>
       )}
-      {view.kind === "loading" && <p>{t("state.loading")}</p>}
-      {view.kind === "notConfigured" && <p>{t("state.notConfigured")}</p>}
-      {view.kind === "error" && <p className="error">{t("state.error")}</p>}
-      {view.kind === "signedOut" && <SignedOut />}
-      {view.kind === "signedIn" && <SignedIn me={view.me} onChange={load} />}
+    </>
+  );
+
+  if (view.kind === "signedIn") return <SignedIn me={view.me} onChange={load} banners={banners} />;
+
+  return (
+    <main className="page">
+      <div className="welcome">
+        <h1>{t("app.title")}</h1>
+        {banners}
+        {view.kind === "loading" && <p>{t("state.loading")}</p>}
+        {view.kind === "notConfigured" && <p>{t("state.notConfigured")}</p>}
+        {view.kind === "error" && <p className="error">{t("state.error")}</p>}
+        {view.kind === "signedOut" && <SignedOut />}
+      </div>
     </main>
   );
 }
@@ -137,26 +146,43 @@ export function App() {
 function SignedOut() {
   return (
     <section>
-      <p>{t("app.tagline")}</p>
+      <p className="lead">{t("app.tagline")}</p>
       <p className="actions">
-        <a className="button primary" href={signInUrl("creator")}>
+        <a className="button primary big" href={signInUrl("creator")}>
           {t("signin.creator")}
         </a>
-        <a className="button" href={signInUrl("moderator")}>
+        <a className="button big" href={signInUrl("moderator")}>
           {t("signin.moderator")}
         </a>
       </p>
-      <p className="muted">{t("signin.readonlyNote")}</p>
+      <p className="muted signin-note">{t("signin.readonlyNote")}</p>
     </section>
   );
 }
 
-function SignedIn({ me, onChange }: { me: MeResponse; onChange: () => void }) {
+type Tab = "live" | "overlay" | "alerts" | "channel";
+const TABS: readonly Tab[] = ["live", "overlay", "alerts", "channel"];
+const readTab = (): Tab => TABS.find((tab) => `#${tab}` === window.location.hash) ?? "live";
+
+function SignedIn({ me, onChange, banners }: { me: MeResponse; onChange: () => void; banners: ReactNode }) {
   const [message, setMessage] = useState<string | null>(null);
+  const [tally, setTally] = useState<TallyState>("idle");
+  const [tab, setTab] = useState<Tab>(readTab);
   // The creator's own channel comes first, so joining someone else's can't take over their dashboard.
   const ordered = [...me.workspaces].sort((a, b) => (a.role === b.role ? 0 : a.role === "owner" ? -1 : 1));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const first = ordered.find((w) => w.id === selectedId) ?? ordered[0];
+
+  useEffect(() => {
+    const onHash = () => setTab(readTab());
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  function choose(next: Tab) {
+    setTab(next);
+    window.history.replaceState(null, "", `#${next}`);
+  }
 
   async function logout() {
     await api.logout().catch(() => undefined);
@@ -174,55 +200,99 @@ function SignedIn({ me, onChange }: { me: MeResponse; onChange: () => void }) {
   }
 
   return (
-    <section>
-      <p>
-        {t("me.hello")}, <strong>{me.member.displayName}</strong> ({me.member.email})
-      </p>
-      {message && (
-        <p className="error" role="alert">
-          {message}
-        </p>
-      )}
-      {ordered.length > 1 && (
-        <label className="switcher">
-          {t("ws.switch")}{" "}
-          <select value={first?.id} onChange={(e) => setSelectedId(e.target.value)}>
-            {ordered.map((w) => (
-              <option key={w.id} value={w.id}>
-                {w.name} · {t(`ws.role.${w.role}`)}
-              </option>
-            ))}
-          </select>
-        </label>
-      )}
-      {first ? (
-        <Workspace key={first.id} id={first.id} selfId={me.member.id} onError={setMessage} onChange={onChange} />
-      ) : (
-        <>
-          <p>{t("me.noWorkspace")}</p>
-          <p className="actions">
-            <a className="button primary" href={signInUrl("creator")}>
-              {t("me.connect")}
-            </a>
+    <>
+      <header className="app-header">
+        <div className="app-header-inner">
+          <p className="brand">
+            {t("app.title")}
+            {first && <small>{first.name}</small>}
           </p>
-        </>
-      )}
-      <p className="actions">
-        <a className="button" href="/api/account/export">
-          {t("account.export")}
-        </a>
-        <button type="button" className="button" onClick={logout}>
-          {t("account.logout")}
-        </button>
-        <button type="button" className="button danger" onClick={deleteAccount}>
-          {t("account.delete")}
-        </button>
-      </p>
-    </section>
+          {ordered.length > 1 && (
+            <label className="switcher">
+              <span className="muted">{t("ws.switch")}</span>
+              <select value={first?.id} onChange={(e) => setSelectedId(e.target.value)}>
+                {ordered.map((w) => (
+                  <option key={w.id} value={w.id}>
+                    {w.name} ({t(`ws.role.${w.role}`)})
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <div className="header-end">
+            {first && (
+              <span className="tally" data-state={tally} role="status">
+                {t(`tally.${tally}`)}
+              </span>
+            )}
+            <details className="account-menu">
+              <summary>{me.member.displayName}</summary>
+              <div>
+                <p className="muted">
+                  {t("account.signedInAs")} {me.member.email}
+                </p>
+                <a className="button" href="/api/account/export">
+                  {t("account.export")}
+                </a>
+                <button type="button" className="button" onClick={logout}>
+                  {t("account.logout")}
+                </button>
+                <button type="button" className="button danger" onClick={deleteAccount}>
+                  {t("account.delete")}
+                </button>
+              </div>
+            </details>
+          </div>
+        </div>
+        {first && (
+          <nav className="tabs" role="tablist" aria-label={t("tab.label")}>
+            {TABS.map((id) => (
+              <button key={id} type="button" role="tab" id={`tab-${id}`} aria-selected={tab === id} aria-controls={`panel-${id}`} onClick={() => choose(id)}>
+                {t(`tab.${id}`)}
+              </button>
+            ))}
+          </nav>
+        )}
+      </header>
+      <main className="page">
+        {banners}
+        {message && (
+          <p className="error" role="alert">
+            {message}
+          </p>
+        )}
+        {first ? (
+          <Workspace key={first.id} id={first.id} selfId={me.member.id} tab={tab} onTally={setTally} onError={setMessage} onChange={onChange} />
+        ) : (
+          <div className="card">
+            <p>{t("me.noWorkspace")}</p>
+            <p className="actions">
+              <a className="button primary" href={signInUrl("creator")}>
+                {t("me.connect")}
+              </a>
+            </p>
+          </div>
+        )}
+      </main>
+    </>
   );
 }
 
-function Workspace({ id, selfId, onError, onChange }: { id: string; selfId: string; onError: (message: string) => void; onChange: () => void }) {
+function Workspace({
+  id,
+  selfId,
+  tab,
+  onTally,
+  onError,
+  onChange,
+}: {
+  id: string;
+  selfId: string;
+  tab: Tab;
+  onTally: (state: TallyState) => void;
+  onError: (message: string) => void;
+  onChange: () => void;
+}) {
   const [data, setData] = useState<WorkspaceResponse | null>(null);
 
   const load = useCallback(() => {
@@ -243,44 +313,55 @@ function Workspace({ id, selfId, onError, onChange }: { id: string; selfId: stri
 
   if (!data) return <p>{t("state.loading")}</p>;
   const isOwner = data.workspace.role === "owner";
+  const youtubeConnected = data.youtube !== null;
+  // Panels stay mounted when hidden, so a running session keeps its state and the tally stays right.
+  const panel = (name: Tab) => ({ role: "tabpanel", id: `panel-${name}`, "aria-labelledby": `tab-${name}`, hidden: tab !== name });
 
   return (
     <>
-    {isOwner && <ObsSetup workspaceId={id} youtubeConnected={data.youtube !== null} />}
-    <LivePanel workspaceId={id} youtubeConnected={data.youtube !== null} />
-    <SeasonPanel workspaceId={id} isOwner={isOwner} />
-    <MembersPanel workspace={data} selfId={selfId} onLeft={onChange} />
-    <OverlayLinks workspaceId={id} isOwner={isOwner} />
-    <AlertsPanel workspaceId={id} isOwner={isOwner} />
-    {isOwner && <StylePanel workspaceId={id} />}
-    <div className="card">
-      <h2>
-        {data.workspace.name} <span className="badge">{t(`ws.role.${data.workspace.role}`)}</span>
-      </h2>
-      {data.youtube ? (
-        <dl>
-          <dt>{t("ws.channel")}</dt>
-          <dd>{data.youtube.channelTitle}</dd>
-          <dt>{t("ws.connectedAt")}</dt>
-          <dd>{dateFormat.format(new Date(data.youtube.connectedAt))}</dd>
-        </dl>
-      ) : (
-        <p>{t("ws.notConnected")}</p>
-      )}
-      {isOwner && (
-        <p className="actions">
+      <div {...panel("live")} className="grid-2">
+        <LivePanel workspaceId={id} youtubeConnected={youtubeConnected} isOwner={isOwner} onTally={onTally} />
+        <SeasonPanel workspaceId={id} isOwner={isOwner} />
+      </div>
+      <div {...panel("overlay")} className="stack">
+        {isOwner && <ObsSetup workspaceId={id} youtubeConnected={youtubeConnected} />}
+        {isOwner && <StylePanel workspaceId={id} />}
+        <OverlayLinks workspaceId={id} isOwner={isOwner} />
+      </div>
+      <div {...panel("alerts")} className="stack">
+        <AlertsPanel workspaceId={id} isOwner={isOwner} />
+      </div>
+      <div {...panel("channel")} className="grid-2">
+        <div className="card">
+          <h2>
+            {t("channel.title")} <span className="badge">{t(`ws.role.${data.workspace.role}`)}</span>
+          </h2>
           {data.youtube ? (
-            <button type="button" className="button danger" onClick={disconnect}>
-              {t("ws.disconnect")}
-            </button>
+            <dl className="facts">
+              <dt>{t("ws.channel")}</dt>
+              <dd>{data.youtube.channelTitle}</dd>
+              <dt>{t("ws.connectedAt")}</dt>
+              <dd>{dateFormat.format(new Date(data.youtube.connectedAt))}</dd>
+            </dl>
           ) : (
-            <a className="button primary" href={signInUrl("creator")}>
-              {t("me.connect")}
-            </a>
+            <p>{t("ws.notConnected")}</p>
           )}
-        </p>
-      )}
-    </div>
+          {isOwner && (
+            <p className="actions">
+              {data.youtube ? (
+                <button type="button" className="button danger" onClick={disconnect}>
+                  {t("ws.disconnect")}
+                </button>
+              ) : (
+                <a className="button primary" href={signInUrl("creator")}>
+                  {t("me.connect")}
+                </a>
+              )}
+            </p>
+          )}
+        </div>
+        <MembersPanel workspace={data} selfId={selfId} onLeft={onChange} />
+      </div>
     </>
   );
 }

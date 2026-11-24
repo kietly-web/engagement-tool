@@ -69,7 +69,7 @@ export function ObsSetup({ workspaceId, youtubeConnected }: { workspaceId: strin
   }
 
   return (
-    <div className="card setup">
+    <div className="card">
       <h2>{t("setup.title")}</h2>
       {error && <p className="error">{t("state.error")}</p>}
       <ol className="steps">

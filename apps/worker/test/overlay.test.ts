@@ -146,11 +146,39 @@ describe("widget config", () => {
     const h = await makeHarness();
     const { b, ws, path } = await link(h);
     const saved = await b.request(`/api/workspaces/${ws}/widgets/poll/config`, json({ theme: { preset: "neon", accent: "teal", fontScale: 141, position: "url(x)" }, evil: "<script>" }));
-    expect(await saved.json()).toEqual({ theme: expect.objectContaining({ preset: "neon", accent: "teal", fontScale: 140, position: "top-left" }) });
+    expect(await saved.json()).toEqual({ theme: expect.objectContaining({ preset: "neon", accent: "teal", fontScale: 140, position: "top-left" }), polls: [] });
     expect(h.configPushes).toMatchObject([[ws, "poll", { theme: { preset: "neon" } }]]);
     expect(JSON.stringify(await (await b.request(`/api/workspaces/${ws}/widgets/poll/config`)).json())).not.toContain("script");
     await h.browser().request(`${path}/ws`, { headers: { Upgrade: "websocket" } });
     expect(h.sockets.at(-1)).toMatchObject({ config: { theme: { preset: "neon", accent: "teal" } } });
+  });
+
+  it("keeps saved polls for the dashboard, alongside the theme, but never sends them to an overlay", async () => {
+    const h = await makeHarness();
+    const { b, ws, path } = await link(h);
+    const preset = { question: "Tối nay chơi gì?", options: ["Minecraft", "Valorant"], voteChange: "latest" };
+    await b.request(`/api/workspaces/${ws}/widgets/poll/config`, json({ polls: [preset, { question: "", options: [] }] }));
+    await b.request(`/api/workspaces/${ws}/widgets/poll/config`, json({ theme: { preset: "day" } }));
+    const read = (await (await b.request(`/api/workspaces/${ws}/widgets/poll/config`)).json()) as { theme: { preset: string }; polls: unknown[] };
+    expect(read.polls).toEqual([preset]);
+    expect(read.theme.preset).toBe("day");
+    expect(JSON.stringify(h.configPushes)).not.toContain("Minecraft");
+    await h.browser().request(`${path}/ws`, { headers: { Upgrade: "websocket" } });
+    expect(JSON.stringify(h.sockets.at(-1))).not.toContain("Minecraft");
+    expect((await b.request(`/api/workspaces/${ws}/widgets/leaderboard/config`, json({ polls: [preset] })).then((r) => r.json())) as object).not.toHaveProperty("polls");
+  });
+
+  it("refuses saved polls that would overflow the stored config, and keeps what was saved", async () => {
+    const h = await makeHarness();
+    const { b, ws } = await link(h);
+    const long = (n: number) => "ữ".repeat(n);
+    const big = Array.from({ length: 12 }, (_, i) => ({ question: `${i} ${long(115)}`, options: Array.from({ length: 6 }, (_, j) => `${j} ${long(36)}`) }));
+    await b.request(`/api/workspaces/${ws}/widgets/poll/config`, json({ polls: big.slice(0, 1) }));
+    const res = await b.request(`/api/workspaces/${ws}/widgets/poll/config`, json({ polls: big }));
+    expect(res.status).toBe(400);
+    expect(await res.json()).toEqual({ error: "config_too_large" });
+    const read = (await (await b.request(`/api/workspaces/${ws}/widgets/poll/config`)).json()) as { polls: unknown[] };
+    expect(read.polls).toHaveLength(1);
   });
 
   it("moderators read but can't save; outsiders see nothing; unknown widgets are rejected", async () => {

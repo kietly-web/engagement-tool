@@ -106,6 +106,13 @@ export interface OverlayTheme {
   showNames: boolean;
 }
 
+// A poll the creator prepared before going live; dashboard only, never sent to overlays.
+export interface PollPresetView {
+  question: string;
+  options: string[];
+  voteChange: "first" | "latest";
+}
+
 export type AlertSticker = "heart" | "fire" | "clap" | "star" | "laugh" | "wave" | "gift" | "sparkles";
 export type AlertAnimation = "pop" | "slide" | "bounce" | "shake";
 

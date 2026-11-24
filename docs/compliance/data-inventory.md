@@ -2,7 +2,7 @@
 
 Draft for counsel, not legal advice. One row per kind of personal data the product touches, including data it only passes through. Update in the same PR that adds, moves or stops collecting a field; `security-compliance-reviewer` checks this.
 
-Last updated: 12/11/2026 (ET-17: donation alerts).
+Last updated: 24/11/2026 (ET-26: widget settings and saved polls).
 
 | Data | Whose | Source | Purpose (FR / US) | Lawful basis or consent | Stored where (region) | Retention, then | Who can access | Sub-processors | Sensitive? |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -16,6 +16,7 @@ Last updated: 12/11/2026 (ET-17: donation alerts).
 | Viewer's choice in an open poll (channel ID → option) | Viewer (possibly a child) | YouTube live chat (`!vote`) | One counted vote per viewer (FR-04) | **Open (Q-L1)** | Durable Object memory and storage only | Until the poll closes; `close()` clears it and keeps only counts | Nobody (server only) | Cloudflare | Possibly children's data |
 | Viewer display name | Viewer | YouTube live chat | Show names on the leaderboard and alerts overlays during the stream (only where the widget shows names) | **Open (Q-L1)** | LiveSession memory only (at most 5,000 names, truncated to 40 characters); never in storage, Postgres or logs | Cleared when the session stops or the Durable Object is evicted | Overlay viewers (on stream), workspace members during the session | Cloudflare | Possibly children's data |
 | Donation event (donor display name, YouTube amount string, comment; Super Chat, Super Sticker, new or gifted membership) — built in ET-17; each part can be switched off by the owner | Viewer (possibly a child) | YouTube live chat (Super Chat, Super Sticker, membership events) | Show a donation alert on the creator's overlay (FR-15) | **Open (Q-L1)** | LiveSession memory only; never Postgres or logs | Dropped after display and at session end | Overlay viewers (on stream), workspace members during the session | Cloudflare, Google | Possibly children's data; amount reveals spending |
+| Widget settings, alert commands and saved polls (creator-written text; could mention someone by accident) | Creator | Dashboard | Overlay look, chat alerts, polls prepared before a stream (FR-04, FR-13, FR-14) | Contract | Postgres `app.widget_config`, Singapore (at most 8 KB per widget) | Workspace life; deleted with the workspace or account (cascade) | Workspace members read; owner writes; overlays get only the theme and alert commands, never saved polls | Neon | No |
 | Chat message text | Viewer | YouTube live chat | Parse commands (FR-04, FR-06, FR-07) | **Open (Q-L1)** | Not stored; in memory for one parse | Discarded immediately | Nobody | Cloudflare (in transit), Google | Possibly children's data |
 | Session token (stored as HMAC) | Creator, moderator | Our server | Keep signed in | Contract | Postgres, Singapore | Unusable after 7 days idle or 30 days absolute; rows purged on every sign-in (daily cron from ET-8), on logout, on a new sign-in in the same browser, and on account deletion | Worker only | Neon | No |
 | IP address, user agent | Creator, moderator, overlay host | Requests | Security, rate limiting | Legitimate interest (to confirm) | Cloudflare edge and Workers Logs | Workers Logs retention (days); not copied elsewhere | Operator | Cloudflare | No |

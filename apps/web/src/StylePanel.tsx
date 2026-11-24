@@ -112,16 +112,14 @@ export function StylePanel({ workspaceId }: { workspaceId: string }) {
           <div className="scene-editor" ref={box}>
             <iframe ref={frame} title={t("style.preview")} src={EDITOR_SRC} style={{ transform: `scale(${scale})` }} />
           </div>
-          <label className="switcher">
-            {t("style.widget")}{" "}
-            <select value={widget} onChange={(e) => setWidget(e.target.value as SceneEditorWidget)}>
-              {SCENE_WIDGETS.map((w) => (
-                <option key={w} value={w}>
-                  {t(`overlay.widget.${w}`)}
-                </option>
-              ))}
-            </select>
-          </label>
+          <div className="widget-picker" role="group" aria-label={t("style.widget")}>
+            {SCENE_WIDGETS.map((w) => (
+              <button key={w} type="button" className="button small" aria-pressed={widget === w} onClick={() => setWidget(w)}>
+                {t(`overlay.widget.${w}`)}
+                {dirty.has(w) && " •"}
+              </button>
+            ))}
+          </div>
           <div className="poll-form style-controls">
             {select("preset", PRESETS)}
             {select("accent", ACCENTS)}
@@ -156,7 +154,7 @@ export function StylePanel({ workspaceId }: { workspaceId: string }) {
               </label>
             ))}
           </div>
-          <div className="actions">
+          <div className="save-bar actions">
             <button type="button" className="button primary" onClick={save} disabled={dirty.size === 0}>
               {t("style.save")}
             </button>{" "}

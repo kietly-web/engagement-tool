@@ -75,11 +75,11 @@ export function MembersPanel({ workspace, selfId, onLeft }: { workspace: Workspa
           {error}
         </p>
       )}
-      <ul>
+      <ul className="plain-list">
         {members.map((m) => (
           <li key={m.memberId}>
-            {m.displayName} · {t(`ws.role.${m.role}`)}
-            {m.email && <span className="muted"> · {m.email}</span>}{" "}
+            <strong>{m.displayName}</strong> <span className="badge">{t(`ws.role.${m.role}`)}</span>
+            {m.email && <span className="muted">{m.email}</span>}
             {m.role === "moderator" && (isOwner || m.memberId === selfId) && (
               <button type="button" className="button danger small" onClick={() => remove(m.memberId)}>
                 {m.memberId === selfId ? t("members.leave") : t("members.remove")}
@@ -91,7 +91,7 @@ export function MembersPanel({ workspace, selfId, onLeft }: { workspace: Workspa
 
       {isOwner && (
         <>
-          <form className="poll-form" onSubmit={invite}>
+          <form className="poll-form form-row section" onSubmit={invite}>
             <label>
               {t("members.inviteEmail")}
               <input type="email" value={email} maxLength={320} required onChange={(e) => setEmail(e.target.value)} />
@@ -109,7 +109,7 @@ export function MembersPanel({ workspace, selfId, onLeft }: { workspace: Workspa
           {pending.length > 0 && (
             <>
               <h3>{t("members.pending")}</h3>
-              <ul>
+              <ul className="plain-list">
                 {pending.map((p) => (
                   <li key={p.id}>
                     {p.email} · {t("members.expires")} {dateFormat.format(new Date(p.expiresAt))}{" "}
@@ -121,15 +121,16 @@ export function MembersPanel({ workspace, selfId, onLeft }: { workspace: Workspa
               </ul>
             </>
           )}
-          <h3>{t("audit.title")}</h3>
+          <h3 className="section">{t("audit.title")}</h3>
           {events.length === 0 ? (
             <p className="muted">{t("audit.empty")}</p>
           ) : (
-            <ul className="audit">
+            <ul className="plain-list audit">
               {events.slice(0, 30).map((e, i) => (
                 <li key={i}>
-                  <span className="muted">{dateFormat.format(new Date(e.createdAt))}</span> ·{" "}
-                  {KNOWN_ACTIONS.has(e.action) ? t(`audit.action.${e.action}` as MessageKey) : e.action} · {e.actorName ?? t("audit.unknownActor")}
+                  <span className="muted">{dateFormat.format(new Date(e.createdAt))}</span>
+                  <span>{KNOWN_ACTIONS.has(e.action) ? t(`audit.action.${e.action}` as MessageKey) : e.action}</span>
+                  <span className="muted">{e.actorName ?? t("audit.unknownActor")}</span>
                 </li>
               ))}
             </ul>

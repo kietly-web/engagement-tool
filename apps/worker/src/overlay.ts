@@ -1,4 +1,4 @@
-import { parseWidgetConfig } from "@et/core";
+import { parsePollPresets, parseWidgetConfig } from "@et/core";
 import { audit, overlays, widgetConfigs, withSystem, withWorkspace, workspaces, ContextError } from "@et/db";
 import { Hono, type Context } from "hono";
 import type { ObsLinkResponse, OverlayLinkView, OverlayRotateResponse, OverlayWidget } from "./api-types";
@@ -13,6 +13,15 @@ const CONFIGURABLE: readonly ConfigurableWidget[] = ["poll", "leaderboard", "ale
 const isConfigurable = (w: string): w is ConfigurableWidget => CONFIGURABLE.includes(w as ConfigurableWidget);
 const isBuilt = (w: string): w is OverlayWidget => BUILT_WIDGETS.includes(w as OverlayWidget);
 const isPublic = (w: string): w is OverlayWidget => w === "scene" || isBuilt(w);
+// What the dashboard stores and reads: the overlay config plus dashboard-only sections (saved polls). Overlays get
+// parseWidgetConfig of it, which drops those sections, so prepared polls never reach an overlay page.
+function storedConfig(raw: unknown, widget: ConfigurableWidget) {
+  const polls = (raw as { polls?: unknown } | null)?.polls;
+  return { ...parseWidgetConfig(raw, widget), ...(widget === "poll" && { polls: parsePollPresets(polls) }) };
+}
+// The column allows 8,192 bytes of jsonb text, which adds spaces after separators; Vietnamese takes 2–3 bytes a
+// letter, so a full list of saved polls can get close. Refuse with a clear error instead of a check violation.
+const CONFIG_BUDGET_BYTES = 7_000;
 const sceneAad = (workspaceId: string) => `overlay:${workspaceId}:scene`;
 
 // OBS reads these when a link is dragged onto its window (OBS 25+): https://obsproject.com/tools/browser-drag-and-drop
@@ -124,7 +133,7 @@ export function overlayManageRoutes(auth: ReturnType<typeof authRoutes>, deps: A
     const widget = c.req.param("widget");
     if (!isConfigurable(widget)) return c.json({ error: "unknown_widget" }, 400);
     const saved = await withWorkspace(c.var.db, { memberId: c.var.memberId, workspaceId: ws.id }, (tx) => widgetConfigs.get(tx, widget));
-    return c.json(parseWidgetConfig(saved, widget));
+    return c.json(storedConfig(saved, widget));
   });
 
   app.put("/workspaces/:id/widgets/:widget/config", ...guard, async (c) => {
@@ -137,12 +146,14 @@ export function overlayManageRoutes(auth: ReturnType<typeof authRoutes>, deps: A
     // Sections not sent are kept, so the style editor can't wipe alert commands and vice versa.
     const config = await withWorkspace(c.var.db, { memberId: c.var.memberId, workspaceId: ws.id }, async (tx) => {
       const existing = (await widgetConfigs.get(tx, widget)) as Record<string, unknown>;
-      const merged = parseWidgetConfig({ ...existing, ...(body && typeof body === "object" ? body : {}) }, widget);
+      const merged = storedConfig({ ...existing, ...(body && typeof body === "object" ? body : {}) }, widget);
+      if (new TextEncoder().encode(JSON.stringify(merged)).length > CONFIG_BUDGET_BYTES) return null;
       await widgetConfigs.save(tx, widget, merged);
       return merged;
     });
+    if (!config) return c.json({ error: "config_too_large" }, 400);
     try {
-      await deps.liveSession(c.env, ws.id).configChanged(widget, config);
+      await deps.liveSession(c.env, ws.id).configChanged(widget, parseWidgetConfig(config, widget));
     } catch {
       console.error(JSON.stringify({ event: "overlay_config_push_failed" }));
     }

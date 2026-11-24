@@ -47,14 +47,13 @@ export function OverlayLinks({ workspaceId, isOwner }: { workspaceId: string; is
           </p>
         </div>
       )}
-      <ul>
+      <ul className="plain-list">
         {links.map((link) => (
           <li key={link.widget}>
             <strong>{t(`overlay.widget.${link.widget}`)}</strong>
-            {" · "}
-            {link.rotatedAt ? `${t("overlay.created")} ${dateFormat.format(new Date(link.rotatedAt))}` : t("overlay.none")}{" "}
+            <span className="muted">{link.rotatedAt ? `${t("overlay.created")} ${dateFormat.format(new Date(link.rotatedAt))}` : t("overlay.none")}</span>
             {isOwner && (
-              <button type="button" className="button" onClick={() => rotate(link)}>
+              <button type="button" className="button small" onClick={() => rotate(link)}>
                 {link.rotatedAt ? t("overlay.rotate") : t("overlay.create")}
               </button>
             )}

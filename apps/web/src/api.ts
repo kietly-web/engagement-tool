@@ -1,4 +1,4 @@
-import type { AlertsConfigView, MeResponse, ObsLinkResponse, OverlayLinkView, OverlayTheme, OverlayRotateResponse, OverlayWidget, SessionMode, SessionResponse, WorkspaceResponse } from "@et/worker/api-types";
+import type { AlertsConfigView, MeResponse, ObsLinkResponse, OverlayLinkView, OverlayTheme, OverlayRotateResponse, OverlayWidget, PollPresetView, SessionMode, SessionResponse, WorkspaceResponse } from "@et/worker/api-types";
 
 export interface SeasonView {
   id: string;
@@ -71,6 +71,9 @@ export const api = {
     call<{ theme: OverlayTheme }>(`/api/workspaces/${encodeURIComponent(id)}/widgets/${widget}/config`),
   saveWidgetConfig: (id: string, widget: OverlayWidget, config: { theme: OverlayTheme }) =>
     call<{ theme: OverlayTheme }>(`/api/workspaces/${encodeURIComponent(id)}/widgets/${widget}/config`, jsonBody("PUT", config)),
+  pollPresets: (id: string) => call<{ polls: PollPresetView[] }>(`/api/workspaces/${encodeURIComponent(id)}/widgets/poll/config`),
+  savePollPresets: (id: string, polls: PollPresetView[]) =>
+    call<{ polls: PollPresetView[] }>(`/api/workspaces/${encodeURIComponent(id)}/widgets/poll/config`, jsonBody("PUT", { polls })),
   alertsConfig: (id: string) => call<{ alerts: AlertsConfigView }>(`/api/workspaces/${encodeURIComponent(id)}/widgets/alerts/config`),
   saveAlertsConfig: (id: string, alerts: AlertsConfigView) =>
     call<{ alerts: AlertsConfigView }>(`/api/workspaces/${encodeURIComponent(id)}/widgets/alerts/config`, jsonBody("PUT", { alerts })),

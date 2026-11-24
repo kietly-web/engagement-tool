@@ -54,10 +54,14 @@ export function SeasonPanel({ workspaceId, isOwner }: { workspaceId: string; isO
         </p>
       )}
       {active ? (
-        <p>
-          <strong>{active.name}</strong> <span className="badge badge-live">{t("season.active")}</span> · {t("season.endsAt")}{" "}
-          {dateFormat.format(new Date(active.endsAt))}
-        </p>
+        <>
+          <p>
+            <strong>{active.name}</strong> <span className="badge badge-live">{t("season.active")}</span>
+          </p>
+          <p className="muted">
+            {t("season.endsAt")} {dateFormat.format(new Date(active.endsAt))}
+          </p>
+        </>
       ) : (
         <p>{t("season.none")}</p>
       )}
@@ -70,7 +74,7 @@ export function SeasonPanel({ workspaceId, isOwner }: { workspaceId: string; isO
             </button>
           </p>
         ) : (
-          <form className="poll-form" onSubmit={start}>
+          <form className="poll-form form-row" onSubmit={start}>
             <label>
               {t("season.name")}
               <input value={name} maxLength={60} required onChange={(e) => setName(e.target.value)} />
@@ -85,6 +89,7 @@ export function SeasonPanel({ workspaceId, isOwner }: { workspaceId: string; isO
           </form>
         ))}
 
+      <div className="section">
       <h3>{t("board.title")}</h3>
       {board.length === 0 ? (
         <p className="muted">{t("board.empty")}</p>
@@ -122,6 +127,7 @@ export function SeasonPanel({ workspaceId, isOwner }: { workspaceId: string; isO
           </tbody>
         </table>
       )}
+      </div>
     </div>
   );
 }
