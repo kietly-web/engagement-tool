@@ -65,7 +65,7 @@ body {
   font-family: system-ui, "Noto Sans", "Be Vietnam Pro", sans-serif;
   color: var(--fg);
   padding: 32px;
-  width: 640px;
+  width: var(--width, 640px);
   zoom: var(--scale);
 }
 
@@ -197,4 +197,50 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
   .alert { animation: none; }
+}
+
+.holder.free {
+  position: absolute;
+}
+
+/* Dashboard layout editor only (?preview=scene&edit=1). */
+body.editing {
+  background: repeating-conic-gradient(#2a2a35 0% 25%, #1f1f28 0% 50%) 0 0 / 40px 40px;
+}
+
+body.editing .holder {
+  position: relative;
+  min-width: 240px;
+  min-height: 120px;
+  outline: 3px dashed rgb(255 255 255 / 45%);
+  outline-offset: -3px;
+  border-radius: 12px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+body.editing .holder.free {
+  position: absolute;
+}
+
+body.editing .holder.selected {
+  outline: 4px solid #ff4d8d;
+}
+
+body.editing .holder.dragging {
+  cursor: grabbing;
+}
+
+.edit-tag {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  z-index: 1;
+  padding: 4px 12px;
+  border-radius: 8px;
+  background: #ff4d8d;
+  color: #fff;
+  font: 700 22px system-ui, sans-serif;
+  pointer-events: none;
 }

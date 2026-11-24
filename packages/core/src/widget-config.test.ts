@@ -19,6 +19,12 @@ describe("parseWidgetConfig", () => {
     expect(parseWidgetConfig({ theme: { fontScale: 999, opacity: -50 } }).theme).toMatchObject({ fontScale: 150, opacity: 0 });
   });
 
+  it("keeps a dragged position on the 1920×1080 canvas as whole pixels", () => {
+    expect(parseWidgetConfig({ theme: { position: "custom", x: 812.6, y: 400, width: 455 } }, "poll").theme).toMatchObject({ position: "custom", x: 813, y: 400, width: 460 });
+    expect(parseWidgetConfig({ theme: { x: 5000, y: 5000, width: 10_000 } }).theme).toMatchObject({ x: 1600, y: 1000, width: 1200 });
+    expect(parseWidgetConfig({ theme: { x: "100", y: Number.NaN, width: null } }).theme).toMatchObject({ x: 0, y: 0, width: 640 });
+  });
+
   it("never lets free text through as a style value", () => {
     const hostile = { theme: { preset: "night;}body{display:none", accent: '#fff" onload=', position: "url(javascript:x)", extra: "<script>" } };
     const config = parseWidgetConfig(hostile);

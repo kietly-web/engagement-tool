@@ -3,6 +3,7 @@ import { backoffMs, leaderboardModel, parseMessage, parseOverlayPath, pollModel,
 import { applyTheme, decodePreview, DEFAULT_THEME, themeFrom } from "./theme";
 import { AlertQueue, alertView, hintTriggers, SHOW_MS, type AlertView } from "./alerts";
 import { t } from "./i18n";
+import { dragTo, parseEditorMessage, type EditorMessage } from "./layout";
 import "./overlay.css";
 
 type PanelWidget = "poll" | "leaderboard" | "alerts";
@@ -27,6 +28,8 @@ function el(tag: string, className: string, text?: string): HTMLElement {
 }
 
 class Panel {
+  // The holder is what gets placed; the panel inside it is zoomed by font size, which would also scale left/top.
+  readonly holder = el("div", "holder");
   readonly root = el("div", "panel");
   private theme = DEFAULT_THEME;
   private lastContent: OverlayMessage | null = null;
@@ -35,11 +38,21 @@ class Panel {
   private showing = false;
 
   constructor(readonly widget: PanelWidget) {
+    this.holder.dataset.widget = widget;
+    this.holder.append(this.root);
     applyTheme(this.root, this.theme);
+  }
+
+  get current(): OverlayTheme {
+    return this.theme;
   }
 
   get position(): OverlayTheme["position"] {
     return this.theme.position;
+  }
+
+  moveTo(x: number, y: number): void {
+    this.theme = { ...this.theme, position: "custom", x, y };
   }
 
   configure(config: { theme: OverlayTheme; alerts?: AlertsConfigView }): void {
@@ -131,7 +144,13 @@ const panels = new Map<PanelWidget, Panel>();
 function layout(): void {
   for (const widget of PANEL_ORDER) {
     const panel = panels.get(widget);
-    if (panel) slots.get(panel.position)!.append(panel.root);
+    if (!panel) continue;
+    const { holder, current } = panel;
+    const slot = slots.get(current.position);
+    holder.classList.toggle("free", !slot);
+    holder.style.left = slot ? "" : `${current.x}px`;
+    holder.style.top = slot ? "" : `${current.y}px`;
+    (slot ?? stage).append(holder);
   }
 }
 
@@ -188,8 +207,68 @@ function samples(widgets: readonly PanelWidget[]): void {
   if (widgets.includes("alerts")) {
     const sample = () => render({ type: "alert", alert: { source: "command", title: t["preview.alert"], name: t["preview.names"][0]!, sticker: "heart", animation: "bounce" } });
     sample();
-    window.setInterval(sample, SHOW_MS * 2);
+    window.setInterval(sample, alertEvery);
   }
+}
+
+let alertEvery = SHOW_MS * 2;
+
+// Dashboard layout editor: this page runs in an iframe on the same origin, with sample content only. It takes
+// themes from the parent and reports drags back; no token, socket or chat data is involved.
+function editScene(): void {
+  document.body.classList.add("editing");
+  alertEvery = SHOW_MS;
+  mount(PANEL_ORDER);
+  for (const w of PANEL_ORDER) render({ type: "config", widget: w, config: { theme: { ...DEFAULT_THEME, position: SCENE_PREVIEW_POSITIONS[w] } } });
+  samples(PANEL_ORDER);
+
+  const post = (message: EditorMessage) => window.parent.postMessage(message, location.origin);
+  const select = (widget: PanelWidget) => {
+    for (const p of panels.values()) p.holder.classList.toggle("selected", p.widget === widget);
+  };
+
+  window.addEventListener("message", (event) => {
+    if (event.origin !== location.origin || event.source !== window.parent) return;
+    const message = parseEditorMessage(event.data);
+    if (message?.type === "et-layout-theme") render({ type: "config", widget: message.widget, config: { theme: themeFrom({ theme: message.theme }) } });
+    else if (message?.type === "et-layout-select") select(message.widget);
+  });
+
+  for (const panel of panels.values()) {
+    const { holder } = panel;
+    holder.prepend(el("div", "edit-tag", t[`edit.${panel.widget}`]));
+    holder.addEventListener("pointerdown", (down) => {
+      if (down.button !== 0) return;
+      down.preventDefault();
+      const r = holder.getBoundingClientRect();
+      const s = stage.getBoundingClientRect();
+      const start = { x: r.left - s.left, y: r.top - s.top, width: r.width, height: r.height };
+      let at = dragTo(start, 0, 0);
+      panel.moveTo(at.x, at.y);
+      layout();
+      select(panel.widget);
+      post({ type: "et-layout-select", widget: panel.widget });
+      holder.setPointerCapture(down.pointerId);
+      holder.classList.add("dragging");
+      const move = (e: PointerEvent) => {
+        at = dragTo(start, e.clientX - down.clientX, e.clientY - down.clientY);
+        panel.moveTo(at.x, at.y);
+        holder.style.left = `${at.x}px`;
+        holder.style.top = `${at.y}px`;
+      };
+      const end = () => {
+        holder.removeEventListener("pointermove", move);
+        holder.removeEventListener("pointerup", end);
+        holder.removeEventListener("pointercancel", end);
+        holder.classList.remove("dragging");
+        post({ type: "et-layout-move", widget: panel.widget, x: at.x, y: at.y });
+      };
+      holder.addEventListener("pointermove", move);
+      holder.addEventListener("pointerup", end);
+      holder.addEventListener("pointercancel", end);
+    });
+  }
+  post({ type: "et-layout-ready" });
 }
 
 function preview(widget: PanelWidget | "scene"): void {
@@ -210,10 +289,13 @@ function preview(widget: PanelWidget | "scene"): void {
 }
 
 const target = parseOverlayPath(location.pathname);
-const previewWidget = new URLSearchParams(location.search).get("preview");
+const params = new URLSearchParams(location.search);
+const previewWidget = params.get("preview");
 if (target) {
   mount(target.widget === "scene" ? PANEL_ORDER : [target.widget as PanelWidget]);
   connect(target);
+} else if (previewWidget === "scene" && params.get("edit") === "1" && window.parent !== window) {
+  editScene();
 } else if (previewWidget === "poll" || previewWidget === "leaderboard" || previewWidget === "alerts" || previewWidget === "scene") {
   preview(previewWidget);
 }

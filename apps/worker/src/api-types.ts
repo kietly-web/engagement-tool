@@ -95,7 +95,11 @@ export interface OverlayTheme {
   preset: "night" | "day" | "neon" | "pastel";
   accent: "pink" | "orange" | "yellow" | "green" | "teal" | "blue" | "purple" | "red";
   fontScale: number;
-  position: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center";
+  position: "top-left" | "top-right" | "bottom-left" | "bottom-right" | "center" | "custom";
+  // Pixels on the 1920×1080 canvas; x and y apply only when position is "custom".
+  x: number;
+  y: number;
+  width: number;
   opacity: number;
   showTitle: boolean;
   showTotal: boolean;
@@ -126,6 +130,14 @@ export interface OverlayConfigMessage {
   widget?: "poll" | "leaderboard" | "alerts";
   config: { theme: OverlayTheme; alerts?: AlertsConfigView };
 }
+
+// postMessage between the dashboard style editor and its same-origin scene iframe (`/overlay/?preview=scene&edit=1`).
+export type SceneEditorWidget = "poll" | "leaderboard" | "alerts";
+export type SceneEditorMessage =
+  | { type: "et-layout-theme"; widget: SceneEditorWidget; theme: OverlayTheme }
+  | { type: "et-layout-select"; widget: SceneEditorWidget }
+  | { type: "et-layout-move"; widget: SceneEditorWidget; x: number; y: number }
+  | { type: "et-layout-ready" };
 
 export interface ObsLinkResponse {
   url: string;

@@ -11,6 +11,9 @@ const vi = {
   "alerts.testTitle": "Thử thông báo ✓",
   "alerts.superChat": "Cảm ơn Super Chat!",
   "alerts.membership": "Chào thành viên mới!",
+  "edit.poll": "Bình chọn",
+  "edit.leaderboard": "Bảng xếp hạng",
+  "edit.alerts": "Thông báo",
   "alerts.hint": (triggers: string[]) => `Gõ ${triggers.map((t) => `!${t}`).join(" · ")} vào chat`,
 };
 const en: typeof vi = {
@@ -26,6 +29,9 @@ const en: typeof vi = {
   "alerts.testTitle": "Test alert ✓",
   "alerts.superChat": "Thanks for the Super Chat!",
   "alerts.membership": "Welcome, new member!",
+  "edit.poll": "Poll",
+  "edit.leaderboard": "Leaderboard",
+  "edit.alerts": "Alerts",
   "alerts.hint": (triggers: string[]) => `Type ${triggers.map((t) => `!${t}`).join(" · ")} in chat`,
 };
 

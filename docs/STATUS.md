@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 23/11/2026 (ET-15 first real run under way: Cloudflare, Neon, Hyperdrive and Google set up). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
+Last updated: 24/11/2026 (ET-15 sign-in and demo mode work in production; ET-25 drag-and-drop scene layout in review). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
 
 ## Where we are
 
@@ -22,7 +22,9 @@ Last updated: 23/11/2026 (ET-15 first real run under way: Cloudflare, Neon, Hype
 
 **ET-23 one-step OBS setup:** the owner's dashboard now has a setup card. Creator setup is: sign in with Google, then drag one button onto OBS (or copy one link). One "scene" link shows the poll, leaderboard and alerts, each in its own corner and style. Per-widget links still exist under "advanced".
 
-**ET-15 first real run, in progress (23/11/2026).** Parts A and B are done: the Worker is live at `https://engagement-tool.lythekiet333.workers.dev`, migrations 0001–0007 are applied to Neon (`neondb`), and the Hyperdrive ID and Google client ID are in `wrangler.jsonc`. A1 (YouTube live streaming) and the Worker secrets are the owner's to confirm. Next is the owner's test, Part C of [runbooks/first-real-run.md](runbooks/first-real-run.md); Claude then fixes what the run finds. Expect rework: nothing has run against the real services, and the `streamList` reader is unproven (Q-T1).
+**ET-25 drag-and-drop scene layout (24/11/2026, owner request):** the style panel now shows the whole scene; the creator drags each widget anywhere (or types X/Y) and sets its width; one save updates OBS. Stored as `position: "custom"` plus `x`, `y`, `width` in the existing widget config (no migration).
+
+**ET-15 first real run, in progress (23/11/2026).** Parts A and B are done: the Worker is live at `https://engagement-tool.lythekiet333.workers.dev`, migrations 0001–0007 are applied to Neon (`neondb`), and the Hyperdrive ID and Google client ID are in `wrangler.jsonc`. The three Worker secrets are set and the owner confirmed sign-in works (24/11/2026); A1 (YouTube live streaming) is the owner's to confirm. Next is the owner's test, Part C of [runbooks/first-real-run.md](runbooks/first-real-run.md); Claude then fixes what the run finds. Expect rework: nothing has run against the real services, and the `streamList` reader is unproven (Q-T1).
 
 After ET-15: **ET-22 invited beta gate** (privacy notice, terms, contact, alerts, retention gaps), then phase 2: ET-10 boss raid with the game framework, ET-24 shared pet, ET-19 Vietnamese donation services after Q-T4, ET-16 more games, ET-18 English. Owner picked boss raid and shared pet first (18/11/2026); games need no owner setup, so they can be built while ET-15 waits.
 
@@ -30,7 +32,7 @@ After ET-15: **ET-22 invited beta gate** (privacy notice, terms, contact, alerts
 
 | PR | What | Action |
 | --- | --- | --- |
-| ET-15 | Production config: Hyperdrive binding and Google client ID | Merge when CI is green; Workers Builds then deploys it |
+| ET-25 | Drag-and-drop scene layout and widget width | Merge when CI is green; then check it in OBS (SETUP §2) |
 
 ## Waiting on the owner
 
@@ -84,3 +86,6 @@ Everything not done lives in [SETUP.md](SETUP.md), with priorities and exact ste
 - Worker tests typecheck with `apps/worker/tsconfig.test.json` (adds Node types); production code uses only Workers types.
 - Normalise Unicode (NFC) before matching; test Vietnamese with and without diacritics, full-width digits (`２`) and look-alike characters.
 - Overlay URLs are bearer secrets: never log `/o/*` paths.
+- On a Windows checkout (CRLF), `wrangler types --check` reports `worker-configuration.d.ts` out of date. Run `pnpm --filter @et/worker types` (git shows no content change), then `git checkout` the file before committing.
+- Overlay panels sit inside a `.holder` that carries the position; the panel inside is `zoom`ed by font size, which would also scale `left`/`top`.
+- The scene editor iframe (`/overlay/?preview=scene&edit=1`) and the style panel talk by `postMessage` on one origin; both sides check origin and source and accept only the shapes in `SceneEditorMessage`.

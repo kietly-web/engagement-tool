@@ -2,13 +2,17 @@ import type { OverlayTheme } from "@et/worker/api-types";
 
 const PRESETS = ["night", "day", "neon", "pastel"] as const;
 const ACCENTS = ["pink", "orange", "yellow", "green", "teal", "blue", "purple", "red"] as const;
-const POSITIONS = ["top-left", "top-right", "bottom-left", "bottom-right", "center"] as const;
+const POSITIONS = ["top-left", "top-right", "bottom-left", "bottom-right", "center", "custom"] as const;
+export const CANVAS = { width: 1920, height: 1080 } as const;
 
 export const DEFAULT_THEME: OverlayTheme = {
   preset: "night",
   accent: "pink",
   fontScale: 100,
   position: "top-left",
+  x: 0,
+  y: 0,
+  width: 640,
   opacity: 72,
   showTitle: true,
   showTotal: true,
@@ -27,6 +31,9 @@ export function themeFrom(config: unknown): OverlayTheme {
     accent: pick(ACCENTS, t.accent, DEFAULT_THEME.accent),
     fontScale: clamp(t.fontScale, 75, 150, DEFAULT_THEME.fontScale),
     position: pick(POSITIONS, t.position, DEFAULT_THEME.position),
+    x: Math.round(clamp(t.x, 0, CANVAS.width, 0)),
+    y: Math.round(clamp(t.y, 0, CANVAS.height, 0)),
+    width: Math.round(clamp(t.width, 320, 1200, DEFAULT_THEME.width)),
     opacity: clamp(t.opacity, 0, 100, DEFAULT_THEME.opacity),
     showTitle: bool(t.showTitle, true),
     showTotal: bool(t.showTotal, true),
@@ -38,6 +45,7 @@ export function applyTheme(panel: HTMLElement, theme: OverlayTheme): void {
   panel.dataset.preset = theme.preset;
   panel.dataset.accent = theme.accent;
   panel.style.setProperty("--scale", String(theme.fontScale / 100));
+  panel.style.setProperty("--width", `${theme.width}px`);
   panel.style.setProperty("--bg-alpha", String(theme.opacity / 100));
   panel.classList.toggle("hide-title", !theme.showTitle);
   panel.classList.toggle("hide-total", !theme.showTotal);
