@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
-import type { MeResponse, SignInOutcome, WorkspaceResponse } from "@et/worker/api-types";
+import type { MeResponse, SignInOutcome, StopReason, WorkspaceResponse } from "@et/worker/api-types";
 import { api, ApiError, signInUrl } from "./api";
 import { AlertsPanel } from "./AlertsPanel";
 import { LivePanel, type TallyState } from "./LivePanel";
@@ -169,6 +169,7 @@ const readTab = (): Tab => TABS.find((tab) => `#${tab}` === window.location.hash
 function SignedIn({ me, onChange, banners }: { me: MeResponse; onChange: () => void; banners: ReactNode }) {
   const [message, setMessage] = useState<string | null>(null);
   const [tally, setTally] = useState<TallyState>("idle");
+  const [stopped, setStopped] = useState<StopReason | null>(null);
   const [tab, setTab] = useState<Tab>(readTab);
   // The creator's own channel comes first, so joining someone else's can't take over their dashboard.
   const ordered = [...me.workspaces].sort((a, b) => (a.role === b.role ? 0 : a.role === "owner" ? -1 : 1));
@@ -180,6 +181,14 @@ function SignedIn({ me, onChange, banners }: { me: MeResponse; onChange: () => v
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
+
+  // The tab title is what a creator sees from OBS or another window, so it carries the state.
+  useEffect(() => {
+    const mark = stopped ? "⚠ " : tally === "live" ? "● " : tally === "demo" ? "○ " : "";
+    document.title = `${mark}${t(`tally.${tally}`)} · ${t("app.short")}`;
+  }, [tally, stopped]);
+
+  const onStopped = useCallback((reason: StopReason) => setStopped(reason), []);
 
   function choose(next: Tab) {
     setTab(next);
@@ -234,6 +243,21 @@ function SignedIn({ me, onChange, banners }: { me: MeResponse; onChange: () => v
           <p>{t(`page.${tab}`)}</p>
         </header>
         {banners}
+        {stopped && (
+          <div className="alarm" role="alert">
+            <p>
+              <strong>{t("home.stoppedTitle")}</strong> {t(`live.stopReason.${stopped}`)}
+            </p>
+            <p className="actions">
+              <a className="button small primary" href="#live" onClick={(e) => (e.preventDefault(), choose("live"), setStopped(null))}>
+                {t("home.stoppedOpen")}
+              </a>
+              <button type="button" className="button small" onClick={() => setStopped(null)}>
+                {t("home.dismiss")}
+              </button>
+            </p>
+          </div>
+        )}
         {message && (
           <p className="error" role="alert">
             {message}
@@ -243,7 +267,7 @@ function SignedIn({ me, onChange, banners }: { me: MeResponse; onChange: () => v
           <Settings me={me} onChange={onChange} onError={setMessage} />
         </div>
         {first ? (
-          <Workspace key={first.id} id={first.id} selfId={me.member.id} tab={tab} onTally={setTally} onError={setMessage} onChange={onChange} />
+          <Workspace key={first.id} id={first.id} selfId={me.member.id} tab={tab} onTally={setTally} onStopped={onStopped} onError={setMessage} onChange={onChange} />
         ) : (
           tab !== "settings" && (
             <div className="card">
@@ -320,6 +344,7 @@ function Workspace({
   selfId,
   tab,
   onTally,
+  onStopped,
   onError,
   onChange,
 }: {
@@ -327,10 +352,13 @@ function Workspace({
   selfId: string;
   tab: Tab;
   onTally: (state: TallyState) => void;
+  onStopped: (reason: StopReason) => void;
   onError: (message: string) => void;
   onChange: () => void;
 }) {
   const [data, setData] = useState<WorkspaceResponse | null>(null);
+  const [seasonKey, setSeasonKey] = useState(0);
+  const bumpSeason = useCallback(() => setSeasonKey((k) => k + 1), []);
 
   const load = useCallback(() => {
     api.workspace(id).then(setData, () => onError(t("state.error")));
@@ -357,10 +385,10 @@ function Workspace({
   return (
     <>
       <div {...panel("live")} className="stack">
-        <LivePanel workspaceId={id} youtubeConnected={youtubeConnected} isOwner={isOwner} onTally={onTally} />
+        <LivePanel workspaceId={id} youtubeConnected={youtubeConnected} isOwner={isOwner} onTally={onTally} onStopped={onStopped} onSeasonStarted={bumpSeason} />
       </div>
       <div {...panel("season")} className="stack">
-        <SeasonPanel workspaceId={id} isOwner={isOwner} />
+        <SeasonPanel key={seasonKey} workspaceId={id} isOwner={isOwner} />
       </div>
       <div {...panel("overlay")} className="stack">
         {isOwner && <ObsSetup workspaceId={id} youtubeConnected={youtubeConnected} />}

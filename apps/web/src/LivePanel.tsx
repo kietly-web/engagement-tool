@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
-import type { PollPresetView, SessionMode, SessionResponse } from "@et/worker/api-types";
-import { api, ApiError } from "./api";
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react";
+import type { PollPresetView, SessionMode, SessionResponse, StopReason } from "@et/worker/api-types";
+import { api, ApiError, signInUrl, type SeasonView } from "./api";
 import { translator, type MessageKey } from "./i18n";
 
 const t = translator("vi");
@@ -47,26 +47,54 @@ function toPreset(draft: Draft): PollPresetView | null {
   return question && options.length >= MIN_OPTIONS ? { question, options, voteChange: draft.allowChange ? "latest" : "first" } : null;
 }
 
+// A default the creator never has to type: "Mùa 11/2026", the longest season the rules allow.
+const SEASON_DAYS = 29;
+const monthName = () => {
+  const parts = new Intl.DateTimeFormat("vi-VN", { month: "2-digit", year: "numeric", timeZone: "Asia/Ho_Chi_Minh" }).formatToParts(new Date());
+  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  const [month, year] = [part("month"), part("year")];
+  return t("home.seasonDefaultName").replace("{month}", `${month}/${year}`);
+};
+
 export function LivePanel({
   workspaceId,
   youtubeConnected,
   isOwner,
   onTally,
+  onStopped,
+  onSeasonStarted,
 }: {
   workspaceId: string;
   youtubeConnected: boolean;
   isOwner: boolean;
   onTally: (state: TallyState) => void;
+  onStopped: (reason: StopReason) => void;
+  onSeasonStarted: () => void;
 }) {
   const [data, setData] = useState<SessionResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const [season, setSeason] = useState<SeasonView | null | undefined>(undefined);
+  const [commands, setCommands] = useState<number | null>(null);
 
   const refresh = useCallback(() => {
     api.session(workspaceId).then(setData, () => undefined);
   }, [workspaceId]);
 
   useEffect(refresh, [refresh]);
+  useEffect(() => {
+    api.seasons(workspaceId).then((r) => setSeason(r.active), () => setSeason(null));
+    api.alertsConfig(workspaceId).then((r) => setCommands(r.alerts.commands.length), () => undefined);
+  }, [workspaceId]);
+  // While idle there is no timer, so the checklist catches up when the creator comes back from OBS instead.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [refresh]);
   useEffect(() => {
     if (data?.session.status !== "live") return;
     const tick = () => {
@@ -83,6 +111,14 @@ export function LivePanel({
   const session = data?.session;
   const live = session?.status === "live";
   useEffect(() => onTally(!live ? "idle" : session?.mode === "youtube" ? "live" : "demo"), [live, session?.mode, onTally]);
+  const [wasLive, setWasLive] = useState(false);
+  useEffect(() => {
+    if (live) setWasLive(true);
+    else if (wasLive) {
+      setWasLive(false);
+      if (session?.stopReason && session.stopReason !== "manual" && session.stopReason !== "demo_finished") onStopped(session.stopReason);
+    }
+  }, [live, wasLive, session?.stopReason, onStopped]);
 
   async function run(action: () => Promise<SessionResponse>, prefix: "live.error" | "poll.error"): Promise<boolean> {
     setBusy(true);
@@ -100,58 +136,114 @@ export function LivePanel({
 
   const start = (mode: SessionMode) => run(() => api.startSession(workspaceId, mode), "live.error");
   const poll = session?.poll;
+  const obsConnected = (session?.overlayConnections ?? 0) > 0;
+
+  async function openSeason() {
+    setBusy(true);
+    setError(null);
+    try {
+      setSeason(await api.startSeason(workspaceId, monthName(), SEASON_DAYS));
+      onSeasonStarted();
+    } catch {
+      setError(t("state.error"));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div className="stack">
       <section className="card desk" aria-labelledby="desk-title">
-        <h2 id="desk-title">{t("live.desk")}</h2>
+        <h2 id="desk-title" className="visually-hidden">
+          {t("live.desk")}
+        </h2>
+        <div className="launch">
+          <div className="launch-power">
+            {live ? (
+              <button type="button" className="power is-live" disabled={busy} onClick={() => run(() => api.stopSession(workspaceId), "live.error")}>
+                <span className="power-label">{t("home.stop")}</span>
+                <span className="power-sub">{t(session?.mode === "youtube" ? "tally.live" : "tally.demo")}</span>
+              </button>
+            ) : (
+              <button type="button" className="power" disabled={busy || !youtubeConnected} onClick={() => start("youtube")}>
+                <span className="power-label">{t("home.start")}</span>
+                <span className="power-sub">{t("home.startSub")}</span>
+              </button>
+            )}
+            {!live && (
+              <button type="button" className="button" disabled={busy || data?.quota.demoStartsLeft === 0} onClick={() => start("demo")}>
+                {t("live.startDemo")}
+              </button>
+            )}
+            <ul className="stats">
+              {session && session.status !== "idle" && (
+                <li>
+                  <strong>{session.messagesSeen}</strong>
+                  {t("live.messages")}
+                </li>
+              )}
+              {data && live && session?.mode === "youtube" && (
+                <li>
+                  <strong>
+                    {data.quota.workspaceUsed}/{data.quota.workspaceLimit}
+                  </strong>
+                  {t("live.quota")}
+                </li>
+              )}
+              {data && !live && (
+                <li>
+                  <strong>{data.quota.demoStartsLeft}</strong>
+                  {t("live.demoLeft")}
+                </li>
+              )}
+            </ul>
+          </div>
+
+          <div className="launch-ready">
+            <h3>{t("home.ready")}</h3>
+            <ul className="ready-list">
+              <ReadyRow done={youtubeConnected} label={t("home.youtube")} status={youtubeConnected ? t("home.youtubeOk") : t("home.youtubeMissing")}>
+                {!youtubeConnected && isOwner && (
+                  <a className="button small primary" href={signInUrl("creator")}>
+                    {t("me.connect")}
+                  </a>
+                )}
+              </ReadyRow>
+              <ReadyRow done={obsConnected} label={t("home.obs")} status={obsConnected ? t("home.youtubeOk") : t("home.obsMissing")}>
+                {!obsConnected && (
+                  <a className="button small" href="#overlay">
+                    {t("home.obsAction")}
+                  </a>
+                )}
+              </ReadyRow>
+              <ReadyRow
+                done={!!season}
+                label={t("season.title")}
+                status={season ? `${season.name} · ${t("home.seasonUntil")} ${dayFormat.format(new Date(season.endsAt))}` : t("home.seasonMissing")}
+              >
+                {season === null && isOwner && (
+                  <button type="button" className="button small" disabled={busy} onClick={openSeason}>
+                    {t("home.seasonAction")}
+                  </button>
+                )}
+              </ReadyRow>
+              <ReadyRow done={(commands ?? 0) > 0} label={t("home.alerts")} status={commands ? t("home.alertsCount").replace("{n}", String(commands)) : t("home.alertsMissing")}>
+                {commands === 0 && (
+                  <a className="button small" href="#alerts">
+                    {t("home.alertsAction")}
+                  </a>
+                )}
+              </ReadyRow>
+            </ul>
+          </div>
+        </div>
+
         {error && (
           <p className="error" role="alert">
             {error}
           </p>
         )}
         {!live && session?.stopReason && <p className="muted">{t(`live.stopReason.${session.stopReason}`)}</p>}
-        {!live && <p className="muted">{t("live.deskIdle")}</p>}
-
-        <p className="actions">
-          {live ? (
-            <button type="button" className="button danger big" disabled={busy} onClick={() => run(() => api.stopSession(workspaceId), "live.error")}>
-              {t("live.stop")}
-            </button>
-          ) : (
-            <>
-              <button type="button" className="button primary big" disabled={busy || !youtubeConnected} onClick={() => start("youtube")}>
-                {t("live.startYoutube")}
-              </button>
-              <button type="button" className="button big" disabled={busy || data?.quota.demoStartsLeft === 0} onClick={() => start("demo")}>
-                {t("live.startDemo")}
-              </button>
-            </>
-          )}
-        </p>
-
-        <ul className="stats">
-          {session && session.status !== "idle" && (
-            <li>
-              <strong>{session.messagesSeen}</strong>
-              {t("live.messages")}
-            </li>
-          )}
-          {data && live && session?.mode === "youtube" && (
-            <li>
-              <strong>
-                {data.quota.workspaceUsed}/{data.quota.workspaceLimit}
-              </strong>
-              {t("live.quota")}
-            </li>
-          )}
-          {data && !live && (
-            <li>
-              <strong>{data.quota.demoStartsLeft}</strong>
-              {t("live.demoLeft")}
-            </li>
-          )}
-        </ul>
         {data?.quota.projectHeadroomLow && <p className="notice">{t("live.quotaLow")}</p>}
 
         {poll && (
@@ -180,6 +272,21 @@ export function LivePanel({
         onOpen={(preset) => run(() => api.openPoll(workspaceId, preset), "poll.error")}
       />
     </div>
+  );
+}
+
+const dayFormat = new Intl.DateTimeFormat("vi-VN", { day: "numeric", month: "numeric", timeZone: "Asia/Ho_Chi_Minh" });
+
+function ReadyRow({ done, label, status, children }: { done: boolean; label: string; status: string; children?: ReactNode }) {
+  return (
+    <li className={done ? "ready done" : "ready"}>
+      <span className="ready-dot" aria-hidden="true" />
+      <span className="ready-text">
+        <strong>{label}</strong>
+        <span className="muted">{status}</span>
+      </span>
+      {children}
+    </li>
   );
 }
 

@@ -378,6 +378,158 @@ details > summary {
   border-color: color-mix(in srgb, var(--coral) 35%, var(--line));
 }
 
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* Home: the booster-style start button on the left, what's ready on the right. */
+.launch {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: var(--s6);
+  align-items: start;
+}
+
+.launch-power {
+  display: grid;
+  justify-items: center;
+  gap: var(--s4);
+  text-align: center;
+}
+
+.launch-power > .button {
+  width: 100%;
+}
+
+.launch-power .stats {
+  justify-content: center;
+}
+
+.power {
+  width: 176px;
+  height: 176px;
+  border-radius: 50%;
+  border: 0;
+  display: grid;
+  place-content: center;
+  gap: var(--s1);
+  font: inherit;
+  color: #fff;
+  cursor: pointer;
+  background: radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--coral) 70%, #fff) 0, var(--coral) 55%, color-mix(in srgb, var(--coral) 70%, black) 100%);
+  box-shadow: 0 0 0 8px var(--coral-soft), 0 0 0 16px rgb(255 79 123 / 7%), 0 12px 32px rgb(255 79 123 / 30%);
+}
+
+.power:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.power:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.85) brightness(0.7);
+  box-shadow: 0 0 0 8px rgb(255 255 255 / 4%);
+}
+
+.power.is-live {
+  background: radial-gradient(circle at 50% 38%, var(--raised) 0, var(--panel) 70%);
+  border: 2px solid var(--coral);
+  box-shadow: 0 0 0 8px var(--coral-soft);
+  animation: power 2s ease-in-out infinite;
+}
+
+@keyframes power {
+  50% {
+    box-shadow: 0 0 0 14px rgb(255 79 123 / 6%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .power.is-live {
+    animation: none;
+  }
+}
+
+.power-label {
+  font-size: 28px;
+  line-height: 32px;
+  font-weight: 800;
+}
+
+.power-sub {
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.launch-ready {
+  display: grid;
+  gap: var(--s3);
+}
+
+.ready-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: var(--s2);
+}
+
+.ready {
+  display: grid;
+  grid-template-columns: 12px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: var(--s3);
+  min-height: 56px;
+  padding: var(--s2) var(--s4);
+  border: 1px solid var(--line);
+  border-radius: var(--r-ctl);
+  background: var(--base);
+}
+
+.ready-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--sun);
+}
+
+.ready.done .ready-dot {
+  border-color: var(--mint);
+  background: var(--mint);
+}
+
+.ready-text {
+  display: grid;
+  min-width: 0;
+}
+
+.ready-text strong {
+  font-size: 14px;
+}
+
+.ready-text .muted {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Shown on every page when a session stops without the creator pressing Stop. */
+.alarm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s3) var(--s4);
+  padding: var(--s3) var(--s4);
+  border-radius: var(--r-ctl);
+  border: 1px solid var(--danger);
+  background: color-mix(in srgb, var(--danger) 14%, var(--panel));
+}
+
 .stats {
   display: flex;
   flex-wrap: wrap;
@@ -955,6 +1107,11 @@ input[type="range"] {
 /* ---- Narrow screens: the rail becomes a top bar ---- */
 
 @media (max-width: 1100px) {
+  .launch {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--s5);
+  }
+
   .grid-2 {
     grid-template-columns: minmax(0, 1fr);
   }
@@ -1003,7 +1160,7 @@ input[type="range"] {
   }
 
   .rail-nav:not(.rail-foot) {
-    flex: 1 1 calc(100% - var(--control) - var(--s3));
+    flex: 1 1 calc(100% - var(--control) - 2 * var(--s3));
     order: 3;
   }
 
