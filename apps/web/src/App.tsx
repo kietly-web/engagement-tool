@@ -8,6 +8,7 @@ import { ObsSetup } from "./ObsSetup";
 import { OverlayLinks } from "./OverlayLinks";
 import { SeasonPanel } from "./SeasonPanel";
 import { StylePanel } from "./StylePanel";
+import { Icon } from "./Icon";
 import { translator, type MessageKey } from "./i18n";
 
 const t = translator("vi");
@@ -160,8 +161,9 @@ function SignedOut() {
   );
 }
 
-type Tab = "live" | "overlay" | "alerts" | "channel";
-const TABS: readonly Tab[] = ["live", "overlay", "alerts", "channel"];
+type Tab = "live" | "season" | "overlay" | "alerts" | "channel" | "settings";
+const TABS: readonly Tab[] = ["live", "season", "overlay", "alerts", "channel", "settings"];
+const MAIN_TABS: readonly Tab[] = ["live", "season", "overlay", "alerts", "channel"];
 const readTab = (): Tab => TABS.find((tab) => `#${tab}` === window.location.hash) ?? "live";
 
 function SignedIn({ me, onChange, banners }: { me: MeResponse; onChange: () => void; banners: ReactNode }) {
@@ -184,6 +186,82 @@ function SignedIn({ me, onChange, banners }: { me: MeResponse; onChange: () => v
     window.history.replaceState(null, "", `#${next}`);
   }
 
+  const navItem = (id: Tab) => (
+    <a key={id} href={`#${id}`} className="nav-item" aria-current={tab === id ? "page" : undefined} onClick={(e) => (e.preventDefault(), choose(id))}>
+      <Icon name={id} />
+      <span>{t(`tab.${id}`)}</span>
+    </a>
+  );
+
+  return (
+    <div className="shell">
+      <aside className="rail">
+        <div className="rail-brand">
+          <span className="rail-mark" aria-hidden="true" />
+          <span>
+            {t("app.short")}
+            {first && <small>{first.name}</small>}
+          </span>
+        </div>
+        {first && (
+          <p className="tally" data-state={tally} role="status">
+            <span className="tally-lamp" aria-hidden="true" />
+            <span>{t(`tally.${tally}`)}</span>
+          </p>
+        )}
+        {ordered.length > 1 && (
+          <label className="rail-switch">
+            <span>{t("ws.switch")}</span>
+            <select value={first?.id} onChange={(e) => setSelectedId(e.target.value)}>
+              {ordered.map((w) => (
+                <option key={w.id} value={w.id}>
+                  {w.name} ({t(`ws.role.${w.role}`)})
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+        <nav className="rail-nav" aria-label={t("tab.label")}>
+          {first && MAIN_TABS.map(navItem)}
+        </nav>
+        <nav className="rail-nav rail-foot" aria-label={t("tab.settings")}>
+          {navItem("settings")}
+        </nav>
+      </aside>
+      <main className="stage">
+        <header className="stage-head">
+          <h1>{t(`tab.${tab}`)}</h1>
+          <p>{t(`page.${tab}`)}</p>
+        </header>
+        {banners}
+        {message && (
+          <p className="error" role="alert">
+            {message}
+          </p>
+        )}
+        <div hidden={tab !== "settings"}>
+          <Settings me={me} onChange={onChange} onError={setMessage} />
+        </div>
+        {first ? (
+          <Workspace key={first.id} id={first.id} selfId={me.member.id} tab={tab} onTally={setTally} onError={setMessage} onChange={onChange} />
+        ) : (
+          tab !== "settings" && (
+            <div className="card">
+              <p>{t("me.noWorkspace")}</p>
+              <p className="actions">
+                <a className="button primary" href={signInUrl("creator")}>
+                  {t("me.connect")}
+                </a>
+              </p>
+            </div>
+          )
+        )}
+      </main>
+    </div>
+  );
+}
+
+function Settings({ me, onChange, onError }: { me: MeResponse; onChange: () => void; onError: (message: string) => void }) {
   async function logout() {
     await api.logout().catch(() => undefined);
     onChange();
@@ -195,86 +273,45 @@ function SignedIn({ me, onChange, banners }: { me: MeResponse; onChange: () => v
       await api.deleteAccount();
       onChange();
     } catch {
-      setMessage(t("account.deleteFailed"));
+      onError(t("account.deleteFailed"));
     }
   }
 
   return (
-    <>
-      <header className="app-header">
-        <div className="app-header-inner">
-          <p className="brand">
-            {t("app.title")}
-            {first && <small>{first.name}</small>}
-          </p>
-          {ordered.length > 1 && (
-            <label className="switcher">
-              <span className="muted">{t("ws.switch")}</span>
-              <select value={first?.id} onChange={(e) => setSelectedId(e.target.value)}>
-                {ordered.map((w) => (
-                  <option key={w.id} value={w.id}>
-                    {w.name} ({t(`ws.role.${w.role}`)})
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <div className="header-end">
-            {first && (
-              <span className="tally" data-state={tally} role="status">
-                {t(`tally.${tally}`)}
-              </span>
-            )}
-            <details className="account-menu">
-              <summary>{me.member.displayName}</summary>
-              <div>
-                <p className="muted">
-                  {t("account.signedInAs")} {me.member.email}
-                </p>
-                <a className="button" href="/api/account/export">
-                  {t("account.export")}
-                </a>
-                <button type="button" className="button" onClick={logout}>
-                  {t("account.logout")}
-                </button>
-                <button type="button" className="button danger" onClick={deleteAccount}>
-                  {t("account.delete")}
-                </button>
-              </div>
-            </details>
-          </div>
-        </div>
-        {first && (
-          <nav className="tabs" role="tablist" aria-label={t("tab.label")}>
-            {TABS.map((id) => (
-              <button key={id} type="button" role="tab" id={`tab-${id}`} aria-selected={tab === id} aria-controls={`panel-${id}`} onClick={() => choose(id)}>
-                {t(`tab.${id}`)}
-              </button>
-            ))}
-          </nav>
-        )}
-      </header>
-      <main className="page">
-        {banners}
-        {message && (
-          <p className="error" role="alert">
-            {message}
-          </p>
-        )}
-        {first ? (
-          <Workspace key={first.id} id={first.id} selfId={me.member.id} tab={tab} onTally={setTally} onError={setMessage} onChange={onChange} />
-        ) : (
-          <div className="card">
-            <p>{t("me.noWorkspace")}</p>
-            <p className="actions">
-              <a className="button primary" href={signInUrl("creator")}>
-                {t("me.connect")}
-              </a>
-            </p>
-          </div>
-        )}
-      </main>
-    </>
+    <div className="stack narrow">
+      <section className="card">
+        <h2>{t("settings.account")}</h2>
+        <dl className="facts">
+          <dt>{t("settings.name")}</dt>
+          <dd>{me.member.displayName}</dd>
+          <dt>{t("account.signedInAs")}</dt>
+          <dd>{me.member.email}</dd>
+        </dl>
+        <p className="actions">
+          <button type="button" className="button" onClick={logout}>
+            {t("account.logout")}
+          </button>
+        </p>
+      </section>
+      <section className="card">
+        <h2>{t("settings.data")}</h2>
+        <p className="muted">{t("settings.dataHelp")}</p>
+        <p className="actions">
+          <a className="button" href="/api/account/export">
+            {t("account.export")}
+          </a>
+        </p>
+      </section>
+      <section className="card card-danger">
+        <h2>{t("settings.danger")}</h2>
+        <p className="muted">{t("settings.dangerHelp")}</p>
+        <p className="actions">
+          <button type="button" className="button danger" onClick={deleteAccount}>
+            {t("account.delete")}
+          </button>
+        </p>
+      </section>
+    </div>
   );
 }
 
@@ -311,16 +348,18 @@ function Workspace({
     }
   }
 
-  if (!data) return <p>{t("state.loading")}</p>;
+  if (!data) return tab === "settings" ? null : <p>{t("state.loading")}</p>;
   const isOwner = data.workspace.role === "owner";
   const youtubeConnected = data.youtube !== null;
-  // Panels stay mounted when hidden, so a running session keeps its state and the tally stays right.
-  const panel = (name: Tab) => ({ role: "tabpanel", id: `panel-${name}`, "aria-labelledby": `tab-${name}`, hidden: tab !== name });
+  // Pages stay mounted when hidden, so a running session keeps its state and the tally stays right.
+  const panel = (name: Tab) => ({ id: `panel-${name}`, hidden: tab !== name });
 
   return (
     <>
-      <div {...panel("live")} className="grid-2">
+      <div {...panel("live")} className="stack">
         <LivePanel workspaceId={id} youtubeConnected={youtubeConnected} isOwner={isOwner} onTally={onTally} />
+      </div>
+      <div {...panel("season")} className="stack">
         <SeasonPanel workspaceId={id} isOwner={isOwner} />
       </div>
       <div {...panel("overlay")} className="stack">
@@ -332,7 +371,7 @@ function Workspace({
         <AlertsPanel workspaceId={id} isOwner={isOwner} />
       </div>
       <div {...panel("channel")} className="grid-2">
-        <div className="card">
+        <section className="card">
           <h2>
             {t("channel.title")} <span className="badge">{t(`ws.role.${data.workspace.role}`)}</span>
           </h2>
@@ -359,7 +398,7 @@ function Workspace({
               )}
             </p>
           )}
-        </div>
+        </section>
         <MembersPanel workspace={data} selfId={selfId} onLeft={onChange} />
       </div>
     </>
