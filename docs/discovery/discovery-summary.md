@@ -47,6 +47,7 @@ A free engagement tool for Vietnamese YouTubers and VTubers: viewers type comman
 | FR-14 | A creator defines chat commands that show a creator-written text item with a built-in sticker and animation on an alerts overlay, with cooldowns | Must (phase 1) |
 | FR-15 | Show YouTube Super Chats, Super Stickers and new or gifted memberships as overlay animations, read-only, earning no points (ADR-008) | Must (phase 1) |
 | FR-16 | Show donation events from Vietnamese donation services (bank-QR platforms) on the same widget; one ADR per service | Later |
+| FR-17 | Mirror a native YouTube live-chat poll that the creator starts in YouTube onto the poll overlay (question, options, totals, open or closed), read-only; no points, since YouTube gives totals only (owner, 26/11/2026) | Should, after Q-T5 |
 
 ## Non-functional requirements
 
@@ -124,4 +125,5 @@ L = likelihood, I = impact (H/M/L).
 - Q-P1 Viewers can't get replies in chat (read-only). Should `!points` flash the viewer's score on an overlay ticker? (owner)
 - Q-P2 Product name and domain. (owner)
 - Q-P3 ~~What do "donation items" mean?~~ Answered 10/11/2026: show YouTube Super Chats first, later other VN donation services; the tool never handles money (ADR-008).
+- Q-T5 With the creator's `youtube.readonly` token, does `liveChatMessages.list`/`streamList` return native polls (`pollDetails`) with per-option `tally`, and does the tally update while the poll is open or only at close? Checked in ET-15. Creating polls through the API needs a write scope, so it stays out (ADR-004).
 - Q-T4 Which Vietnamese donation services (Tipme, ZyPage, Zentnow/SePay, TipMe/VietQR, WeScan, others) expose a webhook or API we may legally use, and which do the target creators actually use? Research before FR-16. (Claude + owner)
