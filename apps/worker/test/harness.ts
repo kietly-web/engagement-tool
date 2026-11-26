@@ -162,6 +162,7 @@ export async function makeHarness(
           configChanged: async (widget: string, config: object) => {
             configPushes.push([ws, widget, config]);
             if (widget === "alerts") await engine!.setAlertsConfig((config as { alerts?: unknown }).alerts);
+            if (widget === "leaderboard") await engine!.setRules((config as { rules?: unknown }).rules);
           },
         });
         engines.set(ws, engine);

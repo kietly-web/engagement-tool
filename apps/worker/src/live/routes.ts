@@ -1,4 +1,4 @@
-import { parseWidgetConfig } from "@et/core";
+import { parseRules, parseWidgetConfig } from "@et/core";
 import { audit, ContextError, seasons, widgetConfigs, withWorkspace, workspaces, youtube } from "@et/db";
 import type { PollInput } from "@et/core";
 import { ChatSourceError } from "@et/youtube";
@@ -79,9 +79,10 @@ export function sessionRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps
     const mode = body?.mode === "demo" ? "demo" : body?.mode === "youtube" ? "youtube" : null;
     if (!mode) return c.json({ error: "invalid_mode" }, 400);
     const client = deps.liveSession(c.env, m.workspaceId);
-    const { season, alertsSaved } = await withWorkspace(c.var.db, { memberId: c.var.memberId, workspaceId: m.workspaceId }, async (tx) => ({
+    const { season, alertsSaved, boardSaved } = await withWorkspace(c.var.db, { memberId: c.var.memberId, workspaceId: m.workspaceId }, async (tx) => ({
       season: await seasons.active(tx),
       alertsSaved: await widgetConfigs.get(tx, "alerts"),
+      boardSaved: (await widgetConfigs.get(tx, "leaderboard")) as { rules?: unknown },
     }));
     const common = {
       workspaceId: m.workspaceId,
@@ -90,6 +91,7 @@ export function sessionRoutes(auth: ReturnType<typeof authRoutes>, deps: AppDeps
       seasonName: season?.name ?? null,
       seasonEndsAt: season?.endsAt ?? null,
       alerts: parseWidgetConfig(alertsSaved, "alerts").alerts,
+      rules: parseRules(boardSaved?.rules),
     };
 
     if (mode === "demo") {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_THEME, isWidget, parseWidgetConfig } from "./widget-config";
+import { DEFAULT_DISPLAY, DEFAULT_THEME, isWidget, parseWidgetConfig } from "./widget-config";
 
 describe("parseWidgetConfig", () => {
   it("puts each widget in its own corner unless the creator chose one", () => {
@@ -10,7 +10,7 @@ describe("parseWidgetConfig", () => {
   });
 
   it("fills defaults for missing or broken input", () => {
-    for (const input of [undefined, null, 42, "x", {}, { theme: "x" }]) expect(parseWidgetConfig(input)).toEqual({ theme: DEFAULT_THEME });
+    for (const input of [undefined, null, 42, "x", {}, { theme: "x" }]) expect(parseWidgetConfig(input)).toEqual({ theme: DEFAULT_THEME, display: DEFAULT_DISPLAY });
   });
 
   it("keeps valid choices and snaps numbers into range", () => {
@@ -26,10 +26,34 @@ describe("parseWidgetConfig", () => {
   });
 
   it("never lets free text through as a style value", () => {
-    const hostile = { theme: { preset: "night;}body{display:none", accent: '#fff" onload=', position: "url(javascript:x)", extra: "<script>" } };
+    const hostile = {
+      theme: { preset: "night;}body{display:none", accent: '#fff" onload=', accentColor: "red;background:url(x)", position: "url(javascript:x)", extra: "<script>" },
+      display: { pollNumbers: "<b>", rows: "9;", alertSeconds: "1e9" },
+    };
     const config = parseWidgetConfig(hostile);
     expect(config.theme).toEqual(DEFAULT_THEME);
-    expect(JSON.stringify(config)).not.toMatch(/script|javascript|display/);
+    expect(config.display).toEqual(DEFAULT_DISPLAY);
+    expect(JSON.stringify(config)).not.toMatch(/script|javascript|display:none|url\(/);
+  });
+
+  it("accepts only an exact #rrggbb accent colour", () => {
+    expect(parseWidgetConfig({ theme: { accentColor: "#12AB9f" } }).theme.accentColor).toBe("#12ab9f");
+    for (const bad of ["#fff", "12ab9f", "#12ab9fz", "rgb(1,2,3)", "#12ab9f;x", 12]) expect(parseWidgetConfig({ theme: { accentColor: bad } }).theme.accentColor).toBe("");
+  });
+
+  it("keeps the creator's display text short and plain, and snaps numbers", () => {
+    const d = parseWidgetConfig({
+      display: { pollNumbers: "both", rows: 4.6, title: "  Top\u202E fan   \u0000tuần này  ", pointsWord: "tim vàng lấp lánh siêu dài", anonymousName: "Bạn ẩn", alertSeconds: 6.3 },
+    }).display;
+    expect(d).toEqual({ pollNumbers: "both", rows: 5, title: "Top fan tuần này", pointsWord: "tim vàng lấp", anonymousName: "Bạn ẩn", alertSeconds: 6.5 });
+    expect(parseWidgetConfig({ display: { rows: 50, alertSeconds: 0 } }).display).toMatchObject({ rows: 10, alertSeconds: 2 });
+  });
+
+  it("never lets the points word or title read as money", () => {
+    for (const money of ["VNĐ", "đ", "đồng", "$", "USD", "xu", "tiền", "k", "triệu"]) expect(parseWidgetConfig({ display: { pointsWord: money } }).display.pointsWord, money).toBe("");
+    expect(parseWidgetConfig({ display: { pointsWord: "tim" } }).display.pointsWord).toBe("tim");
+    expect(parseWidgetConfig({ display: { title: "Top €100 ¥ fan" } }).display.title).toBe("Top 100 fan");
+    expect(parseWidgetConfig({ display: { title: "x".repeat(100_000) } }).display.title).toHaveLength(40);
   });
 
   it("recognises widgets", () => {

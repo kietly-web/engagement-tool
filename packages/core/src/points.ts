@@ -77,16 +77,16 @@ export class PointsTally {
     });
   }
 
-  join(channelId: string): boolean {
+  join(channelId: string, points: number = POINTS.join): boolean {
     if (!isChannelId(channelId) || this.joined.has(channelId) || this.erased.has(channelId)) return false;
     this.joined.add(channelId);
-    this.add(channelId, { points: POINTS.join, joins: 1 });
+    this.add(channelId, { points, joins: 1 });
     return true;
   }
 
-  countedVote(channelId: string): boolean {
+  countedVote(channelId: string, points: number = POINTS.countedVote): boolean {
     if (!isChannelId(channelId) || this.erased.has(channelId)) return false;
-    this.add(channelId, { points: POINTS.countedVote, votes: 1 });
+    this.add(channelId, { points, votes: 1 });
     return true;
   }
 

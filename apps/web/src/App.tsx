@@ -6,6 +6,7 @@ import { LivePanel, type TallyState } from "./LivePanel";
 import { MembersPanel } from "./MembersPanel";
 import { ObsSetup } from "./ObsSetup";
 import { OverlayLinks } from "./OverlayLinks";
+import { RulesPanel } from "./RulesPanel";
 import { SeasonPanel } from "./SeasonPanel";
 import { StylePanel } from "./StylePanel";
 import { Icon } from "./Icon";
@@ -389,6 +390,7 @@ function Workspace({
       </div>
       <div {...panel("season")} className="stack">
         <SeasonPanel key={seasonKey} workspaceId={id} isOwner={isOwner} />
+        <RulesPanel workspaceId={id} isOwner={isOwner} />
       </div>
       <div {...panel("overlay")} className="stack">
         {isOwner && <ObsSetup workspaceId={id} youtubeConnected={youtubeConnected} />}

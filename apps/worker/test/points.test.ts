@@ -367,3 +367,60 @@ describe("season and leaderboard routes", () => {
     expect((await other.request(`/api/workspaces/${ws}/seasons`)).status).toBe(404);
   });
 });
+
+const putJson = (body: unknown) => ({ method: "PUT", body: JSON.stringify(body), headers: { "Content-Type": "application/json", Origin: ORIGIN } });
+
+describe("creator rules (ET-29)", () => {
+  it("scores with the creator's points and extra words, and a mid-stream change applies to the next message", async () => {
+    const store = new FakeStore();
+    const source = new Pages();
+    const clock = fixedClock("2026-11-08T13:00:00Z");
+    const engine = new SessionEngine(new MemoryStorage(), { get: async () => source, invalidate: () => undefined }, clock, { points: () => store });
+    await engine.start({
+      workspaceId: "ws",
+      mode: "youtube",
+      broadcastId: "b",
+      liveChatId: "c",
+      startedBy: "m",
+      seasonId: "s1",
+      seasonName: "Mùa 1",
+      seasonEndsAt: "2026-11-20T00:00:00Z",
+      rules: { points: { join: 40, vote: 0 }, joinWords: ["diemdanh"], voteWords: ["b"] },
+    });
+    await engine.createPoll({ question: "Q?", options: ["a", "b"] });
+    source.pages.push({ messages: [msg(1, "!điểm danh"), msg(1, "!diemdanh"), msg(2, "!join"), msg(3, "!b 2"), msg(4, "!bonus 2")], nextPageToken: "1", waitMs: 1000 });
+    await engine.tick();
+    const status = await engine.status();
+    expect(status.poll?.counts).toEqual([0, 1]);
+    expect(status.leaderboard?.map((e) => e.points)).toEqual([40, 40]);
+
+    await engine.setRules({ points: { join: 40, vote: 7 }, voteWords: ["b"] });
+    source.pages.push({ messages: [msg(5, "!b 1"), msg(6, "!diemdanh")], nextPageToken: "2", waitMs: 1000 });
+    await engine.tick();
+    const after = await engine.status();
+    expect(after.poll?.counts).toEqual([1, 1]);
+    expect(after.leaderboard?.map((e) => e.points)).toEqual([40, 40, 7]);
+  });
+
+  it("only the owner saves rules; bad values are clamped and overlay sockets never receive them", async () => {
+    const h = await makeHarness();
+    const { b, ws } = await owner(h);
+    const res = await b.request(`/api/workspaces/${ws}/widgets/leaderboard/config`, putJson({ rules: { points: { join: 9999, vote: 3 }, voteWords: ["vote", "b", "<x>"] } }));
+    expect(((await res.json()) as { rules: unknown }).rules).toEqual({ points: { join: 100, vote: 3 }, voteWords: ["b"], joinWords: [] });
+    expect(JSON.stringify(h.configPushes.at(-1))).toContain('"join":100');
+    const board = (await (await b.post(`/api/workspaces/${ws}/overlays/leaderboard/rotate`)).json()) as { url: string };
+    const scene = (await (await b.request(`/api/workspaces/${ws}/obs-link`)).json()) as { url: string };
+    for (const url of [board.url, scene.url]) await h.browser().request(`${new URL(url).pathname}/ws`, { headers: { Upgrade: "websocket" } });
+    expect(h.sockets).toHaveLength(2);
+    for (const socket of h.sockets) expect(JSON.stringify(socket.config)).not.toMatch(/rules|voteWords|joinWords|"join":/);
+    const page = await h.browser().request(`/api/workspaces/${ws}/widgets/leaderboard/config`);
+    expect(page.status).toBe(401);
+    h.google.account = { sub: "g-mod", email: "mod@example.test", scopes: ["openid", "email", "profile"] };
+    const mod = h.browser();
+    await mod.signIn("moderator");
+    await h.db.transaction((tx) =>
+      tx.query("INSERT INTO app.workspace_member (workspace_id, member_id, role) SELECT $1, id, 'moderator' FROM app.member WHERE google_sub = 'g-mod'", [ws]),
+    );
+    expect((await mod.request(`/api/workspaces/${ws}/widgets/leaderboard/config`, putJson({ rules: { points: { join: 1 } } }))).status).toBe(403);
+  });
+});

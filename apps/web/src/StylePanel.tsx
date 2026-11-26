@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { OverlayTheme, SceneEditorMessage, SceneEditorWidget } from "@et/worker/api-types";
+import type { OverlayTheme, SceneEditorMessage, SceneEditorWidget, WidgetDisplayView } from "@et/worker/api-types";
 import { api } from "./api";
 import { translator, type MessageKey } from "./i18n";
 import { CANVAS, clampX, clampY, DEFAULT_CORNER, readEditorMessage, SCENE_WIDGETS } from "./scene-editor";
@@ -10,11 +10,15 @@ const ACCENTS = ["pink", "orange", "yellow", "green", "teal", "blue", "purple", 
 const POSITIONS = ["top-left", "top-right", "bottom-left", "bottom-right", "center", "custom"] as const;
 const EDITOR_SRC = "/overlay/?preview=scene&edit=1";
 
+const POLL_NUMBERS = ["percent", "votes", "both"] as const;
+
 type Themes = Record<SceneEditorWidget, OverlayTheme>;
+type Displays = Record<SceneEditorWidget, WidgetDisplayView>;
 
 export function StylePanel({ workspaceId }: { workspaceId: string }) {
   const [widget, setWidget] = useState<SceneEditorWidget>("poll");
   const [themes, setThemes] = useState<Themes | null>(null);
+  const [displays, setDisplays] = useState<Displays | null>(null);
   const [dirty, setDirty] = useState<ReadonlySet<SceneEditorWidget>>(new Set());
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState(false);
@@ -27,7 +31,10 @@ export function StylePanel({ workspaceId }: { workspaceId: string }) {
     setThemes(null);
     setDirty(new Set());
     Promise.all(SCENE_WIDGETS.map((w) => api.widgetConfig(workspaceId, w))).then(
-      (configs) => setThemes(Object.fromEntries(SCENE_WIDGETS.map((w, i) => [w, configs[i]!.theme])) as Themes),
+      (configs) => {
+        setThemes(Object.fromEntries(SCENE_WIDGETS.map((w, i) => [w, configs[i]!.theme])) as Themes);
+        setDisplays(Object.fromEntries(SCENE_WIDGETS.map((w, i) => [w, configs[i]!.display])) as Displays);
+      },
       () => setError(true),
     );
   }, [workspaceId]);
@@ -49,6 +56,12 @@ export function StylePanel({ workspaceId }: { workspaceId: string }) {
     setThemes((prev) => (prev ? { ...prev, [w]: { ...prev[w], ...patch } } : prev));
   }, []);
 
+  const changeDisplay = useCallback((w: SceneEditorWidget, patch: Partial<WidgetDisplayView>) => {
+    setSaved(false);
+    setDirty((prev) => new Set(prev).add(w));
+    setDisplays((prev) => (prev ? { ...prev, [w]: { ...prev[w], ...patch } } : prev));
+  }, []);
+
   useEffect(() => {
     function onMessage(event: MessageEvent) {
       if (event.origin !== location.origin || event.source !== frame.current?.contentWindow) return;
@@ -62,21 +75,22 @@ export function StylePanel({ workspaceId }: { workspaceId: string }) {
   }, [change]);
 
   useEffect(() => {
-    if (!ready || !themes) return;
-    for (const w of SCENE_WIDGETS) post({ type: "et-layout-theme", widget: w, theme: themes[w] });
-  }, [ready, themes, post]);
+    if (!ready || !themes || !displays) return;
+    for (const w of SCENE_WIDGETS) post({ type: "et-layout-theme", widget: w, theme: themes[w], display: displays[w] });
+  }, [ready, themes, displays, post]);
 
   useEffect(() => {
     if (ready) post({ type: "et-layout-select", widget });
   }, [ready, widget, post]);
 
   async function save() {
-    if (!themes) return;
+    if (!themes || !displays) return;
     const widgets = [...dirty];
-    const results = await Promise.allSettled(widgets.map((w) => api.saveWidgetConfig(workspaceId, w, { theme: themes[w] })));
-    const done = new Map<SceneEditorWidget, OverlayTheme>();
-    results.forEach((r, i) => r.status === "fulfilled" && done.set(widgets[i]!, r.value.theme));
-    setThemes((prev) => (prev ? { ...prev, ...Object.fromEntries(done) } : prev));
+    const results = await Promise.allSettled(widgets.map((w) => api.saveWidgetConfig(workspaceId, w, { theme: themes[w], display: displays[w] })));
+    const done = new Map<SceneEditorWidget, { theme: OverlayTheme; display: WidgetDisplayView }>();
+    results.forEach((r, i) => r.status === "fulfilled" && done.set(widgets[i]!, r.value));
+    setThemes((prev) => (prev ? { ...prev, ...Object.fromEntries([...done].map(([w, c]) => [w, c.theme])) } : prev));
+    setDisplays((prev) => (prev ? { ...prev, ...Object.fromEntries([...done].map(([w, c]) => [w, c.display])) } : prev));
     setDirty((prev) => new Set([...prev].filter((w) => !done.has(w))));
     setSaved(done.size === widgets.length);
     setError(done.size !== widgets.length);
@@ -87,7 +101,16 @@ export function StylePanel({ workspaceId }: { workspaceId: string }) {
   }
 
   const theme = themes?.[widget];
+  const display = displays?.[widget];
   const update = <K extends keyof OverlayTheme>(key: K, value: OverlayTheme[K]) => change(widget, { [key]: value });
+  const show = <K extends keyof WidgetDisplayView>(key: K, value: WidgetDisplayView[K]) => changeDisplay(widget, { [key]: value });
+  const words = (key: "title" | "pointsWord" | "anonymousName", max: number, placeholder: string) =>
+    display && (
+      <label>
+        {t(`custom.${key}`)}
+        <input value={display[key]} maxLength={max} placeholder={placeholder} onChange={(e) => show(key, e.target.value)} />
+      </label>
+    );
 
   const select = <K extends "preset" | "accent" | "position">(key: K, options: readonly OverlayTheme[K][]) => (
     <label>
@@ -123,6 +146,22 @@ export function StylePanel({ workspaceId }: { workspaceId: string }) {
           <div className="poll-form style-controls">
             {select("preset", PRESETS)}
             {select("accent", ACCENTS)}
+            <div className="field">
+              <span>{t("custom.accentColor")}</span>
+              <span className="color-row">
+                <input
+                  type="color"
+                  aria-label={t("custom.accentColor")}
+                  value={theme.accentColor || "#ff4f7b"}
+                  onChange={(e) => update("accentColor", e.target.value.toLowerCase())}
+                />
+                {theme.accentColor && (
+                  <button type="button" className="button small" onClick={() => update("accentColor", "")}>
+                    {t("custom.accentReset")}
+                  </button>
+                )}
+              </span>
+            </div>
             {select("position", POSITIONS)}
             {theme.position === "custom" && (
               <div className="xy">
@@ -148,6 +187,36 @@ export function StylePanel({ workspaceId }: { workspaceId: string }) {
               {t("style.opacity")}: {theme.opacity}
               <input type="range" min={0} max={100} step={5} value={theme.opacity} onChange={(e) => update("opacity", Number(e.target.value))} />
             </label>
+            {display && widget === "poll" && (
+              <label>
+                {t("custom.pollNumbers")}
+                <select value={display.pollNumbers} onChange={(e) => show("pollNumbers", e.target.value as WidgetDisplayView["pollNumbers"])}>
+                  {POLL_NUMBERS.map((o) => (
+                    <option key={o} value={o}>
+                      {t(`custom.pollNumbers.${o}`)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {display && widget === "leaderboard" && (
+              <>
+                <label>
+                  {t("custom.rows")}: {display.rows}
+                  <input type="range" min={3} max={10} step={1} value={display.rows} onChange={(e) => show("rows", Number(e.target.value))} />
+                </label>
+                {words("title", 40, t("custom.titlePlaceholder"))}
+                {words("pointsWord", 12, t("custom.pointsWordPlaceholder"))}
+                {words("anonymousName", 12, t("custom.anonymousPlaceholder"))}
+                <p className="muted">{t("custom.noValue")}</p>
+              </>
+            )}
+            {display && widget === "alerts" && (
+              <label>
+                {t("custom.alertSeconds")}: {display.alertSeconds}s
+                <input type="range" min={2} max={10} step={0.5} value={display.alertSeconds} onChange={(e) => show("alertSeconds", Number(e.target.value))} />
+              </label>
+            )}
             {(["showTitle", "showTotal", "showNames"] as const).map((key) => (
               <label key={key} className="inline">
                 <input type="checkbox" checked={theme[key]} onChange={(e) => update(key, e.target.checked)} /> {t(`style.${key}`)}

@@ -1,6 +1,6 @@
 import type { AlertsConfigView, OverlayMessage, OverlayTheme } from "@et/worker/api-types";
 import { backoffMs, leaderboardModel, parseMessage, parseOverlayPath, pollModel, shouldReconnect } from "./model";
-import { applyTheme, decodePreview, DEFAULT_THEME, themeFrom } from "./theme";
+import { applyTheme, decodePreview, DEFAULT_DISPLAY, DEFAULT_THEME, displayFrom, themeFrom } from "./theme";
 import { AlertQueue, alertView, hintTriggers, SHOW_MS, type AlertView } from "./alerts";
 import { t } from "./i18n";
 import { dragTo, parseEditorMessage, type EditorMessage } from "./layout";
@@ -32,6 +32,7 @@ class Panel {
   readonly holder = el("div", "holder");
   readonly root = el("div", "panel");
   private theme = DEFAULT_THEME;
+  private display = DEFAULT_DISPLAY;
   private lastContent: OverlayMessage | null = null;
   private hint: string[] = [];
   private readonly queue = new AlertQueue<AlertView>((a) => a.paid);
@@ -55,8 +56,9 @@ class Panel {
     this.theme = { ...this.theme, position: "custom", x, y };
   }
 
-  configure(config: { theme: OverlayTheme; alerts?: AlertsConfigView }): void {
+  configure(config: { theme: OverlayTheme; display?: unknown; alerts?: AlertsConfigView }): void {
     this.theme = themeFrom(config);
+    this.display = displayFrom(config);
     applyTheme(this.root, this.theme);
     if (this.widget === "alerts") {
       this.hint = hintTriggers(config.alerts);
@@ -100,7 +102,7 @@ class Panel {
     card.append(el("div", "alert-emoji", next.emoji), el("div", "alert-title", next.title));
     if (next.name || next.amount) card.append(el("div", "alert-name", [next.name, next.amount].filter(Boolean).join(" · ")));
     this.root.append(card);
-    window.setTimeout(() => this.playNext(), SHOW_MS);
+    window.setTimeout(() => this.playNext(), this.display.alertSeconds * 1000);
   }
 
   private renderLeaderboard(message: OverlayMessage): void {
@@ -108,11 +110,13 @@ class Panel {
     this.root.replaceChildren();
     if (!model) return;
     const card = el("div", "poll leaderboard");
-    card.append(el("div", "question", model.title ?? t["leaderboard.title"]));
-    for (const row of model.rows) {
+    const d = this.display;
+    card.append(el("div", "question", d.title || model.title || t["leaderboard.title"]));
+    for (const row of model.rows.slice(0, d.rows)) {
       const line = el("div", "lb-row");
-      const name = (this.theme.showNames && row.name) || t["leaderboard.anonymous"];
-      line.append(el("span", "lb-rank", `#${row.rank}`), el("span", "label", name), el("span", "count", t["leaderboard.points"](row.points)));
+      const name = (this.theme.showNames && row.name) || d.anonymousName || t["leaderboard.anonymous"];
+      const points = d.pointsWord ? `${row.points} ${d.pointsWord}` : t["leaderboard.points"](row.points);
+      line.append(el("span", "lb-rank", `#${row.rank}`), el("span", "label", name), el("span", "count", points));
       card.append(line);
     }
     this.root.append(card);
@@ -130,7 +134,8 @@ class Panel {
       const bar = el("div", "bar");
       bar.style.width = `${row.percent}%`;
       track.append(bar);
-      line.append(el("span", "label", row.label), track, el("span", "count", `${row.percent}%`));
+      const numbers = { percent: `${row.percent}%`, votes: String(row.count), both: `${row.count} · ${row.percent}%` }[this.display.pollNumbers];
+      line.append(el("span", "label", row.label), track, el("span", "count", numbers));
       card.append(line);
     }
     card.append(el("div", "total", t["poll.total"](model.total)));
@@ -230,7 +235,7 @@ function editScene(): void {
   window.addEventListener("message", (event) => {
     if (event.origin !== location.origin || event.source !== window.parent) return;
     const message = parseEditorMessage(event.data);
-    if (message?.type === "et-layout-theme") render({ type: "config", widget: message.widget, config: { theme: themeFrom({ theme: message.theme }) } });
+    if (message?.type === "et-layout-theme") render({ type: "config", widget: message.widget, config: { theme: themeFrom({ theme: message.theme }), display: displayFrom({ display: message.display }) } });
     else if (message?.type === "et-layout-select") select(message.widget);
   });
 
@@ -280,8 +285,8 @@ function preview(widget: PanelWidget | "scene"): void {
   }
   mount([widget]);
   const showConfig = () => {
-    const config = decodePreview(location.hash) as { alerts?: AlertsConfigView };
-    render({ type: "config", config: { theme: themeFrom(config), ...(widget === "alerts" && config.alerts ? { alerts: config.alerts } : {}) } });
+    const config = decodePreview(location.hash) as { alerts?: AlertsConfigView; display?: unknown };
+    render({ type: "config", config: { theme: themeFrom(config), display: displayFrom(config), ...(widget === "alerts" && config.alerts ? { alerts: config.alerts } : {}) } });
   };
   showConfig();
   window.addEventListener("hashchange", showConfig);

@@ -20,6 +20,12 @@ Results must appear on stream without writing to YouTube (ADR-004). Creators alr
 - So the owner can see the scene link again instead of copying it once, its token is also stored encrypted (AES-GCM with `TOKEN_ENCRYPTION_KEY`, associated data `overlay:<workspace>:scene`, key-version byte), next to its SHA-256 hash, which is still what resolves a request. Only the owner can read the ciphertext, through `app.overlay_token_enc()`. Per-widget links are unchanged and stay shown once; they move under "advanced" in the dashboard. Storing this one token encrypted adds little risk: the same key already protects Google refresh tokens, and a database leak without the key still yields neither (requests resolve by hash). If the ciphertext can't be decrypted (for example after a key change), the link is replaced, its sockets closed, and the change audited, so the creator drags the new link into OBS again.
 - The dashboard checks once whether OBS has the scene link open (`overlayConnections`, scene sockets only). After a drag or copy it checks every 10 s while the tab is visible, for at most 10 minutes (≤ 60 Worker requests, DO calls and short Neon transactions per setup), and stops once OBS connects.
 
+## Amendment: creator customisation (ET-29, 25/11/2026)
+
+- Besides the fixed presets, a creator may set an exact accent colour. Only a string matching `^#[0-9a-f]{6}$` is stored (`parseWidgetConfig`) and accepted again by the overlay (`themeFrom`) before it becomes the `--accent` custom property. Any other value leaves the preset colours in place, so creator input still never becomes free CSS.
+- Each widget also has a `display` section: poll numbers as percent, votes or both; leaderboard rows (3–10), title (≤ 40), points word and anonymous name (≤ 12 each); alert time (2–10 s). The text is creator-written, stripped of control and bidi characters, length-capped on both sides and drawn with `textContent` only.
+- The leaderboard config also holds the creator's points rules (`rules`). They're server-only: stripped before anything reaches the live session's overlay messages or an overlay socket.
+
 ## Consequences
 
 - Nothing is installed on the creator's PC; works in OBS, Streamlabs Desktop and any browser source.

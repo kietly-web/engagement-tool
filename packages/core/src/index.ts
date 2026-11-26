@@ -1,6 +1,7 @@
 export type { ChatMessage, DonationInfo } from "./chat";
 export { fixedClock, type Clock } from "./clock";
-export { COMMAND_ALIASES, parseCommand, type Command } from "./commands";
+export { COMMAND_ALIASES, parseCommand, type Command, type CommandWords } from "./commands";
+export { DEFAULT_RULES, normaliseWord, parseRules, RULE_LIMITS, type SessionRules } from "./rules";
 export {
   Poll,
   PollError,
@@ -19,14 +20,19 @@ export { commandKey, foldVietnamese, toNfc } from "./text";
 export { isChannelId } from "./viewer";
 export {
   ACCENTS,
+  DEFAULT_DISPLAY,
   DEFAULT_THEME,
+  DISPLAY_LIMITS,
+  isMoneyWord,
   isWidget,
   parseWidgetConfig,
+  POLL_NUMBERS,
   POSITIONS,
   PRESETS,
   WIDGETS,
   type Widget,
   type WidgetConfig,
+  type WidgetDisplay,
   type WidgetTheme,
 } from "./widget-config";
 export {

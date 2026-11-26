@@ -1,4 +1,4 @@
-import { parsePollPresets, parseWidgetConfig } from "@et/core";
+import { parsePollPresets, parseRules, parseWidgetConfig } from "@et/core";
 import { audit, overlays, widgetConfigs, withSystem, withWorkspace, workspaces, ContextError } from "@et/db";
 import { Hono, type Context } from "hono";
 import type { ObsLinkResponse, OverlayLinkView, OverlayRotateResponse, OverlayWidget } from "./api-types";
@@ -16,8 +16,12 @@ const isPublic = (w: string): w is OverlayWidget => w === "scene" || isBuilt(w);
 // What the dashboard stores and reads: the overlay config plus dashboard-only sections (saved polls). Overlays get
 // parseWidgetConfig of it, which drops those sections, so prepared polls never reach an overlay page.
 function storedConfig(raw: unknown, widget: ConfigurableWidget) {
-  const polls = (raw as { polls?: unknown } | null)?.polls;
-  return { ...parseWidgetConfig(raw, widget), ...(widget === "poll" && { polls: parsePollPresets(polls) }) };
+  const extra = (raw ?? {}) as { polls?: unknown; rules?: unknown };
+  return {
+    ...parseWidgetConfig(raw, widget),
+    ...(widget === "poll" && { polls: parsePollPresets(extra.polls) }),
+    ...(widget === "leaderboard" && { rules: parseRules(extra.rules) }),
+  };
 }
 // The column allows 8,192 bytes of jsonb text, which adds spaces after separators; Vietnamese takes 2–3 bytes a
 // letter, so a full list of saved polls can get close. Refuse with a clear error instead of a check violation.
@@ -153,7 +157,9 @@ export function overlayManageRoutes(auth: ReturnType<typeof authRoutes>, deps: A
     });
     if (!config) return c.json({ error: "config_too_large" }, 400);
     try {
-      await deps.liveSession(c.env, ws.id).configChanged(widget, parseWidgetConfig(config, widget));
+      // Saved polls stay out of the session; only what overlays draw, plus the leaderboard's point rules, goes in.
+      const live = { ...parseWidgetConfig(config, widget), ...(widget === "leaderboard" && { rules: (config as { rules?: unknown }).rules }) };
+      await deps.liveSession(c.env, ws.id).configChanged(widget, live);
     } catch {
       console.error(JSON.stringify({ event: "overlay_config_push_failed" }));
     }
