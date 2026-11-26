@@ -76,6 +76,12 @@ The poll's channel-ID → option map links a viewer to a choice, so it lives onl
 - `donationAlert()` turns them into alerts per the owner's switches (Super Chats, memberships, show amount, show comment). No cooldown applies; the overlay queue (10) bounds bursts. Nothing is stored. An erased viewer's donation shows only as a generic thank-you: no name, message or amount. When the overlay queue is full, free command alerts are dropped before paid ones.
 - Demo mode emits a synthetic Super Chat or membership every few pages.
 
+## Creator rules (ET-29)
+
+- `parseRules()` gives each workspace its points per `!join` (0–100, default 10) and per counted vote (0–50, default 5), plus up to 5 extra command words each for voting and joining. Words are one token of letters and digits after the same folding as built-ins, must start with a letter, and are dropped if a built-in claims or half-claims them (`!v1`, `!vote2`) or if the other list already has them.
+- `parseCommand(text, words)` tries built-ins first, then the vote words (with the same 1–2 digit argument rules), then the join words. Alert triggers are matched only when no command matched, so a word shadows an alert trigger of the same name.
+- Rules are stored with the leaderboard widget's config, read at session start and pushed to a running session when the owner saves (`setRules`), so the next chat page uses them. Viewers with 0 points (for example when votes are worth 0) don't appear on the leaderboard. Points still have no value (non-negotiable 6), and erased viewers still earn nothing.
+
 ## Not yet
 
 Games (ET-10); configurable aliases per workspace (backlog idea).

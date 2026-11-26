@@ -25,3 +25,25 @@ describe("decodePreview", () => {
     expect(decodePreview("#" + "A".repeat(5000))).toEqual({});
   });
 });
+
+describe("displayFrom and the custom accent", () => {
+  it("keeps only safe display values and a strict #rrggbb colour", async () => {
+    const { displayFrom, themeFrom } = await import("./theme");
+    expect(displayFrom({ display: { pollNumbers: "both", rows: 4, title: "Top\u202E fan", pointsWord: "tim", anonymousName: "Bạn", alertSeconds: 7 } })).toEqual({
+      pollNumbers: "both",
+      rows: 4,
+      title: "Top fan",
+      pointsWord: "tim",
+      anonymousName: "Bạn",
+      alertSeconds: 7,
+    });
+    expect(displayFrom({ display: { pollNumbers: "<b>", rows: 99, title: 5, alertSeconds: -1 } })).toMatchObject({ pollNumbers: "percent", rows: 10, title: "", alertSeconds: 2 });
+    expect(themeFrom({ theme: { accentColor: "#a1b2c3" } }).accentColor).toBe("#a1b2c3");
+    for (const money of ["VNĐ", "đ", "$", "xu", "Tiền", "usd"]) expect(displayFrom({ display: { pointsWord: money } }).pointsWord, money).toBe("");
+    expect(displayFrom({ display: { title: "Top 3 nhận 50$" } }).title).toBe("Top 3 nhận 50");
+    const { lighten } = await import("./theme");
+    expect(lighten("#000000")).toBe("#737373");
+    expect(lighten("#ff4f7b")).toBe("#ff9eb6");
+    for (const bad of ["#A1B2C3;x", "red", "url(x)", "#fff"]) expect(themeFrom({ theme: { accentColor: bad } }).accentColor).toBe("");
+  });
+});

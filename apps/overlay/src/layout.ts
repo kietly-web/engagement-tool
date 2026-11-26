@@ -28,7 +28,7 @@ export function dragTo(start: Box, dx: number, dy: number): { x: number; y: numb
 
 // The editor page and the dashboard talk over postMessage on one origin; both sides accept only these shapes.
 export type EditorMessage =
-  | { type: "et-layout-theme"; widget: EditableWidget; theme: unknown }
+  | { type: "et-layout-theme"; widget: EditableWidget; theme: unknown; display?: unknown }
   | { type: "et-layout-select"; widget: EditableWidget }
   | { type: "et-layout-move"; widget: EditableWidget; x: number; y: number }
   | { type: "et-layout-ready" };
@@ -43,7 +43,7 @@ export function parseEditorMessage(data: unknown): EditorMessage | null {
     case "et-layout-ready":
       return { type: "et-layout-ready" };
     case "et-layout-theme":
-      return isEditable(m.widget) ? { type: "et-layout-theme", widget: m.widget, theme: m.theme } : null;
+      return isEditable(m.widget) ? { type: "et-layout-theme", widget: m.widget, theme: m.theme, display: m.display } : null;
     case "et-layout-select":
       return isEditable(m.widget) ? { type: "et-layout-select", widget: m.widget } : null;
     case "et-layout-move":

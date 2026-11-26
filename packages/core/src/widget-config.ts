@@ -1,4 +1,5 @@
 import { parseAlertsConfig, type AlertsConfig } from "./alerts";
+import { foldVietnamese, toNfc } from "./text";
 
 export const WIDGETS = ["poll", "leaderboard", "game", "alerts"] as const;
 export type Widget = (typeof WIDGETS)[number];
@@ -25,10 +26,28 @@ export interface WidgetTheme {
   showTitle: boolean;
   showTotal: boolean;
   showNames: boolean;
+  // "" uses the accent preset; otherwise an exact "#rrggbb" the overlay sets as a CSS colour, never free text.
+  accentColor: string;
 }
+
+export const POLL_NUMBERS = ["percent", "votes", "both"] as const;
+export const DISPLAY_LIMITS = { rows: { min: 3, max: 10 }, alertSeconds: { min: 2, max: 10, step: 0.5 }, titleLength: 40, wordLength: 12 } as const;
+
+// What each widget writes on screen, beyond the theme. Creator text is drawn with textContent only (non-negotiable 5).
+export interface WidgetDisplay {
+  pollNumbers: (typeof POLL_NUMBERS)[number];
+  rows: number;
+  title: string;
+  pointsWord: string;
+  anonymousName: string;
+  alertSeconds: number;
+}
+
+export const DEFAULT_DISPLAY: WidgetDisplay = { pollNumbers: "percent", rows: 10, title: "", pointsWord: "", anonymousName: "", alertSeconds: 4.5 };
 
 export interface WidgetConfig {
   theme: WidgetTheme;
+  display: WidgetDisplay;
   alerts?: AlertsConfig;
 }
 
@@ -44,6 +63,7 @@ export const DEFAULT_THEME: WidgetTheme = {
   showTitle: true,
   showTotal: true,
   showNames: true,
+  accentColor: "",
 };
 
 // Different corners by default, so the one-link scene doesn't stack every widget in the same place.
@@ -61,9 +81,40 @@ const stepped = (value: unknown, min: number, max: number, step: number, fallbac
   typeof value === "number" && Number.isFinite(value) ? Math.min(max, Math.max(min, Math.round(value / step) * step)) : fallback;
 const bool = (value: unknown, fallback: boolean) => (typeof value === "boolean" ? value : fallback);
 
+const HEX = /^#[0-9a-f]{6}$/;
+const hex = (value: unknown) => (typeof value === "string" && HEX.test(value.toLowerCase()) ? value.toLowerCase() : "");
+
+// Currency symbols never reach the screen, so a title or unit can't dress points up as money (non-negotiable 6).
+function text(value: unknown, max: number): string {
+  if (typeof value !== "string") return "";
+  return Array.from(toNfc(value.slice(0, max * 4)).replace(/[\p{Cc}\p{Cf}\p{Sc}]/gu, "").replace(/\s+/gu, " ").trim())
+    .slice(0, max)
+    .join("");
+}
+
+export const MONEY_WORDS = ["d", "dong", "vnd", "usd", "tien", "xu", "k", "nghin", "ngan", "trieu", "coin", "cash", "money"] as const;
+
+export function isMoneyWord(word: string): boolean {
+  const key = foldVietnamese(word).toLowerCase().replace(/[^a-z]/g, "");
+  return (MONEY_WORDS as readonly string[]).includes(key);
+}
+
+function parseDisplay(input: unknown): WidgetDisplay {
+  const d = (typeof input === "object" && input !== null ? input : {}) as Record<string, unknown>;
+  const { rows, alertSeconds, titleLength, wordLength } = DISPLAY_LIMITS;
+  return {
+    pollNumbers: pick(POLL_NUMBERS, d.pollNumbers, DEFAULT_DISPLAY.pollNumbers),
+    rows: stepped(d.rows, rows.min, rows.max, 1, DEFAULT_DISPLAY.rows),
+    title: text(d.title, titleLength),
+    pointsWord: ((w) => (isMoneyWord(w) ? "" : w))(text(d.pointsWord, wordLength)),
+    anonymousName: text(d.anonymousName, wordLength),
+    alertSeconds: stepped(d.alertSeconds, alertSeconds.min, alertSeconds.max, alertSeconds.step, DEFAULT_DISPLAY.alertSeconds),
+  };
+}
+
 // Lenient by design: unknown keys are dropped and bad values fall back, so stored configs survive future changes.
 export function parseWidgetConfig(input: unknown, widget?: Widget): WidgetConfig {
-  const raw = (typeof input === "object" && input !== null ? input : {}) as { theme?: Record<string, unknown>; alerts?: unknown };
+  const raw = (typeof input === "object" && input !== null ? input : {}) as { theme?: Record<string, unknown>; display?: unknown; alerts?: unknown };
   const t = typeof raw.theme === "object" && raw.theme !== null ? raw.theme : {};
   return {
     theme: {
@@ -78,7 +129,9 @@ export function parseWidgetConfig(input: unknown, widget?: Widget): WidgetConfig
       showTitle: bool(t.showTitle, DEFAULT_THEME.showTitle),
       showTotal: bool(t.showTotal, DEFAULT_THEME.showTotal),
       showNames: bool(t.showNames, DEFAULT_THEME.showNames),
+      accentColor: hex(t.accentColor),
     },
+    display: parseDisplay(raw.display),
     ...(widget === "alerts" && { alerts: parseAlertsConfig(raw.alerts) }),
   };
 }

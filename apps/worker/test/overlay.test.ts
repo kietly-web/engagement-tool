@@ -146,7 +146,7 @@ describe("widget config", () => {
     const h = await makeHarness();
     const { b, ws, path } = await link(h);
     const saved = await b.request(`/api/workspaces/${ws}/widgets/poll/config`, json({ theme: { preset: "neon", accent: "teal", fontScale: 141, position: "url(x)" }, evil: "<script>" }));
-    expect(await saved.json()).toEqual({ theme: expect.objectContaining({ preset: "neon", accent: "teal", fontScale: 140, position: "top-left" }), polls: [] });
+    expect(await saved.json()).toEqual({ theme: expect.objectContaining({ preset: "neon", accent: "teal", fontScale: 140, position: "top-left" }), display: expect.objectContaining({ pollNumbers: "percent" }), polls: [] });
     expect(h.configPushes).toMatchObject([[ws, "poll", { theme: { preset: "neon" } }]]);
     expect(JSON.stringify(await (await b.request(`/api/workspaces/${ws}/widgets/poll/config`)).json())).not.toContain("script");
     await h.browser().request(`${path}/ws`, { headers: { Upgrade: "websocket" } });

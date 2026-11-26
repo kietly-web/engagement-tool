@@ -118,6 +118,7 @@ export class LiveSession extends DurableObject<AppEnv> {
     if (widget !== "poll" && widget !== "leaderboard" && widget !== "alerts") return;
     const parsed = parseWidgetConfig(config, widget);
     if (widget === "alerts") await this.engine.setAlertsConfig(parsed.alerts);
+    if (widget === "leaderboard") await this.engine.setRules((config as { rules?: unknown }).rules);
     const message = JSON.stringify({ type: "config", widget, config: parsed });
     for (const socket of this.socketsFor(widget)) {
       try {

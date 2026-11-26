@@ -4,9 +4,9 @@ import {
   matchAlertCommand,
   parseAlertsConfig,
   parseCommand,
+  parseRules,
   Poll,
   PollError,
-  POINTS,
   PointsTally,
   type AlertEvent,
   type AlertsConfig,
@@ -14,6 +14,7 @@ import {
   type PointsTallySnapshot,
   type PollInput,
   type PollSnapshot,
+  type SessionRules,
 } from "@et/core";
 import { ChatSourceError, type ChatSource } from "@et/youtube";
 import type { LeaderboardEntry, PollView, SessionMode, SessionStatus, StopReason } from "../api-types";
@@ -72,6 +73,7 @@ export interface StartInput {
   seasonName?: string | null;
   seasonEndsAt?: string | null;
   alerts?: unknown;
+  rules?: unknown;
 }
 
 export interface SourceProvider {
@@ -143,6 +145,18 @@ export class SessionEngine {
     return this.alertsConfig;
   }
 
+  private rules: SessionRules | null = null;
+
+  private async loadRules(): Promise<SessionRules> {
+    this.rules ??= parseRules(await this.storage.get("rules"));
+    return this.rules;
+  }
+
+  async setRules(input: unknown): Promise<void> {
+    this.rules = parseRules(input);
+    await this.storage.put("rules", this.rules);
+  }
+
   async setAlertsConfig(config: unknown): Promise<void> {
     this.alertsConfig = parseAlertsConfig(config);
     await this.storage.put("alerts", this.alertsConfig);
@@ -206,7 +220,10 @@ export class SessionEngine {
     } else {
       for (const [id, p] of this.sessionTotals) totals.set(id, p);
     }
-    const source = [...totals.entries()].map(([channelId, points]) => ({ channelId, points })).sort((a, b) => b.points - a.points);
+    const source = [...totals.entries()]
+      .filter(([, points]) => points > 0)
+      .map(([channelId, points]) => ({ channelId, points }))
+      .sort((a, b) => b.points - a.points);
     return source.slice(0, LEADERBOARD_SIZE).map((e, i) => ({ rank: i + 1, name: this.names.get(e.channelId) ?? null, points: e.points }));
   }
 
@@ -346,6 +363,7 @@ export class SessionEngine {
     this.resetMemory();
     this.throttle.reset();
     if (input.alerts !== undefined) await this.setAlertsConfig(input.alerts);
+    if (input.rules !== undefined) await this.setRules(input.rules);
     await this.storage.delete("poll");
     await this.storage.delete("points");
     await this.storage.put("session", state);
@@ -489,6 +507,7 @@ export class SessionEngine {
     const poll = await this.loadPoll();
     const tally = await this.loadTally();
     const alerts = await this.loadAlerts();
+    const rules = await this.loadRules();
     let scored = false;
     for (const message of page.messages) {
       // An erased viewer must not reappear on stream this session, by name or by alert.
@@ -502,12 +521,12 @@ export class SessionEngine {
         if (event) this.emit(event);
         continue;
       }
-      const command = parseCommand(message.text);
+      const command = parseCommand(message.text, rules);
       let earned = 0;
       if (command?.kind === "vote" && poll?.status === "open" && poll.vote(message.channelId, command.option) === "counted") {
-        if (tally.countedVote(message.channelId)) earned = POINTS.countedVote;
-      } else if (command?.kind === "join" && tally.join(message.channelId)) {
-        earned = POINTS.join;
+        if (tally.countedVote(message.channelId, rules.points.vote)) earned = rules.points.vote;
+      } else if (command?.kind === "join" && tally.join(message.channelId, rules.points.join)) {
+        earned = rules.points.join;
       } else if (!command && !erased && alerts.commands.length > 0) {
         const alert = matchAlertCommand(message.text, alerts.commands);
         if (alert && this.throttle.allow(message.channelId, now, alerts)) {

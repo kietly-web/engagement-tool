@@ -104,6 +104,8 @@ export interface OverlayTheme {
   showTitle: boolean;
   showTotal: boolean;
   showNames: boolean;
+  // "" uses the accent preset; otherwise an exact "#rrggbb".
+  accentColor: string;
 }
 
 // A poll the creator prepared before going live; dashboard only, never sent to overlays.
@@ -131,17 +133,32 @@ export interface AlertsConfigView {
   donations: { superChats: boolean; memberships: boolean; showAmount: boolean; showComment: boolean };
 }
 
+export interface WidgetDisplayView {
+  pollNumbers: "percent" | "votes" | "both";
+  rows: number;
+  title: string;
+  pointsWord: string;
+  anonymousName: string;
+  alertSeconds: number;
+}
+
+export interface SessionRulesView {
+  points: { join: number; vote: number };
+  voteWords: string[];
+  joinWords: string[];
+}
+
 export interface OverlayConfigMessage {
   type: "config";
   // Present on scene sockets, which carry several widgets' configs.
   widget?: "poll" | "leaderboard" | "alerts";
-  config: { theme: OverlayTheme; alerts?: AlertsConfigView };
+  config: { theme: OverlayTheme; display?: WidgetDisplayView; alerts?: AlertsConfigView };
 }
 
 // postMessage between the dashboard style editor and its same-origin scene iframe (`/overlay/?preview=scene&edit=1`).
 export type SceneEditorWidget = "poll" | "leaderboard" | "alerts";
 export type SceneEditorMessage =
-  | { type: "et-layout-theme"; widget: SceneEditorWidget; theme: OverlayTheme }
+  | { type: "et-layout-theme"; widget: SceneEditorWidget; theme: OverlayTheme; display?: WidgetDisplayView }
   | { type: "et-layout-select"; widget: SceneEditorWidget }
   | { type: "et-layout-move"; widget: SceneEditorWidget; x: number; y: number }
   | { type: "et-layout-ready" };

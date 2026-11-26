@@ -93,7 +93,7 @@ body {
 
 .row {
   display: grid;
-  grid-template-columns: 220px 1fr 72px;
+  grid-template-columns: 220px 1fr minmax(72px, auto);
   align-items: center;
   gap: 14px;
   margin: 10px 0;
@@ -122,6 +122,7 @@ body {
 }
 
 .count {
+  white-space: nowrap;
   text-align: right;
   font-variant-numeric: tabular-nums;
 }

@@ -1,4 +1,4 @@
-import type { AlertsConfigView, MeResponse, ObsLinkResponse, OverlayLinkView, OverlayTheme, OverlayRotateResponse, OverlayWidget, PollPresetView, SessionMode, SessionResponse, WorkspaceResponse } from "@et/worker/api-types";
+import type { AlertsConfigView, SessionRulesView, WidgetDisplayView, MeResponse, ObsLinkResponse, OverlayLinkView, OverlayTheme, OverlayRotateResponse, OverlayWidget, PollPresetView, SessionMode, SessionResponse, WorkspaceResponse } from "@et/worker/api-types";
 
 export interface SeasonView {
   id: string;
@@ -68,9 +68,12 @@ export const api = {
   previewInvite: (token: string) => call<{ workspaceName: string }>("/api/invites/preview", jsonBody("POST", { token })),
   acceptInvite: (token: string) => call<{ workspaceId: string; outcome: string }>("/api/invites/accept", jsonBody("POST", { token })),
   widgetConfig: (id: string, widget: OverlayWidget) =>
-    call<{ theme: OverlayTheme }>(`/api/workspaces/${encodeURIComponent(id)}/widgets/${widget}/config`),
-  saveWidgetConfig: (id: string, widget: OverlayWidget, config: { theme: OverlayTheme }) =>
-    call<{ theme: OverlayTheme }>(`/api/workspaces/${encodeURIComponent(id)}/widgets/${widget}/config`, jsonBody("PUT", config)),
+    call<{ theme: OverlayTheme; display: WidgetDisplayView }>(`/api/workspaces/${encodeURIComponent(id)}/widgets/${widget}/config`),
+  saveWidgetConfig: (id: string, widget: OverlayWidget, config: { theme: OverlayTheme; display: WidgetDisplayView }) =>
+    call<{ theme: OverlayTheme; display: WidgetDisplayView }>(`/api/workspaces/${encodeURIComponent(id)}/widgets/${widget}/config`, jsonBody("PUT", config)),
+  rules: (id: string) => call<{ rules: SessionRulesView }>(`/api/workspaces/${encodeURIComponent(id)}/widgets/leaderboard/config`),
+  saveRules: (id: string, rules: SessionRulesView) =>
+    call<{ rules: SessionRulesView }>(`/api/workspaces/${encodeURIComponent(id)}/widgets/leaderboard/config`, jsonBody("PUT", { rules })),
   pollPresets: (id: string) => call<{ polls: PollPresetView[] }>(`/api/workspaces/${encodeURIComponent(id)}/widgets/poll/config`),
   savePollPresets: (id: string, polls: PollPresetView[]) =>
     call<{ polls: PollPresetView[] }>(`/api/workspaces/${encodeURIComponent(id)}/widgets/poll/config`, jsonBody("PUT", { polls })),
