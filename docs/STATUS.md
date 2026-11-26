@@ -1,6 +1,6 @@
 # Project status
 
-Last updated: 24/11/2026 (ET-25 scene layout merged; ET-26 dashboard redesign and saved polls in review). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
+Last updated: 25/11/2026 (ET-27 launcher-style dashboard in review; ET-25 and ET-26 merged). Update in every slice PR. Read after `CLAUDE.md`; then [SETUP.md](SETUP.md) for open work.
 
 ## Where we are
 
@@ -26,6 +26,8 @@ Last updated: 24/11/2026 (ET-25 scene layout merged; ET-26 dashboard redesign an
 
 **ET-26 dashboard redesign and saved polls (24/11/2026, owner request):** the dashboard is now four tabs (Trực tiếp, Lớp phủ & OBS, Thông báo, Kênh & thành viên) with a live tally in the header. The poll composer works before going live, and up to 12 polls can be saved and opened with one click. Saved polls live in the poll widget's config under `polls` (no migration) and never reach overlays.
 
+**ET-27 launcher-style dashboard (25/11/2026, owner request):** the dashboard is laid out like a game booster: a dark left sidebar with icons, the tally lamp under the channel name, one page per area (Trực tiếp, Mùa & điểm, Lớp phủ & OBS, Thông báo, Kênh & thành viên) and a separate Cài đặt page for account, data export and account deletion. Spacing follows one 4/8/12/16/24/32/48 px scale; every control is 40 px tall and every card has 24 px padding. On phones the sidebar becomes a top bar of icons. The Trực tiếp page opens with one big Start button (booster style) beside a "ready to go live" checklist: YouTube connected, OBS showing the overlay, a season running (one click opens a 29-day season named after the month) and alert commands set, each with a button that fixes it. If a session stops without the creator pressing Stop (quota, stream ended, error), a warning appears on every page and the browser tab title shows ⚠; the tab title also shows ● while live.
+
 **ET-15 first real run, in progress (23/11/2026).** Parts A and B are done: the Worker is live at `https://engagement-tool.lythekiet333.workers.dev`, migrations 0001–0007 are applied to Neon (`neondb`), and the Hyperdrive ID and Google client ID are in `wrangler.jsonc`. The three Worker secrets are set and the owner confirmed sign-in works (24/11/2026); A1 (YouTube live streaming) is the owner's to confirm. Next is the owner's test, Part C of [runbooks/first-real-run.md](runbooks/first-real-run.md); Claude then fixes what the run finds. Expect rework: nothing has run against the real services, and the `streamList` reader is unproven (Q-T1).
 
 After ET-15: **ET-22 invited beta gate** (privacy notice, terms, contact, alerts, retention gaps), then phase 2: ET-10 boss raid with the game framework, ET-24 shared pet, ET-19 Vietnamese donation services after Q-T4, ET-16 more games, ET-18 English. Owner picked boss raid and shared pet first (18/11/2026); games need no owner setup, so they can be built while ET-15 waits.
@@ -34,7 +36,7 @@ After ET-15: **ET-22 invited beta gate** (privacy notice, terms, contact, alerts
 
 | PR | What | Action |
 | --- | --- | --- |
-| ET-26 | Dashboard redesign and saved polls | Merge when CI is green (the Workers Builds check fails on every PR; see SETUP) |
+| ET-27 | Launcher-style dashboard with sidebar, separate pages and a Settings page | Merge when CI is green (the Workers Builds check fails on every PR; see SETUP) |
 
 ## Waiting on the owner
 

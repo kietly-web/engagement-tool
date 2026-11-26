@@ -45,8 +45,8 @@ Then open http://localhost:8787. `pnpm dev` runs the Vite dev servers too (dashb
 
 | Path | What |
 | --- | --- |
-| `/` | Dashboard (placeholder with server status) |
+| `/` | Dashboard: sign-in, then pages for live session, seasons and points, overlays and OBS, alerts, channel and team, and settings (`#live`, `#season`, `#overlay`, `#alerts`, `#channel`, `#settings`) |
 | `/healthz` | Health check used by the smoke test |
-| `/overlay/` | Overlay placeholder; real widgets move to `/o/<token>/<widget>` in ET-7 |
+| `/overlay/` | Overlay page; served at `/o/<token>/<widget>` (or `/scene`), with `?preview=<widget>` for the dashboard's sample preview |
 
 Planned: `/privacy`, `/terms` (ET-11).

@@ -154,16 +154,18 @@ export function StylePanel({ workspaceId }: { workspaceId: string }) {
               </label>
             ))}
           </div>
-          <div className="save-bar actions">
-            <button type="button" className="button primary" onClick={save} disabled={dirty.size === 0}>
-              {t("style.save")}
-            </button>{" "}
-            <button type="button" className="button" onClick={resetLayout}>
-              {t("style.resetLayout")}
-            </button>
+          <div className="save-bar">
+            {saved && <p className="notice">{t("style.saved")}</p>}
+            <p className="actions">
+              <button type="button" className="button primary" onClick={save} disabled={dirty.size === 0}>
+                {t("style.save")}
+              </button>
+              <button type="button" className="button" onClick={resetLayout}>
+                {t("style.resetLayout")}
+              </button>
+              {dirty.size > 0 && <span className="muted">{t("style.unsaved")}</span>}
+            </p>
           </div>
-          {dirty.size > 0 && <p className="muted">{t("style.unsaved")}</p>}
-          {saved && <p className="notice">{t("style.saved")}</p>}
         </>
       )}
     </div>
