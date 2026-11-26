@@ -107,6 +107,7 @@ Next slices in order: ET-15, ET-22; then ET-10, ET-24, ET-19, ET-16, ET-18, ET-1
 | [ ] | Q-P1 Show `!points` on an overlay ticker? | Owner | Product |
 | [ ] | Q-P2 Product name and domain | Owner | Strictly $0 confirmed 10/11/2026, so no domain; owner deferred the domain decision until after the invited beta (17/11/2026). Google app verification is likely to need one, which may block public sign-up (ET-11); the invited beta is unaffected. A domain needs an ADR (cost) |
 | [x] 10/11/2026 | Q-P3 What "donation items" means | Owner | YouTube Super Chats first, VN donation services later, never handling money (ADR-008) |
+| [ ] | Q-T5 Do native YouTube polls arrive with live per-option tallies under `youtube.readonly`? | ET-15: before the run, log poll messages' status and totals in `packages/youtube` (the reader drops them today) | Decides whether ET-30 (YouTube poll mirror) is built |
 | [ ] | Q-T4 Which VN donation services have usable webhooks/APIs and which creators use | Claude + owner | Blocks FR-16 (ET-19) |
 
 ## 6. Future enhancements

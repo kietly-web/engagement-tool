@@ -71,6 +71,7 @@ Claude adds B2 and B3 to `apps/worker/wrangler.jsonc` in a small PR. When it mer
 - [ ] Open a poll. From your phone (or a friend's account), type `!vote 1`, `!bình chọn 2` and `!binh chon 2` in the stream's chat. Expect counts in OBS within about 5–10 s (YouTube's chat delay plus polling).
 - [ ] Type `!join` and `!tham gia`. The leaderboard shows the points with your display name.
 - [ ] Type `!tim`. The alert appears. Typing it again immediately does nothing (30 s cooldown).
+- [ ] In YouTube (Studio or the live chat), start a **YouTube poll** with 2–4 options and vote on it from a second account. Then stop the session and tell Claude. Before this run, Claude adds a log line for YouTube poll messages (poll status and option totals only, no viewer data), so the Worker logs show whether the counts arrived while the poll was open (Q-T5, for ET-30). Our own `!vote` poll keeps working either way.
 - [ ] If a friend can, send a small **Super Chat**. It should show as an alert with the amount and message, and must not change the poll or points.
 - [ ] Check the live panel's quota line. Write down how many units 10 minutes used. (The chat reader polls YouTube today; `streamList` would cut this a lot. That's the Q-T1 measurement.)
 - [ ] Stop the session, then stop streaming.

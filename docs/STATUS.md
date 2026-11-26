@@ -32,7 +32,7 @@ Last updated: 25/11/2026 (ET-27 launcher-style dashboard and ET-29 creator custo
 
 **ET-15 first real run, in progress (23/11/2026).** Parts A and B are done: the Worker is live at `https://engagement-tool.lythekiet333.workers.dev`, migrations 0001–0007 are applied to Neon (`neondb`), and the Hyperdrive ID and Google client ID are in `wrangler.jsonc`. The three Worker secrets are set and the owner confirmed sign-in works (24/11/2026); A1 (YouTube live streaming) is the owner's to confirm. Next is the owner's test, Part C of [runbooks/first-real-run.md](runbooks/first-real-run.md); Claude then fixes what the run finds. Expect rework: nothing has run against the real services, and the `streamList` reader is unproven (Q-T1).
 
-After ET-15: **ET-22 invited beta gate** (privacy notice, terms, contact, alerts, retention gaps), then phase 2: ET-10 boss raid with the game framework, ET-24 shared pet, ET-19 Vietnamese donation services after Q-T4, ET-16 more games, ET-18 English. Owner picked boss raid and shared pet first (18/11/2026); games need no owner setup, so they can be built while ET-15 waits.
+After ET-15: **ET-22 invited beta gate** (privacy notice, terms, contact, alerts, retention gaps), then phase 2: ET-30 YouTube poll mirror if ET-15 answers Q-T5 well, ET-10 boss raid with the game framework, ET-24 shared pet, ET-19 Vietnamese donation services after Q-T4, ET-16 more games, ET-18 English. Owner picked boss raid and shared pet first (18/11/2026); games need no owner setup, so they can be built while ET-15 waits.
 
 ## Open PRs
 
